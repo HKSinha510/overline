@@ -32,4 +32,4 @@ COPY --from=builder /app/tsconfig.json ./
 
 EXPOSE 3000
 
-CMD ["node", "-r", "tsconfig-paths/register", "dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node -r tsconfig-paths/register dist/main.js"]
