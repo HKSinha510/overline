@@ -24,8 +24,12 @@ export interface TokenResponse {
     id: string;
     email: string;
     name: string;
+    phone?: string | null;
     role: UserRole;
     tenantId?: string;
+    isEmailVerified?: boolean;
+    isPhoneVerified?: boolean;
+    createdAt?: Date;
   };
 }
 
@@ -244,8 +248,12 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        phone: user.phone || null,
         role: user.role,
         tenantId: user.tenantId,
+        isEmailVerified: user.isEmailVerified ?? false,
+        isPhoneVerified: user.isPhoneVerified ?? false,
+        createdAt: user.createdAt,
       },
     };
   }
