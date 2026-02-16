@@ -1,12 +1,13 @@
 FROM node:20-alpine
 
+# Cache bust: v2
 WORKDIR /app
 
 # Install build dependencies
 RUN apk add --no-cache python3 make g++ openssl
 
 # Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 COPY .npmrc ./
 
 # Install dependencies
