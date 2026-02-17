@@ -8,3 +8,9 @@ export {
   useCancelBooking,
   useRescheduleBooking,
 } from './useBookings';
+export {
+  useShopReviews,
+  useShopRatingStats,
+  useMyReviews,
+  useCreateReview,
+} from './useReviews';

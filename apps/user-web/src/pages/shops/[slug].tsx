@@ -1,11 +1,12 @@
 import React from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { ArrowLeft, MapPin, Clock, Star, Phone, Globe, Share2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Star, Phone, Globe, Share2, MessageSquare } from 'lucide-react';
 import { Button, Badge, Loading, Alert } from '@/components/ui';
 import { ServiceList, StaffPicker } from '@/components/shop';
 import { DatePicker, SlotPicker, BookingSummary } from '@/components/booking';
-import { useShop, useShopQueueStats, useAvailableSlots, useCreateBooking } from '@/hooks';
+import { ReviewList } from '@/components/reviews';
+import { useShop, useShopQueueStats, useAvailableSlots, useCreateBooking, useShopRatingStats } from '@/hooks';
 import { useBookingStore } from '@/stores/booking';
 import { useAuthStore } from '@/stores/auth';
 import { format } from 'date-fns';
@@ -22,6 +23,7 @@ export default function ShopDetailPage() {
 
   const { data: shop, isLoading: loadingShop } = useShop(slug as string);
   const { data: queueStats } = useShopQueueStats(shop?.id || '');
+  const { data: ratingStats } = useShopRatingStats(shop?.id || '');
 
   const {
     selectedServices,
@@ -220,7 +222,7 @@ export default function ShopDetailPage() {
                     )}
                     <span className="flex items-center text-amber-500">
                       <Star className="w-4 h-4 fill-current mr-1" />
-                      4.8 (120 reviews)
+                      {ratingStats?.averageRating?.toFixed(1) || 'New'} ({ratingStats?.totalReviews || 0} reviews)
                     </span>
                   </div>
 
@@ -247,6 +249,16 @@ export default function ShopDetailPage() {
                       <p className="text-gray-500">No services available</p>
                     )}
                   </>
+                )}
+
+                {step === 'services' && shop && (
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5" />
+                      Reviews
+                    </h2>
+                    <ReviewList shopId={shop.id} />
+                  </div>
                 )}
 
                 {step === 'staff' && (

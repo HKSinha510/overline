@@ -1,10 +1,62 @@
 import React from 'react';
 import Head from 'next/head';
 import { Save, Upload, Bell, Clock, Globe, CreditCard } from 'lucide-react';
-import { Card, Button, Input } from '@/components/ui';
+import { Card, Button, Input, Loading, useToast } from '@/components/ui';
+import { useShopSettings, useUpdateShopSettings, useWorkingHours, useUpdateWorkingHours } from '@/hooks';
+
+const DAY_NAMES = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+const DAY_LABELS: Record<string, string> = {
+  MONDAY: 'Monday', TUESDAY: 'Tuesday', WEDNESDAY: 'Wednesday', THURSDAY: 'Thursday',
+  FRIDAY: 'Friday', SATURDAY: 'Saturday', SUNDAY: 'Sunday',
+};
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = React.useState('general');
+  const { addToast } = useToast();
+
+  // Shop settings
+  const { data: shopData, isLoading: loadingSettings } = useShopSettings();
+  const updateSettings = useUpdateShopSettings();
+
+  // Working hours
+  const { data: workingHoursData, isLoading: loadingHours } = useWorkingHours();
+  const updateHours = useUpdateWorkingHours();
+
+  // General form state
+  const [generalForm, setGeneralForm] = React.useState({
+    name: '', description: '', phone: '', email: '', address: '',
+  });
+
+  // Sync shop data to form when loaded
+  React.useEffect(() => {
+    if (shopData) {
+      setGeneralForm({
+        name: shopData.name || '',
+        description: shopData.description || '',
+        phone: shopData.phone || '',
+        email: shopData.email || '',
+        address: shopData.address || '',
+      });
+    }
+  }, [shopData]);
+
+  const handleSaveGeneral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateSettings.mutateAsync(generalForm);
+      addToast({ type: 'success', title: 'Settings saved!' });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to save', message: err.response?.data?.message || 'Try again.' });
+    }
+  };
+
+  const handleSaveHour = async (dayOfWeek: string, field: string, value: any) => {
+    try {
+      await updateHours.mutateAsync({ dayOfWeek, [field]: value });
+    } catch (err: any) {
+      addToast({ type: 'error', title: `Failed to update ${DAY_LABELS[dayOfWeek]}` });
+    }
+  };
 
   const tabs = [
     { id: 'general', label: 'General', icon: Globe },
@@ -12,6 +64,14 @@ export default function SettingsPage() {
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'payments', label: 'Payments', icon: CreditCard },
   ];
+
+  if (loadingSettings) return <Loading text="Loading settings..." />;
+
+  // Build working hours map
+  const hoursMap: Record<string, any> = {};
+  if (Array.isArray(workingHoursData)) {
+    workingHoursData.forEach((wh: any) => { hoursMap[wh.dayOfWeek] = wh; });
+  }
 
   return (
     <>
@@ -54,13 +114,17 @@ export default function SettingsPage() {
             {activeTab === 'general' && (
               <Card>
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">Shop Information</h2>
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handleSaveGeneral}>
                   <div className="flex items-start gap-6">
-                    <div className="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <Upload className="w-8 h-8 text-gray-400" />
+                    <div className="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {shopData?.logoUrl ? (
+                        <img src={shopData.logoUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Upload className="w-8 h-8 text-gray-400" />
+                      )}
                     </div>
                     <div>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" type="button">
                         Upload Logo
                       </Button>
                       <p className="text-xs text-gray-500 mt-1">
@@ -70,8 +134,12 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input label="Shop Name" defaultValue="Elite Cuts Salon" />
-                    <Input label="Slug" defaultValue="elite-cuts-salon" disabled />
+                    <Input
+                      label="Shop Name"
+                      value={generalForm.name}
+                      onChange={(e) => setGeneralForm({ ...generalForm, name: e.target.value })}
+                    />
+                    <Input label="Slug" value={shopData?.slug || ''} disabled />
                   </div>
 
                   <div>
@@ -81,20 +149,35 @@ export default function SettingsPage() {
                     <textarea
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                       rows={3}
-                      defaultValue="Premium salon offering haircuts, styling, and grooming services."
+                      value={generalForm.description}
+                      onChange={(e) => setGeneralForm({ ...generalForm, description: e.target.value })}
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input label="Phone" type="tel" defaultValue="+91 9876543210" />
-                    <Input label="Email" type="email" defaultValue="info@elitecuts.com" />
+                    <Input
+                      label="Phone"
+                      type="tel"
+                      value={generalForm.phone}
+                      onChange={(e) => setGeneralForm({ ...generalForm, phone: e.target.value })}
+                    />
+                    <Input
+                      label="Email"
+                      type="email"
+                      value={generalForm.email}
+                      onChange={(e) => setGeneralForm({ ...generalForm, email: e.target.value })}
+                    />
                   </div>
 
                   <div>
-                    <Input label="Address" defaultValue="123 Main Street, Mumbai 400001" />
+                    <Input
+                      label="Address"
+                      value={generalForm.address}
+                      onChange={(e) => setGeneralForm({ ...generalForm, address: e.target.value })}
+                    />
                   </div>
 
-                  <Button type="submit">
+                  <Button type="submit" isLoading={updateSettings.isPending}>
                     <Save className="w-4 h-4 mr-2" />
                     Save Changes
                   </Button>
@@ -105,42 +188,46 @@ export default function SettingsPage() {
             {activeTab === 'hours' && (
               <Card>
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">Working Hours</h2>
-                <div className="space-y-4">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
-                    (day) => (
-                      <div key={day} className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0">
-                        <div className="w-28 font-medium text-gray-900">{day}</div>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                            defaultChecked={day !== 'Sunday'}
-                          />
-                          <span className="text-sm text-gray-600">Open</span>
-                        </label>
-                        <div className="flex items-center gap-2 ml-auto">
-                          <input
-                            type="time"
-                            className="px-2 py-1 border border-gray-300 rounded text-sm"
-                            defaultValue="09:00"
-                          />
-                          <span className="text-gray-400">to</span>
-                          <input
-                            type="time"
-                            className="px-2 py-1 border border-gray-300 rounded text-sm"
-                            defaultValue="21:00"
-                          />
+                {loadingHours ? (
+                  <Loading text="Loading hours..." />
+                ) : (
+                  <div className="space-y-4">
+                    {DAY_NAMES.map((day) => {
+                      const wh = hoursMap[day] || { openTime: '09:00', closeTime: '21:00', isClosed: day === 'SUNDAY' };
+                      return (
+                        <div key={day} className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0">
+                          <div className="w-28 font-medium text-gray-900">{DAY_LABELS[day]}</div>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                              checked={!wh.isClosed}
+                              onChange={(e) => handleSaveHour(day, 'isClosed', !e.target.checked)}
+                            />
+                            <span className="text-sm text-gray-600">Open</span>
+                          </label>
+                          <div className="flex items-center gap-2 ml-auto">
+                            <input
+                              type="time"
+                              className="px-2 py-1 border border-gray-300 rounded text-sm"
+                              defaultValue={wh.openTime || '09:00'}
+                              disabled={wh.isClosed}
+                              onBlur={(e) => handleSaveHour(day, 'openTime', e.target.value)}
+                            />
+                            <span className="text-gray-400">to</span>
+                            <input
+                              type="time"
+                              className="px-2 py-1 border border-gray-300 rounded text-sm"
+                              defaultValue={wh.closeTime || '21:00'}
+                              disabled={wh.isClosed}
+                              onBlur={(e) => handleSaveHour(day, 'closeTime', e.target.value)}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    )
-                  )}
-                </div>
-                <div className="mt-6">
-                  <Button>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Hours
-                  </Button>
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </Card>
             )}
 
@@ -152,12 +239,12 @@ export default function SettingsPage() {
                     <h3 className="font-medium text-gray-900 mb-3">Customer Notifications</h3>
                     <div className="space-y-3">
                       {[
-                        { label: 'Booking confirmation', enabled: true },
-                        { label: 'Booking reminder (1 hour before)', enabled: true },
-                        { label: 'Booking cancellation', enabled: true },
-                        { label: 'Queue updates', enabled: false },
+                        { label: 'Booking confirmation', key: 'bookingConfirmation', enabled: true },
+                        { label: 'Booking reminder (1 hour before)', key: 'bookingReminder', enabled: true },
+                        { label: 'Booking cancellation', key: 'bookingCancellation', enabled: true },
+                        { label: 'Queue updates', key: 'queueUpdates', enabled: false },
                       ].map((item) => (
-                        <label key={item.label} className="flex items-center justify-between">
+                        <label key={item.key} className="flex items-center justify-between">
                           <span className="text-sm text-gray-600">{item.label}</span>
                           <input
                             type="checkbox"
@@ -173,11 +260,11 @@ export default function SettingsPage() {
                     <h3 className="font-medium text-gray-900 mb-3">Admin Notifications</h3>
                     <div className="space-y-3">
                       {[
-                        { label: 'New booking', enabled: true },
-                        { label: 'Booking cancellation', enabled: true },
-                        { label: 'Daily summary', enabled: false },
+                        { label: 'New booking', key: 'newBooking', enabled: true },
+                        { label: 'Booking cancellation', key: 'adminCancellation', enabled: true },
+                        { label: 'Daily summary', key: 'dailySummary', enabled: false },
                       ].map((item) => (
-                        <label key={item.label} className="flex items-center justify-between">
+                        <label key={item.key} className="flex items-center justify-between">
                           <span className="text-sm text-gray-600">{item.label}</span>
                           <input
                             type="checkbox"
@@ -190,7 +277,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="mt-6">
-                  <Button>
+                  <Button onClick={() => addToast({ type: 'info', title: 'Notification settings saved (notifications module coming soon)' })}>
                     <Save className="w-4 h-4 mr-2" />
                     Save Settings
                   </Button>
@@ -229,11 +316,11 @@ export default function SettingsPage() {
                     <h3 className="font-medium text-gray-900 mb-3">Payment Options</h3>
                     <div className="space-y-3">
                       {[
-                        { label: 'Enable online payments', enabled: true },
-                        { label: 'Allow pay at counter', enabled: true },
-                        { label: 'Require upfront payment', enabled: false },
+                        { label: 'Enable online payments', key: 'onlinePayments', enabled: true },
+                        { label: 'Allow pay at counter', key: 'payAtCounter', enabled: true },
+                        { label: 'Require upfront payment', key: 'upfrontPayment', enabled: false },
                       ].map((item) => (
-                        <label key={item.label} className="flex items-center justify-between">
+                        <label key={item.key} className="flex items-center justify-between">
                           <span className="text-sm text-gray-600">{item.label}</span>
                           <input
                             type="checkbox"
@@ -246,7 +333,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="mt-6">
-                  <Button>
+                  <Button onClick={() => addToast({ type: 'info', title: 'Payment settings saved (payments module coming soon)' })}>
                     <Save className="w-4 h-4 mr-2" />
                     Save Settings
                   </Button>

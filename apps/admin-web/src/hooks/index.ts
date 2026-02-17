@@ -7,6 +7,11 @@ export {
   useMarkComplete,
   useStartService,
   useMarkNoShow,
+  useStaff,
+  useShopSettings,
+  useUpdateShopSettings,
+  useWorkingHours,
+  useUpdateWorkingHours,
 } from './useAdmin';
 export {
   useServices,

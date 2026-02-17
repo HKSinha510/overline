@@ -15,8 +15,9 @@ import {
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { TrendingUp, Users, DollarSign, Calendar } from 'lucide-react';
 import { Card, StatCard, Loading } from '@/components/ui';
-import { useAnalytics, usePopularServices } from '@/hooks';
-import { formatPrice, cn } from '@/lib/utils';
+import { useAnalytics, useDailyMetrics, usePopularServices } from '@/hooks';
+import { formatPrice, cn, getDateRange } from '@/lib/utils';
+import { format } from 'date-fns';
 
 // Register ChartJS components
 ChartJS.register(
@@ -33,20 +34,43 @@ ChartJS.register(
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = React.useState<'week' | 'month'>('week');
-  const { data: analytics, isLoading: loadingAnalytics } = useAnalytics({ period });
+
+  const dateRange = React.useMemo(() => {
+    const range = getDateRange(period);
+    return {
+      startDate: format(range.start, 'yyyy-MM-dd'),
+      endDate: format(range.end, 'yyyy-MM-dd'),
+    };
+  }, [period]);
+
+  const { data: analytics, isLoading: loadingAnalytics } = useAnalytics({
+    period,
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+  });
+  const { data: dailyData, isLoading: loadingDaily } = useDailyMetrics({
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+  });
   const { data: popularServices, isLoading: loadingServices } = usePopularServices();
 
-  if (loadingAnalytics || loadingServices) {
+  if (loadingAnalytics && loadingServices) {
     return <Loading text="Loading analytics..." />;
   }
 
-  // Mock data for demonstration
+  // Build chart data from real daily metrics
+  const dailyMetrics = Array.isArray(dailyData) ? dailyData : [];
+
   const revenueData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: dailyMetrics.length > 0
+      ? dailyMetrics.map((d: any) => format(new Date(d.date), 'MMM d'))
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     datasets: [
       {
         label: 'Revenue',
-        data: [4500, 5200, 4800, 6100, 7200, 8500, 6800],
+        data: dailyMetrics.length > 0
+          ? dailyMetrics.map((d: any) => d.revenue || 0)
+          : [0, 0, 0, 0, 0, 0, 0],
         backgroundColor: 'rgba(14, 165, 233, 0.8)',
         borderRadius: 6,
       },
@@ -54,11 +78,15 @@ export default function AnalyticsPage() {
   };
 
   const bookingsData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: dailyMetrics.length > 0
+      ? dailyMetrics.map((d: any) => format(new Date(d.date), 'MMM d'))
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     datasets: [
       {
         label: 'Bookings',
-        data: [12, 15, 13, 18, 22, 28, 20],
+        data: dailyMetrics.length > 0
+          ? dailyMetrics.map((d: any) => d.bookings || d.totalBookings || 0)
+          : [0, 0, 0, 0, 0, 0, 0],
         borderColor: 'rgb(14, 165, 233)',
         backgroundColor: 'rgba(14, 165, 233, 0.1)',
         fill: true,
@@ -67,27 +95,38 @@ export default function AnalyticsPage() {
     ],
   };
 
+  // Build services chart data from real popular services
+  const servicesList = Array.isArray(popularServices) ? popularServices : [];
+  const topServices = servicesList.slice(0, 5);
+  const chartColors = [
+    'rgba(14, 165, 233, 0.8)',
+    'rgba(217, 70, 239, 0.8)',
+    'rgba(16, 185, 129, 0.8)',
+    'rgba(251, 146, 60, 0.8)',
+    'rgba(99, 102, 241, 0.8)',
+  ];
+
   const servicesData = {
-    labels: ['Haircut', 'Beard Trim', 'Hair Color', 'Facial', 'Massage'],
+    labels: topServices.length > 0
+      ? topServices.map((s: any) => s.name || s.serviceName)
+      : ['No data'],
     datasets: [
       {
-        data: [35, 25, 18, 12, 10],
-        backgroundColor: [
-          'rgba(14, 165, 233, 0.8)',
-          'rgba(217, 70, 239, 0.8)',
-          'rgba(16, 185, 129, 0.8)',
-          'rgba(251, 146, 60, 0.8)',
-          'rgba(99, 102, 241, 0.8)',
-        ],
+        data: topServices.length > 0
+          ? topServices.map((s: any) => s.bookingCount || s.count || 0)
+          : [1],
+        backgroundColor: topServices.length > 0
+          ? chartColors.slice(0, topServices.length)
+          : ['rgba(200,200,200,0.5)'],
       },
     ],
   };
 
-  const stats = analytics || {
-    totalBookings: 156,
-    totalRevenue: 45200,
-    newCustomers: 28,
-    avgRating: 4.8,
+  const stats = {
+    totalBookings: analytics?.totalBookings ?? 0,
+    totalRevenue: analytics?.totalRevenue ?? 0,
+    newCustomers: analytics?.newCustomers ?? 0,
+    avgRating: analytics?.avgRating ?? analytics?.averageRating ?? 0,
   };
 
   return (
@@ -226,34 +265,24 @@ export default function AnalyticsPage() {
           <Card className="lg:col-span-2">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Service Performance</h2>
             <div className="space-y-4">
-              {[
-                { name: 'Haircut', bookings: 45, revenue: 13500, growth: 12 },
-                { name: 'Beard Trim', bookings: 32, revenue: 6400, growth: 8 },
-                { name: 'Hair Color', bookings: 23, revenue: 18400, growth: 15 },
-                { name: 'Facial', bookings: 15, revenue: 7500, growth: -5 },
-                { name: 'Massage', bookings: 12, revenue: 9600, growth: 3 },
-              ].map((service, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                  <div className="flex items-center gap-4">
-                    <span className="text-gray-400 text-sm w-6">#{i + 1}</span>
-                    <span className="font-medium text-gray-900">{service.name}</span>
+              {servicesList.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No service data available yet.</p>
+              ) : (
+                servicesList.map((service: any, i: number) => (
+                  <div key={service.id || i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <div className="flex items-center gap-4">
+                      <span className="text-gray-400 text-sm w-6">#{i + 1}</span>
+                      <span className="font-medium text-gray-900">{service.name || service.serviceName}</span>
+                    </div>
+                    <div className="flex items-center gap-8 text-sm">
+                      <span className="text-gray-500">{service.bookingCount || service.count || 0} bookings</span>
+                      <span className="font-medium text-gray-900 w-20 text-right">
+                        {formatPrice(service.revenue || service.totalRevenue || 0)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-8 text-sm">
-                    <span className="text-gray-500">{service.bookings} bookings</span>
-                    <span className="font-medium text-gray-900 w-20 text-right">
-                      {formatPrice(service.revenue)}
-                    </span>
-                    <span
-                      className={cn(
-                        'w-12 text-right',
-                        service.growth >= 0 ? 'text-green-600' : 'text-red-600'
-                      )}
-                    >
-                      {service.growth >= 0 ? '+' : ''}{service.growth}%
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </Card>
         </div>

@@ -12,8 +12,10 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Star,
 } from 'lucide-react';
 import { Button, Card, Badge, Alert, Loading } from '@/components/ui';
+import { ReviewForm } from '@/components/reviews';
 import { useBooking, useCancelBooking } from '@/hooks';
 import { formatDate, formatTime, formatPrice, formatDuration, getEndTime } from '@/lib/utils';
 import { BookingStatus } from '@/types';
@@ -26,6 +28,8 @@ export default function BookingDetailPage() {
   const cancelBooking = useCancelBooking();
 
   const [showCancelConfirm, setShowCancelConfirm] = React.useState(false);
+  const [showReviewForm, setShowReviewForm] = React.useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = React.useState(false);
 
   const handleCancel = async () => {
     if (!booking) return;
@@ -287,6 +291,42 @@ export default function BookingDetailPage() {
                 <h3 className="font-semibold text-gray-900 mb-2">Notes</h3>
                 <p className="text-gray-600">{booking.notes}</p>
               </Card>
+            )}
+
+            {/* Leave a Review - only for completed bookings */}
+            {booking.status === BookingStatus.COMPLETED && !reviewSubmitted && (
+              <Card variant="bordered">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-amber-100">
+                    <Star className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Rate your experience</h3>
+                    <p className="text-sm text-gray-500">Help others by sharing your feedback</p>
+                  </div>
+                </div>
+
+                {showReviewForm ? (
+                  <ReviewForm
+                    bookingId={booking.id}
+                    onSuccess={() => {
+                      setShowReviewForm(false);
+                      setReviewSubmitted(true);
+                    }}
+                  />
+                ) : (
+                  <Button onClick={() => setShowReviewForm(true)} className="w-full">
+                    <Star className="w-4 h-4 mr-2" />
+                    Leave a Review
+                  </Button>
+                )}
+              </Card>
+            )}
+
+            {reviewSubmitted && (
+              <Alert variant="success" className="mt-0">
+                Thank you for your review!
+              </Alert>
             )}
           </div>
 

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
-import type { Booking, PaginatedResponse } from '@/types';
+import type { Booking, PaginatedResponse, Staff } from '@/types';
 
 interface GetBookingsParams {
   status?: string;
@@ -133,6 +133,75 @@ export function useMarkNoShow() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    },
+  });
+}
+
+export function useStaff() {
+  const { shopId } = useAuthStore();
+
+  return useQuery<Staff[]>({
+    queryKey: ['admin', 'staff', shopId],
+    queryFn: async () => {
+      const { data } = await api.get(`/admin/shops/${shopId}/staff`);
+      return data;
+    },
+    enabled: !!shopId,
+  });
+}
+
+export function useShopSettings() {
+  const { shopId } = useAuthStore();
+
+  return useQuery({
+    queryKey: ['admin', 'settings', shopId],
+    queryFn: async () => {
+      const { data } = await api.get(`/admin/shops/${shopId}/settings`);
+      return data;
+    },
+    enabled: !!shopId,
+  });
+}
+
+export function useUpdateShopSettings() {
+  const queryClient = useQueryClient();
+  const { shopId } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async (payload: Record<string, any>) => {
+      const { data } = await api.patch(`/admin/shops/${shopId}/settings`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
+    },
+  });
+}
+
+export function useWorkingHours() {
+  const { shopId } = useAuthStore();
+
+  return useQuery({
+    queryKey: ['admin', 'working-hours', shopId],
+    queryFn: async () => {
+      const { data } = await api.get(`/admin/shops/${shopId}/working-hours`);
+      return data;
+    },
+    enabled: !!shopId,
+  });
+}
+
+export function useUpdateWorkingHours() {
+  const queryClient = useQueryClient();
+  const { shopId } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async ({ dayOfWeek, ...payload }: { dayOfWeek: string; openTime?: string; closeTime?: string; isClosed?: boolean }) => {
+      const { data } = await api.patch(`/admin/shops/${shopId}/working-hours/${dayOfWeek}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'working-hours'] });
     },
   });
 }
