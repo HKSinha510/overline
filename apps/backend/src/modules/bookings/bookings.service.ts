@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { RedisService } from '@/common/redis/redis.service';
 import { QueueService } from '../queue/queue.service';
+import { QueueGateway } from '../queue/queue.gateway';
 import { SlotEngineService } from '../queue/slot-engine.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
@@ -14,6 +15,8 @@ export class BookingsService {
     private prisma: PrismaService,
     private redis: RedisService,
     private queueService: QueueService,
+    @Inject(forwardRef(() => QueueGateway))
+    private queueGateway: QueueGateway,
     private slotEngine: SlotEngineService,
   ) {}
 
@@ -135,6 +138,9 @@ export class BookingsService {
 
     // Invalidate slot cache
     this.queueService.invalidateSlotCache(shopId, bookingStartTime).catch(console.error);
+
+    // Emit real-time queue update
+    this.queueGateway.emitQueueUpdate(shopId).catch(console.error);
 
     return booking;
   }
@@ -330,6 +336,13 @@ export class BookingsService {
       this.queueService.invalidateSlotCache(booking.shopId, booking.startTime).catch(console.error);
     }
 
+    // Emit real-time updates
+    this.queueGateway.emitQueueUpdate(booking.shopId).catch(console.error);
+    this.queueGateway.emitBookingUpdate(bookingId, {
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+
     return updatedBooking;
   }
 
@@ -394,6 +407,13 @@ export class BookingsService {
     this.queueService.invalidateSlotCache(booking.shopId, booking.startTime).catch(console.error);
     this.queueService.invalidateSlotCache(booking.shopId, newStartTime).catch(console.error);
     this.queueService.updateQueueStats(booking.shopId).catch(console.error);
+
+    // Emit real-time updates
+    this.queueGateway.emitQueueUpdate(booking.shopId).catch(console.error);
+    this.queueGateway.emitBookingUpdate(bookingId, {
+      status: 'RESCHEDULED',
+      newStartTime: newStartTime.toISOString(),
+    });
 
     return updatedBooking;
   }

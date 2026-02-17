@@ -1,16 +1,27 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
+import * as express from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    // Preserve raw body for Stripe webhook signature verification
+    rawBody: true,
+  });
 
   // Enable CORS
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:3002'],
     credentials: true,
   });
+
+  // WebSocket adapter (Socket.IO)
+  app.useWebSocketAdapter(new IoAdapter(app));
+
+  // Raw body middleware for Stripe webhooks
+  app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 
   // Global prefix
   app.setGlobalPrefix('api');

@@ -160,6 +160,30 @@ export class QueueService {
   }
 
   /**
+   * Get queue stats for a shop (from Redis or DB)
+   */
+  async getQueueStats(shopId: string) {
+    // Try Redis first
+    const cached = await this.redis.getShopQueueStats(shopId);
+    if (cached) return cached;
+
+    // Fall back to DB
+    const dbStats = await this.prisma.queueStats.findUnique({
+      where: { shopId },
+    });
+
+    if (dbStats) {
+      return {
+        waitingCount: dbStats.currentWaitingCount,
+        estimatedWaitMinutes: dbStats.estimatedWaitMinutes,
+        nextSlot: dbStats.nextAvailableSlot?.toISOString() || null,
+      };
+    }
+
+    return { waitingCount: 0, estimatedWaitMinutes: 0, nextSlot: null };
+  }
+
+  /**
    * Invalidate slot cache when bookings change
    */
   async invalidateSlotCache(shopId: string, date?: Date): Promise<void> {

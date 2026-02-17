@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { ArrowLeft, MapPin, Clock, Star, Phone, Globe, Share2, MessageSquare } from 'lucide-react';
 import { Button, Badge, Loading, Alert } from '@/components/ui';
-import { ServiceList, StaffPicker } from '@/components/shop';
+import { ServiceList, StaffPicker, LiveQueueStatus } from '@/components/shop';
 import { DatePicker, SlotPicker, BookingSummary } from '@/components/booking';
 import { ReviewList } from '@/components/reviews';
 import { useShop, useShopQueueStats, useAvailableSlots, useCreateBooking, useShopRatingStats } from '@/hooks';
@@ -365,8 +365,9 @@ export default function ShopDetailPage() {
             </div>
 
             {/* Sidebar - Booking Summary */}
-            <div className="hidden lg:block">
+            <div className="hidden lg:block space-y-4">
               <BookingSummary />
+              {shop?.id && <LiveQueueStatus shopId={shop.id} />}
             </div>
           </div>
         </div>

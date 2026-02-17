@@ -13,10 +13,12 @@ import {
   XCircle,
   AlertCircle,
   Star,
+  CreditCard,
 } from 'lucide-react';
 import { Button, Card, Badge, Alert, Loading } from '@/components/ui';
+import { PaymentForm } from '@/components/booking';
 import { ReviewForm } from '@/components/reviews';
-import { useBooking, useCancelBooking } from '@/hooks';
+import { useBooking, useCancelBooking, useCreatePaymentIntent, useQueueSocket } from '@/hooks';
 import { formatDate, formatTime, formatPrice, formatDuration, getEndTime } from '@/lib/utils';
 import { BookingStatus } from '@/types';
 
@@ -24,12 +26,47 @@ export default function BookingDetailPage() {
   const router = useRouter();
   const { id, success } = router.query;
 
-  const { data: booking, isLoading } = useBooking(id as string);
+  const { data: booking, isLoading, refetch } = useBooking(id as string);
   const cancelBooking = useCancelBooking();
+  const createPaymentIntent = useCreatePaymentIntent();
 
   const [showCancelConfirm, setShowCancelConfirm] = React.useState(false);
   const [showReviewForm, setShowReviewForm] = React.useState(false);
   const [reviewSubmitted, setReviewSubmitted] = React.useState(false);
+  const [showPayment, setShowPayment] = React.useState(false);
+  const [paymentData, setPaymentData] = React.useState<{
+    clientSecret: string;
+    amount: number;
+    currency: string;
+  } | null>(null);
+
+  // Real-time booking status tracking
+  const [queuePosition, setQueuePosition] = React.useState<number | null>(null);
+  const { connected: wsConnected } = useQueueSocket({
+    bookingId: booking?.id,
+    shopId: booking?.shopId,
+    enabled: !!booking && ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(booking.status),
+    onBookingUpdate: () => refetch(),
+    onPositionUpdate: (update) => setQueuePosition(update.position),
+    onQueueUpdate: () => refetch(),
+  });
+
+  const handlePayNow = async () => {
+    if (!booking) return;
+    try {
+      const data = await createPaymentIntent.mutateAsync({
+        bookingId: booking.id,
+      });
+      setPaymentData({
+        clientSecret: data.clientSecret,
+        amount: data.amount,
+        currency: data.currency,
+      });
+      setShowPayment(true);
+    } catch (err: any) {
+      console.error('Failed to create payment intent:', err);
+    }
+  };
 
   const handleCancel = async () => {
     if (!booking) return;
@@ -203,6 +240,35 @@ export default function BookingDetailPage() {
               </div>
             </Card>
 
+            {/* Live Queue Position */}
+            {['PENDING', 'CONFIRMED'].includes(booking.status) &&
+              (queuePosition || booking.queuePosition) && (
+                <Card variant="bordered" className="border-indigo-200 bg-indigo-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-indigo-900">Your Queue Position</h3>
+                      <p className="text-sm text-indigo-600">
+                        {wsConnected ? 'Updating in real-time' : 'Based on booking time'}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-indigo-700">
+                        #{queuePosition || booking.queuePosition}
+                      </div>
+                      {wsConnected && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                          </span>
+                          <span className="text-xs text-green-600">Live</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              )}
+
             {/* Shop Info */}
             <Card variant="bordered">
               <h3 className="font-semibold text-gray-900 mb-4">Shop Details</h3>
@@ -291,6 +357,58 @@ export default function BookingDetailPage() {
                 <h3 className="font-semibold text-gray-900 mb-2">Notes</h3>
                 <p className="text-gray-600">{booking.notes}</p>
               </Card>
+            )}
+
+            {/* Payment Section */}
+            {(booking.status === BookingStatus.PENDING ||
+              booking.status === BookingStatus.CONFIRMED) &&
+              !booking.payment?.paidAt && (
+                <Card variant="bordered">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-indigo-100">
+                      <CreditCard className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Pay Online</h3>
+                      <p className="text-sm text-gray-500">
+                        Secure payment via Stripe
+                      </p>
+                    </div>
+                  </div>
+
+                  {showPayment && paymentData ? (
+                    <PaymentForm
+                      clientSecret={paymentData.clientSecret}
+                      amount={paymentData.amount}
+                      currency={paymentData.currency}
+                      onSuccess={() => {
+                        setShowPayment(false);
+                        refetch();
+                      }}
+                    />
+                  ) : (
+                    <Button
+                      onClick={handlePayNow}
+                      isLoading={createPaymentIntent.isPending}
+                      className="w-full"
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Pay {formatPrice(totalPrice)} Now
+                    </Button>
+                  )}
+
+                  <p className="text-xs text-center text-gray-400 mt-3">
+                    You can also pay at the counter when you arrive.
+                  </p>
+                </Card>
+              )}
+
+            {/* Payment Completed Badge */}
+            {booking.payment?.paidAt && (
+              <Alert variant="success" title="Payment Complete">
+                Paid {formatPrice(booking.payment.amount)} on{' '}
+                {formatDate(booking.payment.paidAt)}
+              </Alert>
             )}
 
             {/* Leave a Review - only for completed bookings */}

@@ -20,3 +20,4 @@ export {
   useDeleteService,
 } from './useServices';
 export { useAnalytics, useDailyMetrics, usePopularServices } from './useAnalytics';
+export { useQueueSocket } from './useQueueSocket';

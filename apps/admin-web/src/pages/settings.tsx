@@ -1,8 +1,9 @@
 import React from 'react';
 import Head from 'next/head';
 import { Save, Upload, Bell, Clock, Globe, CreditCard } from 'lucide-react';
-import { Card, Button, Input, Loading, useToast } from '@/components/ui';
+import { Card, Button, Input, Loading, useToast, ImageUpload } from '@/components/ui';
 import { useShopSettings, useUpdateShopSettings, useWorkingHours, useUpdateWorkingHours } from '@/hooks';
+import api from '@/lib/api';
 
 const DAY_NAMES = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 const DAY_LABELS: Record<string, string> = {
@@ -115,23 +116,22 @@ export default function SettingsPage() {
               <Card>
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">Shop Information</h2>
                 <form className="space-y-6" onSubmit={handleSaveGeneral}>
-                  <div className="flex items-start gap-6">
-                    <div className="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden">
-                      {shopData?.logoUrl ? (
-                        <img src={shopData.logoUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <Upload className="w-8 h-8 text-gray-400" />
-                      )}
-                    </div>
-                    <div>
-                      <Button variant="outline" size="sm" type="button">
-                        Upload Logo
-                      </Button>
-                      <p className="text-xs text-gray-500 mt-1">
-                        PNG, JPG up to 2MB. Recommended: 200x200px
-                      </p>
-                    </div>
-                  </div>
+                  <ImageUpload
+                    currentUrl={shopData?.logoUrl}
+                    onUpload={async (file) => {
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      const { data } = await api.patch(
+                        `/upload/shop/${shopData?.id}/logo`,
+                        formData,
+                        { headers: { 'Content-Type': 'multipart/form-data' } },
+                      );
+                      addToast({ type: 'success', title: 'Logo uploaded!' });
+                      return data.logoUrl;
+                    }}
+                    label="Upload Logo"
+                    hint="PNG, JPG up to 5MB. Recommended: 200x200px"
+                  />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input

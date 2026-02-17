@@ -1,15 +1,19 @@
 import React from 'react';
 import Head from 'next/head';
 import { format, addDays, subDays } from 'date-fns';
-import { ChevronLeft, ChevronRight, Filter, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Plus, Search, Wifi, WifiOff } from 'lucide-react';
 import { Card, Button, Input, Badge, Loading } from '@/components/ui';
-import { useAdminBookings, useUpdateBookingStatus } from '@/hooks';
+import { useAdminBookings, useUpdateBookingStatus, useQueueSocket } from '@/hooks';
+import { useAuthStore } from '@/stores/auth';
 import { formatTime, cn } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function AppointmentsPage() {
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   const [statusFilter, setStatusFilter] = React.useState<string | undefined>();
   const [searchQuery, setSearchQuery] = React.useState('');
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
 
   const { data: bookings, isLoading } = useAdminBookings({
     date: format(selectedDate, 'yyyy-MM-dd'),
@@ -17,6 +21,16 @@ export default function AppointmentsPage() {
   });
 
   const updateStatus = useUpdateBookingStatus();
+
+  // Real-time queue updates — auto-refresh bookings when queue changes
+  const shopId = (user as any)?.shopId || '';
+  const { connected: wsConnected } = useQueueSocket({
+    shopId,
+    enabled: !!shopId,
+    onQueueUpdate: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+    },
+  });
 
   const statusOptions = [
     { value: undefined, label: 'All' },
@@ -60,7 +74,18 @@ export default function AppointmentsPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
-            <p className="text-gray-500">Manage your daily schedule</p>
+            <div className="flex items-center gap-2">
+              <p className="text-gray-500">Manage your daily schedule</p>
+              {wsConnected && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-xs font-medium">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+                  </span>
+                  Live
+                </span>
+              )}
+            </div>
           </div>
           <Button>
             <Plus className="w-4 h-4 mr-2" />

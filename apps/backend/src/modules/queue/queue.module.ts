@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../common/prisma/prisma.module';
+import { RedisModule } from '../../common/redis/redis.module';
 import { QueueController } from './queue.controller';
 import { QueueService } from './queue.service';
+import { QueueGateway } from './queue.gateway';
 import { SlotEngineService } from './slot-engine.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, RedisModule],
   controllers: [QueueController],
-  providers: [QueueService, SlotEngineService],
-  exports: [QueueService, SlotEngineService],
+  providers: [QueueService, QueueGateway, SlotEngineService],
+  exports: [QueueService, QueueGateway, SlotEngineService],
 })
 export class QueueModule {}

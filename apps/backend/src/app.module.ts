@@ -19,6 +19,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HealthModule } from './modules/health/health.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { UploadModule } from './modules/upload/upload.module';
 
 // Configuration
 import configuration from './config/configuration';
@@ -56,6 +57,7 @@ import configuration from './config/configuration';
     AnalyticsModule,
     HealthModule,
     ReviewsModule,
+    UploadModule,
   ],
 })
 export class AppModule {}
