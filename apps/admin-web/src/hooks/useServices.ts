@@ -22,9 +22,7 @@ export function useServices() {
   return useQuery<Service[]>({
     queryKey: ['admin', 'services', shopId],
     queryFn: async () => {
-      const { data } = await api.get('/services', {
-        params: { shopId },
-      });
+      const { data } = await api.get(`/services/shop/${shopId}`);
       return data;
     },
     enabled: !!shopId,
@@ -37,7 +35,7 @@ export function useCreateService() {
 
   return useMutation<Service, Error, CreateServicePayload>({
     mutationFn: async (payload) => {
-      const { data } = await api.post('/services', { ...payload, shopId });
+      const { data } = await api.post(`/services/shop/${shopId}`, payload);
       return data;
     },
     onSuccess: () => {

@@ -16,7 +16,6 @@ interface UpdateBookingStatusPayload {
 }
 
 interface CreateWalkInPayload {
-  shopId: string;
   serviceIds: string[];
   staffId?: string;
   customerName: string;
@@ -30,9 +29,7 @@ export function useDashboard() {
   return useQuery({
     queryKey: ['admin', 'dashboard', shopId],
     queryFn: async () => {
-      const { data } = await api.get('/admin/dashboard', {
-        params: { shopId },
-      });
+      const { data } = await api.get(`/admin/shops/${shopId}/dashboard`);
       return data;
     },
     enabled: !!shopId,
@@ -46,8 +43,8 @@ export function useAdminBookings(params: GetBookingsParams = {}) {
   return useQuery<PaginatedResponse<Booking>>({
     queryKey: ['admin', 'bookings', shopId, params],
     queryFn: async () => {
-      const { data } = await api.get('/admin/bookings', {
-        params: { shopId, ...params },
+      const { data } = await api.get(`/admin/shops/${shopId}/bookings`, {
+        params,
       });
       return data;
     },
@@ -75,10 +72,11 @@ export function useUpdateBookingStatus() {
 
 export function useCreateWalkIn() {
   const queryClient = useQueryClient();
+  const { shopId } = useAuthStore();
 
   return useMutation<Booking, Error, CreateWalkInPayload>({
     mutationFn: async (payload) => {
-      const { data } = await api.post('/admin/walk-in', payload);
+      const { data } = await api.post(`/admin/shops/${shopId}/walk-in`, payload);
       return data;
     },
     onSuccess: () => {

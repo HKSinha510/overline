@@ -30,10 +30,12 @@ export default function DashboardPage() {
     return <Loading text="Loading dashboard..." />;
   }
 
-  const stats = dashboard || {
-    todayBookings: 0,
-    currentQueue: 0,
-    avgWaitTime: 0,
+  const todayStats = dashboard?.todayStats || {
+    total: 0,
+    completed: 0,
+    upcoming: 0,
+    inProgress: 0,
+    noShow: 0,
     revenue: 0,
   };
 
@@ -63,28 +65,26 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             title="Today's Appointments"
-            value={stats.todayBookings}
+            value={todayStats.total}
             icon={Calendar}
-            change={{ value: 12, type: 'increase' }}
           />
           <StatCard
             title="In Queue"
-            value={stats.currentQueue}
+            value={todayStats.upcoming + todayStats.inProgress}
             icon={Users}
             iconColor="bg-amber-100 text-amber-600"
           />
           <StatCard
-            title="Avg Wait Time"
-            value={`${stats.avgWaitTime} min`}
+            title="Completed"
+            value={todayStats.completed}
             icon={Clock}
             iconColor="bg-purple-100 text-purple-600"
           />
           <StatCard
             title="Today's Revenue"
-            value={formatPrice(stats.revenue)}
+            value={formatPrice(todayStats.revenue)}
             icon={DollarSign}
             iconColor="bg-green-100 text-green-600"
-            change={{ value: 8, type: 'increase' }}
           />
         </div>
 

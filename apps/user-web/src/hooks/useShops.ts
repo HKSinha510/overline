@@ -28,7 +28,7 @@ export function useNearbyShops(lat: number, lng: number, radius = 10) {
     queryKey: ['shops', 'nearby', lat, lng, radius],
     queryFn: async () => {
       const { data } = await api.get('/shops/nearby', {
-        params: { lat, lng, radius },
+        params: { latitude: lat, longitude: lng, radiusKm: radius },
       });
       return data;
     },

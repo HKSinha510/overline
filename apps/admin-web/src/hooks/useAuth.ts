@@ -24,7 +24,7 @@ export function useUser() {
 
 export function useLogin() {
   const queryClient = useQueryClient();
-  const { login } = useAuthStore();
+  const { login, setShopId } = useAuthStore();
 
   return useMutation<AuthResponse, Error, LoginCredentials>({
     mutationFn: async (credentials) => {
@@ -35,10 +35,36 @@ export function useLogin() {
       }
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Login first to set the token for subsequent API calls
       login(data.user, data.accessToken, data.refreshToken);
       queryClient.setQueryData(['admin', 'user', 'me'], data.user);
+
+      // Fetch shops accessible to this user and auto-set the first one
+      try {
+        const { data: shops } = await api.get('/admin/my-shops');
+        if (shops && shops.length > 0) {
+          setShopId(shops[0].id);
+          queryClient.setQueryData(['admin', 'my-shops'], shops);
+        }
+      } catch (err) {
+        console.error('Failed to fetch shops:', err);
+      }
     },
+  });
+}
+
+export function useMyShops() {
+  const { isAuthenticated } = useAuthStore();
+
+  return useQuery({
+    queryKey: ['admin', 'my-shops'],
+    queryFn: async () => {
+      const { data } = await api.get('/admin/my-shops');
+      return data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 10,
   });
 }
 

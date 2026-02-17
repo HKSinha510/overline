@@ -337,7 +337,77 @@ export class AdminService {
     });
   }
 
+  /**
+   * Get shops accessible by the current user
+   */
+  async getMyShops(userId: string, tenantId: string, role: string) {
+    // SUPER_ADMIN can see all shops
+    if (role === 'SUPER_ADMIN') {
+      return this.prisma.shop.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          address: true,
+          city: true,
+          logoUrl: true,
+          tenantId: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    // STAFF: find shops they're assigned to
+    if (role === 'STAFF') {
+      const staffRecords = await this.prisma.staff.findMany({
+        where: { userId, isActive: true },
+        include: {
+          shop: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              address: true,
+              city: true,
+              logoUrl: true,
+              tenantId: true,
+            },
+          },
+        },
+      });
+      return staffRecords.map((s) => s.shop);
+    }
+
+    // OWNER: find shops under their tenant
+    if (!tenantId) return [];
+    return this.prisma.shop.findMany({
+      where: { tenantId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        address: true,
+        city: true,
+        logoUrl: true,
+        tenantId: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   private async verifyShopAccess(shopId: string, tenantId: string) {
+    // SUPER_ADMIN (no tenantId) can access any shop
+    if (!tenantId) {
+      const shop = await this.prisma.shop.findFirst({
+        where: { id: shopId },
+      });
+      if (!shop) {
+        throw new ForbiddenException('Shop not found');
+      }
+      return shop;
+    }
+
     const shop = await this.prisma.shop.findFirst({
       where: { id: shopId, tenantId },
     });

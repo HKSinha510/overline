@@ -17,6 +17,17 @@ import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('my-shops')
+  @Roles(UserRole.OWNER, UserRole.STAFF, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get shops accessible by the current user' })
+  async getMyShops(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') role: UserRole,
+  ) {
+    return this.adminService.getMyShops(userId, tenantId, role);
+  }
+
   @Get('shops/:shopId/dashboard')
   @Roles(UserRole.OWNER, UserRole.STAFF, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get shop dashboard data' })

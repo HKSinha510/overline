@@ -1,4 +1,4 @@
-export { useUser, useLogin, useLogout } from './useAuth';
+export { useUser, useLogin, useLogout, useMyShops } from './useAuth';
 export {
   useDashboard,
   useAdminBookings,

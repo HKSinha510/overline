@@ -14,8 +14,8 @@ export function useAnalytics(params: AnalyticsParams = {}) {
   return useQuery({
     queryKey: ['admin', 'analytics', shopId, params],
     queryFn: async () => {
-      const { data } = await api.get('/analytics', {
-        params: { shopId, ...params },
+      const { data } = await api.get(`/analytics/shops/${shopId}/summary`, {
+        params,
       });
       return data;
     },
@@ -23,14 +23,14 @@ export function useAnalytics(params: AnalyticsParams = {}) {
   });
 }
 
-export function useDailyMetrics(date?: string) {
+export function useDailyMetrics(params: { startDate?: string; endDate?: string } = {}) {
   const { shopId } = useAuthStore();
 
   return useQuery({
-    queryKey: ['admin', 'analytics', 'daily', shopId, date],
+    queryKey: ['admin', 'analytics', 'daily', shopId, params],
     queryFn: async () => {
-      const { data } = await api.get('/analytics/daily', {
-        params: { shopId, date },
+      const { data } = await api.get(`/analytics/shops/${shopId}/daily`, {
+        params,
       });
       return data;
     },
@@ -44,9 +44,7 @@ export function usePopularServices() {
   return useQuery({
     queryKey: ['admin', 'analytics', 'popular-services', shopId],
     queryFn: async () => {
-      const { data } = await api.get('/analytics/popular-services', {
-        params: { shopId },
-      });
+      const { data } = await api.get(`/analytics/shops/${shopId}/services`);
       return data;
     },
     enabled: !!shopId,

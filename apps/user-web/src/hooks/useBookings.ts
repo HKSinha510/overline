@@ -23,7 +23,10 @@ export function useAvailableSlots(params: GetSlotsParams) {
   return useQuery<TimeSlot[]>({
     queryKey: ['slots', params],
     queryFn: async () => {
-      const { data } = await api.get('/queue/slots', { params });
+      const { shopId, serviceIds, ...rest } = params;
+      const { data } = await api.get(`/queue/slots/${shopId}`, {
+        params: { ...rest, serviceIds: serviceIds.join(',') },
+      });
       return data;
     },
     enabled: !!params.shopId && !!params.date && params.serviceIds.length > 0,
@@ -61,8 +64,10 @@ export function useCreateBooking() {
   const { reset } = useBookingStore();
 
   return useMutation<Booking, Error, CreateBookingPayload>({
-    mutationFn: async (payload) => {
-      const { data } = await api.post('/bookings', payload);
+    mutationFn: async ({ scheduledDate, scheduledTime, ...rest }) => {
+      // Combine date + time into ISO datetime string for backend
+      const startTime = `${scheduledDate}T${scheduledTime}:00`;
+      const { data } = await api.post('/bookings', { ...rest, startTime });
       return data;
     },
     onSuccess: (booking) => {
@@ -79,7 +84,7 @@ export function useCancelBooking() {
 
   return useMutation<Booking, Error, string>({
     mutationFn: async (bookingId) => {
-      const { data } = await api.post(`/bookings/${bookingId}/cancel`);
+      const { data } = await api.patch(`/bookings/${bookingId}/cancel`);
       return data;
     },
     onSuccess: (booking) => {
@@ -98,9 +103,10 @@ export function useRescheduleBooking() {
     { bookingId: string; scheduledDate: string; scheduledTime: string }
   >({
     mutationFn: async ({ bookingId, scheduledDate, scheduledTime }) => {
-      const { data } = await api.post(`/bookings/${bookingId}/reschedule`, {
-        scheduledDate,
-        scheduledTime,
+      // Combine date + time into ISO datetime string for backend
+      const newStartTime = `${scheduledDate}T${scheduledTime}:00`;
+      const { data } = await api.patch(`/bookings/${bookingId}/reschedule`, {
+        newStartTime,
       });
       return data;
     },
