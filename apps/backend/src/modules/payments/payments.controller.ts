@@ -35,7 +35,7 @@ export class PaymentsController {
     return this.paymentsService.getPayment(id, userId);
   }
 
-  @Post('webhook/stripe')
+  @Post('webhook')
   @Public()
   @ApiOperation({ summary: 'Stripe webhook endpoint' })
   async stripeWebhook(
