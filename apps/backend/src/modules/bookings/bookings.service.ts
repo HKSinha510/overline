@@ -230,12 +230,29 @@ export class BookingsService {
   /**
    * Get user's bookings
    */
-  async findByUser(userId: string, status?: BookingStatus, page = 1, limit = 20) {
+  async findByUser(userId: string, status?: string, page = 1, limit = 20) {
+    // Ensure page and limit are numbers
+    page = Number(page) || 1;
+    limit = Number(limit) || 20;
     const skip = (page - 1) * limit;
     const where: any = { userId };
 
     if (status) {
-      where.status = status;
+      const now = new Date();
+      if (status === 'upcoming') {
+        // Upcoming = future bookings that are not completed/cancelled
+        where.startTime = { gte: now };
+        where.status = { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] };
+      } else if (status === 'past') {
+        // Past = completed, cancelled, no-show, or past start time
+        where.OR = [
+          { status: { in: [BookingStatus.COMPLETED, BookingStatus.CANCELLED, BookingStatus.NO_SHOW] } },
+          { startTime: { lt: now } },
+        ];
+      } else if (Object.values(BookingStatus).includes(status as BookingStatus)) {
+        where.status = status;
+      }
+      // If status is invalid and not a virtual filter, ignore it
     }
 
     const [bookings, total] = await Promise.all([

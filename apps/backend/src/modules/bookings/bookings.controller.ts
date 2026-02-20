@@ -38,12 +38,12 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user bookings' })
-  @ApiQuery({ name: 'status', enum: BookingStatus, required: false })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter: upcoming, past, or a BookingStatus enum value' })
   @ApiQuery({ name: 'page', type: Number, required: false })
   @ApiQuery({ name: 'limit', type: Number, required: false })
   async getMyBookings(
     @CurrentUser('id') userId: string,
-    @Query('status') status?: BookingStatus,
+    @Query('status') status?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
