@@ -2,8 +2,9 @@ import React from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
+import { GoogleLogin } from '@react-oauth/google';
 import { Button, Input, Card } from '@/components/ui';
-import { useLogin } from '@/hooks';
+import { useLogin, useGoogleLogin } from '@/hooks';
 import { useAuthStore } from '@/stores/auth';
 
 interface LoginForm {
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const login = useLogin();
+  const googleLogin = useGoogleLogin();
 
   const [error, setError] = React.useState<string | null>(null);
 
@@ -96,6 +98,43 @@ export default function LoginPage() {
               Sign In
             </Button>
           </form>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-4 text-gray-500">or continue with</span>
+            </div>
+          </div>
+
+          {/* Google Sign-In Button */}
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={(credentialResponse) => {
+                if (credentialResponse.credential) {
+                  setError(null);
+                  googleLogin.mutate(credentialResponse.credential, {
+                    onSuccess: () => {
+                      router.push('/dashboard');
+                    },
+                    onError: (err: any) => {
+                      setError(err.response?.data?.message || err.message || 'Google login failed');
+                    },
+                  });
+                }
+              }}
+              onError={() => {
+                setError('Google login failed. Please try again.');
+              }}
+              width="100%"
+              text="signin_with"
+              shape="rectangular"
+              theme="outline"
+              size="large"
+            />
+          </div>
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Need help?{' '}

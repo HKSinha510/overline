@@ -3,10 +3,12 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { UserRole } from '@prisma/client';
 
 export interface JwtPayload {
@@ -35,11 +37,17 @@ export interface TokenResponse {
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client(
+      this.configService.get<string>('google.clientId'),
+    );
+  }
 
   async signup(dto: SignupDto): Promise<TokenResponse> {
     // Check if email already exists
@@ -94,6 +102,11 @@ export class AuthService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
+    // If user signed up via Google and has no password
+    if (!user.hashedPassword) {
+      throw new UnauthorizedException('This account uses Google Sign-In. Please login with Google.');
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(dto.password, user.hashedPassword);
     if (!isPasswordValid) {
@@ -107,6 +120,78 @@ export class AuthService {
     });
 
     // Generate tokens
+    return this.generateTokens(user);
+  }
+
+  async googleLogin(dto: GoogleLoginDto): Promise<TokenResponse> {
+    const googleClientId = this.configService.get<string>('google.clientId');
+
+    // Verify the Google ID token
+    let ticket;
+    try {
+      ticket = await this.googleClient.verifyIdToken({
+        idToken: dto.idToken,
+        audience: googleClientId,
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      throw new UnauthorizedException('Invalid Google token payload');
+    }
+
+    const { sub: googleId, email, name, picture, email_verified } = payload;
+
+    // Check if user already exists by googleId or email
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { googleId },
+          { email },
+        ],
+      },
+    });
+
+    if (user) {
+      // Existing user — link Google account if not already linked
+      if (!user.googleId) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            googleId,
+            authProvider: user.hashedPassword ? 'local' : 'google', // keep 'local' if they already have a password
+            isEmailVerified: email_verified || user.isEmailVerified,
+            avatarUrl: user.avatarUrl || picture,
+          },
+        });
+      }
+
+      if (!user.isActive) {
+        throw new UnauthorizedException('Account is deactivated');
+      }
+
+      // Update last login
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+    } else {
+      // New user — create account via Google
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          name: name || email.split('@')[0],
+          googleId,
+          authProvider: 'google',
+          avatarUrl: picture,
+          isEmailVerified: email_verified || false,
+          role: UserRole.USER,
+        },
+      });
+    }
+
     return this.generateTokens(user);
   }
 
@@ -190,6 +275,11 @@ export class AuthService {
 
     if (!user) {
       throw new BadRequestException('User not found');
+    }
+
+    // If user doesn't have a password (Google-only account), they can't use change-password
+    if (!user.hashedPassword) {
+      throw new BadRequestException('Cannot change password for Google-only accounts. Set a password first.');
     }
 
     const isPasswordValid = await bcrypt.compare(currentPassword, user.hashedPassword);

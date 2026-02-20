@@ -59,4 +59,8 @@ export default () => ({
   maps: {
     googleApiKey: process.env.GOOGLE_MAPS_API_KEY,
   },
+
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+  },
 });

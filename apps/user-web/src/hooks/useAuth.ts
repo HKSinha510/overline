@@ -93,3 +93,19 @@ export function useUpdateProfile() {
     },
   });
 }
+
+export function useGoogleLogin() {
+  const queryClient = useQueryClient();
+  const { login } = useAuthStore();
+
+  return useMutation<AuthResponse, Error, string>({
+    mutationFn: async (idToken: string) => {
+      const { data } = await api.post('/auth/google', { idToken });
+      return data;
+    },
+    onSuccess: (data) => {
+      login(data.user, data.accessToken, data.refreshToken);
+      queryClient.setQueryData(['user', 'me'], data.user);
+    },
+  });
+}

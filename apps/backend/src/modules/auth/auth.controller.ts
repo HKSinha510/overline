@@ -5,6 +5,7 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
@@ -27,6 +28,15 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() dto: LoginDto): Promise<TokenResponse> {
     return this.authService.login(dto);
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login or signup with Google' })
+  @ApiResponse({ status: 200, description: 'Google login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid Google token' })
+  async googleLogin(@Body() dto: GoogleLoginDto): Promise<TokenResponse> {
+    return this.authService.googleLogin(dto);
   }
 
   @Post('refresh')
