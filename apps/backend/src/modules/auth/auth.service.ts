@@ -143,7 +143,16 @@ export class AuthService {
     }
 
     const { sub: googleId, email, name, picture, email_verified } = payload;
+    return this.handleGoogleUser(googleId, email, name, picture, email_verified);
+  }
 
+  async handleGoogleUser(
+    googleId: string,
+    email: string,
+    name?: string,
+    picture?: string,
+    emailVerified?: boolean,
+  ): Promise<TokenResponse> {
     // Check if user already exists by googleId or email
     let user = await this.prisma.user.findFirst({
       where: {
@@ -161,8 +170,8 @@ export class AuthService {
           where: { id: user.id },
           data: {
             googleId,
-            authProvider: user.hashedPassword ? 'local' : 'google', // keep 'local' if they already have a password
-            isEmailVerified: email_verified || user.isEmailVerified,
+            authProvider: user.hashedPassword ? 'local' : 'google',
+            isEmailVerified: emailVerified || user.isEmailVerified,
             avatarUrl: user.avatarUrl || picture,
           },
         });
@@ -186,7 +195,7 @@ export class AuthService {
           googleId,
           authProvider: 'google',
           avatarUrl: picture,
-          isEmailVerified: email_verified || false,
+          isEmailVerified: emailVerified || false,
           role: UserRole.USER,
         },
       });

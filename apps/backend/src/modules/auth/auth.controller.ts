@@ -1,5 +1,7 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, HttpCode, HttpStatus, UseGuards, Req, Res, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
 import { AuthService, TokenResponse } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -7,11 +9,15 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('signup')
   @ApiOperation({ summary: 'Register a new user' })
@@ -32,11 +38,54 @@ export class AuthController {
 
   @Post('google')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login or signup with Google' })
+  @ApiOperation({ summary: 'Login or signup with Google (ID token)' })
   @ApiResponse({ status: 200, description: 'Google login successful' })
   @ApiResponse({ status: 401, description: 'Invalid Google token' })
   async googleLogin(@Body() dto: GoogleLoginDto): Promise<TokenResponse> {
     return this.authService.googleLogin(dto);
+  }
+
+  @Get('google/redirect')
+  @UseGuards(GoogleOAuthGuard)
+  @ApiOperation({ summary: 'Redirect to Google for OAuth login' })
+  async googleRedirect() {
+    // Guard redirects to Google automatically; 'from' query param is passed as state
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleOAuthGuard)
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  async googleCallback(@Req() req: any, @Res() res: Response, @Query('state') state?: string) {
+    const isAdmin = state === 'admin';
+    const frontendUrl = isAdmin
+      ? (this.configService.get<string>('frontendUrls.admin') || 'http://localhost:3002')
+      : (this.configService.get<string>('frontendUrls.user') || 'http://localhost:3000');
+    const loginPath = isAdmin ? '/login' : '/auth/login';
+
+    if (!req.user) {
+      return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
+    }
+
+    try {
+      const tokens = await this.authService.handleGoogleUser(
+        req.user.googleId,
+        req.user.email,
+        req.user.name,
+        req.user.picture,
+        req.user.emailVerified,
+      );
+
+      const params = new URLSearchParams({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: String(tokens.expiresIn),
+        user: JSON.stringify(tokens.user),
+      });
+
+      return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
+    } catch (error) {
+      return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
+    }
   }
 
   @Post('refresh')

@@ -62,5 +62,13 @@ export default () => ({
 
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  },
+
+  backendUrl: process.env.BACKEND_URL || 'http://localhost:3001',
+
+  frontendUrls: {
+    user: process.env.USER_FRONTEND_URL || 'http://localhost:3000',
+    admin: process.env.ADMIN_FRONTEND_URL || 'http://localhost:3002',
   },
 });
