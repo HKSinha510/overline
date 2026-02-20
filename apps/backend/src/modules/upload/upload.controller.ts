@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Body,
+  NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -59,6 +60,9 @@ export class UploadController {
     @Param('shopId') shopId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) throw new NotFoundException('Shop not found');
+
     const result = await this.uploadService.uploadImage(file, 'overline/shops/logos');
 
     await this.prisma.shop.update({
@@ -81,6 +85,9 @@ export class UploadController {
     @Param('shopId') shopId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) throw new NotFoundException('Shop not found');
+
     const result = await this.uploadService.uploadImage(file, 'overline/shops/covers');
 
     await this.prisma.shop.update({

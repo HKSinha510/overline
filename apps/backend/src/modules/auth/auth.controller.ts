@@ -63,7 +63,6 @@ export class AuthController {
     });
 
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-    console.log('[GoogleRedirect] Redirecting to:', googleAuthUrl);
     return res.redirect(googleAuthUrl);
   }
 
@@ -76,10 +75,7 @@ export class AuthController {
       : (this.configService.get<string>('frontendUrls.user') || 'http://localhost:3000');
     const loginPath = isAdmin ? '/login' : '/auth/login';
 
-    console.log('[GoogleCallback] code:', code ? 'present' : 'missing', 'state:', state, 'error:', error);
-
     if (error || !code) {
-      console.log('[GoogleCallback] No code or error from Google:', error);
       return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
     }
 
@@ -90,9 +86,6 @@ export class AuthController {
       const redirectUri = `${backendUrl}/api/v1/auth/google/callback`;
 
       // Exchange code for tokens
-      console.log('[GoogleCallback] Exchanging code for tokens...');
-      console.log('[GoogleCallback] redirect_uri:', redirectUri);
-
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -106,7 +99,6 @@ export class AuthController {
       });
 
       const tokenData = await tokenResponse.json();
-      console.log('[GoogleCallback] Token response status:', tokenResponse.status);
 
       if (!tokenResponse.ok) {
         console.error('[GoogleCallback] Token exchange failed:', JSON.stringify(tokenData));
@@ -119,7 +111,6 @@ export class AuthController {
       });
 
       const userInfo = await userInfoResponse.json();
-      console.log('[GoogleCallback] User info:', userInfo.email);
 
       const tokens = await this.authService.handleGoogleUser(
         userInfo.id,
@@ -128,8 +119,6 @@ export class AuthController {
         userInfo.picture,
         userInfo.verified_email,
       );
-
-      console.log('[GoogleCallback] Tokens generated for user:', userInfo.email);
 
       const params = new URLSearchParams({
         accessToken: tokens.accessToken,
@@ -140,7 +129,7 @@ export class AuthController {
 
       return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
     } catch (err: any) {
-      console.error('[GoogleCallback] Error:', err.message, err.stack);
+      console.error('[GoogleCallback] Error:', err.message);
       return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
     }
   }
