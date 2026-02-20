@@ -62,7 +62,11 @@ export class AuthController {
       : (this.configService.get<string>('frontendUrls.user') || 'http://localhost:3000');
     const loginPath = isAdmin ? '/login' : '/auth/login';
 
+    console.log('[GoogleCallback] state:', state, 'isAdmin:', isAdmin, 'frontendUrl:', frontendUrl);
+    console.log('[GoogleCallback] req.user:', req.user ? JSON.stringify(req.user) : 'null');
+
     if (!req.user) {
+      console.log('[GoogleCallback] No user found, redirecting to login with error');
       return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
     }
 
@@ -75,6 +79,8 @@ export class AuthController {
         req.user.emailVerified,
       );
 
+      console.log('[GoogleCallback] Tokens generated for user:', req.user.email);
+
       const params = new URLSearchParams({
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
@@ -83,7 +89,8 @@ export class AuthController {
       });
 
       return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[GoogleCallback] Error:', error.message, error.stack);
       return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
     }
   }
