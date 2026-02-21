@@ -14,6 +14,14 @@ import { ApiTags, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UploadService } from './upload.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export const CurrentUser = createParamDecorator(
+  (data: string, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return data ? request.user?.[data] : request.user;
+  },
+);
 
 @ApiTags('upload')
 @Controller({ path: 'upload', version: '1' })
@@ -97,4 +105,30 @@ export class UploadController {
 
     return { coverUrl: result.url };
   }
+
+  /**
+   * Upload user avatar image
+   */
+  @Patch('user/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiConsumes('multipart/form-data')
+  async uploadUserAvatar(
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const result = await this.uploadService.uploadImage(file, 'overline/users/avatars');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: result.url },
+    });
+
+    return { avatarUrl: result.url };
+  }
 }
+

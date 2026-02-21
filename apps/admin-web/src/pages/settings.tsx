@@ -60,6 +60,7 @@ export default function SettingsPage() {
   };
 
   const tabs = [
+    { id: 'profile', label: 'Profile', icon: Upload },
     { id: 'general', label: 'General', icon: Globe },
     { id: 'hours', label: 'Working Hours', icon: Clock },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -74,6 +75,29 @@ export default function SettingsPage() {
     workingHoursData.forEach((wh: any) => { hoursMap[wh.dayOfWeek] = wh; });
   }
 
+  const [profileForm, setProfileForm] = React.useState({
+    name: '',
+    phone: '',
+    avatarUrl: '',
+  });
+
+  React.useEffect(() => {
+    // Optionally load admin profile data here if available
+    // For now, leave as blank/default
+  }, []);
+
+  async function handleSaveProfile(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    try {
+      await api.patch('/users/me', {
+        name: profileForm.name,
+        phone: profileForm.phone,
+      });
+      addToast({ type: 'success', title: 'Profile updated!' });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to update profile', message: err.response?.data?.message || 'Try again.' });
+    }
+  }
   return (
     <>
       <Head>
@@ -338,6 +362,46 @@ export default function SettingsPage() {
                     Save Settings
                   </Button>
                 </div>
+              </Card>
+            )}
+
+            {activeTab === 'profile' && (
+              <Card>
+                <h2 className="text-lg font-semibold text-gray-900 mb-6">Admin Profile</h2>
+                <form className="space-y-6" onSubmit={handleSaveProfile}>
+                  <ImageUpload
+                    currentUrl={profileForm.avatarUrl}
+                    onUpload={async (file) => {
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      const { data } = await api.patch(
+                        '/v1/upload/user/avatar',
+                        formData,
+                        { headers: { 'Content-Type': 'multipart/form-data' } },
+                      );
+                      setProfileForm((prev) => ({ ...prev, avatarUrl: data.avatarUrl }));
+                      addToast({ type: 'success', title: 'Profile photo uploaded!' });
+                      return data.avatarUrl;
+                    }}
+                    label="Upload Profile Photo"
+                    hint="PNG, JPG up to 5MB. Recommended: 200x200px"
+                  />
+                  <Input
+                    label="Name"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                  />
+                  <Input
+                    label="Phone"
+                    type="tel"
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  />
+                  <Button type="submit">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Profile
+                  </Button>
+                </form>
               </Card>
             )}
           </div>
