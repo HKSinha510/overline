@@ -27,8 +27,7 @@ COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_module
 COPY --from=deps /app/apps/admin-web/node_modules ./apps/admin-web/node_modules
 
 # Copy source files
-COPY packages/shared ./packages/shared
-COPY apps/admin-web ./apps/admin-web
+COPY . .
 COPY tsconfig.base.json ./
 COPY pnpm-workspace.yaml ./
 

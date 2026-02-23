@@ -15,8 +15,7 @@ COPY apps/backend/package.json ./apps/backend/
 COPY packages/shared/package.json ./packages/shared/
 COPY tsconfig.base.json ./
 
-COPY packages/shared ./packages/shared
-COPY apps/backend ./apps/backend
+COPY . .
 
 # Install all workspace dependencies (including backend)
 RUN pnpm install --frozen-lockfile
