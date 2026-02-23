@@ -10,6 +10,7 @@ interface CreateBookingPayload {
   scheduledDate: string;
   scheduledTime: string;
   notes?: string;
+  offerCode?: string;
 }
 
 interface GetSlotsParams {

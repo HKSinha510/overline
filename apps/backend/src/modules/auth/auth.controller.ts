@@ -98,7 +98,10 @@ export class AuthController {
         }).toString(),
       });
 
-      const tokenData = await tokenResponse.json();
+      const tokenData = (await tokenResponse.json()) as {
+        access_token?: string;
+        [key: string]: any;
+      };
 
       if (!tokenResponse.ok) {
         console.error('[GoogleCallback] Token exchange failed:', JSON.stringify(tokenData));
@@ -110,7 +113,14 @@ export class AuthController {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
 
-      const userInfo = await userInfoResponse.json();
+      const userInfo = (await userInfoResponse.json()) as {
+        id: string;
+        email: string;
+        name: string;
+        picture?: string;
+        verified_email?: boolean;
+        [key: string]: any;
+      };
 
       const tokens = await this.authService.handleGoogleUser(
         userInfo.id,

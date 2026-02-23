@@ -1,7 +1,8 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, Post, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { QueueService } from './queue.service';
 import { SlotEngineService } from './slot-engine.service';
+import { QueueTrackingService } from './queue-tracking.service';
 import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('queue')
@@ -10,7 +11,8 @@ export class QueueController {
   constructor(
     private readonly queueService: QueueService,
     private readonly slotEngine: SlotEngineService,
-  ) {}
+    private readonly queueTrackingService: QueueTrackingService,
+  ) { }
 
   @Get('slots/:shopId')
   @Public()
@@ -60,5 +62,31 @@ export class QueueController {
   async getPosition(@Param('bookingId') bookingId: string) {
     const position = await this.queueService.getQueuePosition(bookingId);
     return { position };
+  }
+
+  // --- Tracking & Chat Endpoints ---
+
+  @Get('tracking/:shopId')
+  @ApiOperation({ summary: 'Get trackable current/next bookings for shop' })
+  @ApiParam({ name: 'shopId', description: 'Shop ID' })
+  async getTrackableBookings(@Param('shopId') shopId: string) {
+    return this.queueTrackingService.getTrackableBookings(shopId);
+  }
+
+  @Get('tracking/:bookingId/messages')
+  @ApiOperation({ summary: 'Get chat history for a booking' })
+  @ApiParam({ name: 'bookingId', description: 'Booking ID' })
+  async getMessages(@Param('bookingId') bookingId: string) {
+    return this.queueTrackingService.getMessages(bookingId);
+  }
+
+  @Post('tracking/:bookingId/messages')
+  @ApiOperation({ summary: 'Post a chat message to a booking' })
+  @ApiParam({ name: 'bookingId', description: 'Booking ID' })
+  async postMessage(
+    @Param('bookingId') bookingId: string,
+    @Body() data: { senderId: string; senderType: 'USER' | 'SHOP'; content: string }
+  ) {
+    return this.queueTrackingService.createMessage(bookingId, data.senderId, data.senderType, data.content);
   }
 }

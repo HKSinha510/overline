@@ -1,10 +1,10 @@
 # Backend Dockerfile - Run from repository root
-FROM node:20-alpine
+FROM node:20-alpine3.24
 
 WORKDIR /app
 
 # Install pnpm and openssl
-RUN npm install -g pnpm && apk add --no-cache openssl
+RUN apk update && apk upgrade && npm install -g pnpm && apk add --no-cache openssl
 
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

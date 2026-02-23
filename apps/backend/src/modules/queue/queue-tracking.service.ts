@@ -1,0 +1,86 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '@/common/prisma/prisma.service';
+import { RedisService } from '@/common/redis/redis.service';
+
+@Injectable()
+export class QueueTrackingService {
+    constructor(
+        private prisma: PrismaService,
+        private redis: RedisService,
+    ) { }
+
+    /**
+     * Get trackable bookings for a shop (current or next, starting in <= 20 mins)
+     */
+    async getTrackableBookings(shopId: string) {
+        const now = new Date();
+        const limitDate = new Date(now.getTime() + 20 * 60000);
+
+        // Get bookings that are pending/confirmed, for today, start <= 20 mins OR in progress
+        const bookings = await this.prisma.booking.findMany({
+            where: {
+                shopId,
+                status: { in: ['CONFIRMED', 'PENDING', 'IN_PROGRESS'] },
+                startTime: { lte: limitDate },
+                // To be safe, ensure we only look at today's or recent
+            },
+            include: {
+                user: {
+                    select: { id: true, name: true, phone: true, avatarUrl: true },
+                },
+                services: {
+                    select: { serviceName: true },
+                },
+                payment: {
+                    select: { status: true, amount: true, currency: true },
+                },
+            },
+            orderBy: { startTime: 'asc' },
+            take: 2, // Limit to current and next person
+        });
+
+        // Decorate with real-time location from Redis
+        const trackingData = await Promise.all(
+            bookings.map(async (booking) => {
+                const locationJson = await this.redis.getJson<{ lat: number; lng: number }>(`booking:${booking.id}:location`);
+                return {
+                    ...booking,
+                    location: locationJson || null,
+                };
+            })
+        );
+
+        return trackingData;
+    }
+
+    /**
+     * Save user's real-time location
+     */
+    async saveLocation(bookingId: string, location: { lat: number; lng: number }) {
+        await this.redis.setJson(`booking:${bookingId}:location`, location, 1800); // 30 mins TTL
+    }
+
+    /**
+     * Get chat messages for a booking
+     */
+    async getMessages(bookingId: string) {
+        return this.prisma.chatMessage.findMany({
+            where: { bookingId },
+            orderBy: { createdAt: 'asc' },
+        });
+    }
+
+    /**
+     * Post a new message
+     */
+    async createMessage(bookingId: string, senderId: string, senderType: 'USER' | 'SHOP', content: string) {
+        return this.prisma.chatMessage.create({
+            data: {
+                bookingId,
+                senderId,
+                senderType,
+                content,
+            },
+        });
+    }
+}

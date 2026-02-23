@@ -12,7 +12,12 @@ export function formatDate(date: string | Date): string {
   return format(d, 'EEE, MMM d');
 }
 
-export function formatTime(time: string): string {
+export function formatTime(time: string | Date): string {
+  if (!time) return '';
+  if (typeof time !== 'string' || time.includes('T') || time.includes('-')) {
+    const d = typeof time === 'string' ? parseISO(time) : time;
+    return format(d, 'h:mm a');
+  }
   const [hours, minutes] = time.split(':').map(Number);
   const date = new Date();
   date.setHours(hours, minutes, 0, 0);
@@ -35,10 +40,14 @@ export function formatPrice(amount: number, currency = 'INR'): string {
   }).format(amount);
 }
 
-export function getEndTime(startTime: string, durationMinutes: number): string {
-  const [hours, minutes] = startTime.split(':').map(Number);
-  const startDate = new Date();
-  startDate.setHours(hours, minutes, 0, 0);
+export function getEndTime(startTime: string | Date, durationMinutes: number): string {
+  let startDate = new Date();
+  if (typeof startTime !== 'string' || startTime.includes('T') || startTime.includes('-')) {
+    startDate = typeof startTime === 'string' ? parseISO(startTime) : startTime;
+  } else {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    startDate.setHours(hours, minutes, 0, 0);
+  }
   const endDate = addMinutes(startDate, durationMinutes);
   return format(endDate, 'HH:mm');
 }

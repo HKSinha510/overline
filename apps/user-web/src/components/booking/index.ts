@@ -3,3 +3,4 @@ export { SlotPicker } from './SlotPicker';
 export { BookingSummary } from './BookingSummary';
 export { BookingCard } from './BookingCard';
 export { PaymentForm } from './PaymentForm';
+export { LiveBookingTracker } from './LiveBookingTracker';

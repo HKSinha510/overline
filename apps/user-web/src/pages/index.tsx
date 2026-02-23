@@ -1,14 +1,22 @@
 import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Search, MapPin, Scissors, Stethoscope, ArrowRight, Star, Clock } from 'lucide-react';
+import { Search, MapPin, Scissors, Stethoscope, ArrowRight, Star, Clock, Navigation, Loader2 } from 'lucide-react';
 import { Button, Input, Card } from '@/components/ui';
 import { ShopCard } from '@/components/shop';
-import { useShops } from '@/hooks';
+import { useShops, useLocation } from '@/hooks';
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = React.useState('');
-  const { data: popularShops, isLoading } = useShops({ limit: 6 });
+  const { location, loading: locationLoading, requestLocation } = useLocation(true);
+
+  // Fetch shops — if location available, send it for distance-based sorting
+  const { data: popularShops, isLoading } = useShops({
+    limit: 6,
+    latitude: location?.lat,
+    longitude: location?.lng,
+    radiusKm: 50, // Show shops within 50km on homepage
+  });
 
   const categories = [
     {
@@ -83,6 +91,20 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
+
+          {/* Location indicator */}
+          {location && (
+            <div className="flex items-center justify-center gap-1.5 mt-4 text-primary-200 text-sm">
+              <MapPin className="w-4 h-4" />
+              <span>{location.address || 'Location detected'}</span>
+            </div>
+          )}
+          {locationLoading && (
+            <div className="flex items-center justify-center gap-1.5 mt-4 text-primary-200 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Detecting your location...</span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -117,7 +139,26 @@ export default function HomePage() {
       {/* Popular Shops */}
       <section className="container-app py-12 bg-gray-50 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Popular Near You</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {location ? 'Popular Near You' : 'Popular Shops'}
+            </h2>
+            {location?.address && (
+              <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" />
+                {location.address}
+              </p>
+            )}
+            {!location && !locationLoading && (
+              <button
+                onClick={requestLocation}
+                className="text-sm text-primary-600 mt-1 flex items-center gap-1 hover:text-primary-700"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                Enable location for nearby results
+              </button>
+            )}
+          </div>
           <Link
             href="/explore"
             className="text-primary-600 font-medium flex items-center gap-1 hover:text-primary-700"
@@ -133,10 +174,18 @@ export default function HomePage() {
               <div key={i} className="h-64 bg-gray-200 rounded-xl animate-pulse" />
             ))}
           </div>
+        ) : popularShops?.data.length === 0 ? (
+          <Card variant="bordered" className="text-center py-8">
+            <MapPin className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">No shops found nearby. Try expanding your search.</p>
+            <Link href="/explore" className="mt-3 inline-block">
+              <Button variant="outline" size="sm">Explore All Shops</Button>
+            </Link>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {popularShops?.data.map((shop) => (
-              <ShopCard key={shop.id} shop={shop} />
+              <ShopCard key={shop.id} shop={shop} userLocation={location || undefined} />
             ))}
           </div>
         )}

@@ -6,10 +6,12 @@ import { QueueService } from './queue.service';
 import { QueueGateway } from './queue.gateway';
 import { SlotEngineService } from './slot-engine.service';
 
+import { QueueTrackingService } from './queue-tracking.service';
+
 @Module({
   imports: [PrismaModule, RedisModule],
   controllers: [QueueController],
-  providers: [QueueService, QueueGateway, SlotEngineService],
-  exports: [QueueService, QueueGateway, SlotEngineService],
+  providers: [QueueService, QueueGateway, SlotEngineService, QueueTrackingService],
+  exports: [QueueService, QueueGateway, SlotEngineService, QueueTrackingService],
 })
-export class QueueModule {}
+export class QueueModule { }

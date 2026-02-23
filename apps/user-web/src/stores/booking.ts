@@ -8,6 +8,7 @@ interface BookingState {
   selectedDate: Date | null;
   selectedSlot: TimeSlot | null;
   notes: string;
+  offerCode: string | null;
 
   setShop: (shop: Shop) => void;
   addService: (service: Service) => void;
@@ -17,6 +18,7 @@ interface BookingState {
   setDate: (date: Date) => void;
   setSlot: (slot: TimeSlot | null) => void;
   setNotes: (notes: string) => void;
+  setOfferCode: (code: string | null) => void;
   getTotalDuration: () => number;
   getTotalPrice: () => number;
   reset: () => void;
@@ -29,6 +31,7 @@ const initialState = {
   selectedDate: null,
   selectedSlot: null,
   notes: '',
+  offerCode: null,
 };
 
 export const useBookingStore = create<BookingState>((set, get) => ({
@@ -66,14 +69,20 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
   setNotes: (notes) => set({ notes }),
 
+  setOfferCode: (offerCode) => set({ offerCode }),
+
   getTotalDuration: () => {
     const { selectedServices } = get();
-    return selectedServices.reduce((acc, s) => acc + s.durationMinutes, 0);
+    return selectedServices.reduce((acc, s) => acc + Number(s.durationMinutes || 0), 0);
   },
 
   getTotalPrice: () => {
-    const { selectedServices } = get();
-    return selectedServices.reduce((acc, s) => acc + s.price, 0);
+    const { selectedServices, offerCode } = get();
+    let total = selectedServices.reduce((acc, s) => acc + Number(s.price || 0), 0);
+    if (offerCode === 'OVERLINE10') total *= 0.9;
+    else if (offerCode === 'OVERLINE20') total *= 0.8;
+    else if (offerCode === 'WELCOME50') total = Math.max(0, total - 50);
+    return total;
   },
 
   reset: () => set(initialState),

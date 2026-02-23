@@ -37,6 +37,7 @@ export default function ShopDetailPage() {
     setDate,
     setSlot,
     setNotes,
+    offerCode,
     getTotalDuration,
     reset,
   } = useBookingStore();
@@ -100,6 +101,7 @@ export default function ShopDetailPage() {
         scheduledDate: format(selectedDate, 'yyyy-MM-dd'),
         scheduledTime: selectedSlot.startTime,
         notes,
+        ...(offerCode ? { offerCode } : {}),
       });
 
       router.push(`/bookings/${booking.id}?success=true`);
@@ -164,14 +166,13 @@ export default function ShopDetailPage() {
               {['services', 'staff', 'datetime', 'confirm'].map((s, i) => (
                 <div
                   key={s}
-                  className={`w-2 h-2 rounded-full ${
-                    step === s
+                  className={`w-2 h-2 rounded-full ${step === s
                       ? 'bg-primary-500'
                       : i <
                         ['services', 'staff', 'datetime', 'confirm'].indexOf(step)
-                      ? 'bg-primary-300'
-                      : 'bg-gray-300'
-                  }`}
+                        ? 'bg-primary-300'
+                        : 'bg-gray-300'
+                    }`}
                 />
               ))}
             </div>

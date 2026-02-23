@@ -7,3 +7,5 @@ export { Spinner, Loading } from './Loading';
 export { Alert } from './Alert';
 export { ToastProvider, useToast } from './Toast';
 export type { ToastType } from './Toast';
+
+export { LocationPicker } from './LocationPicker';

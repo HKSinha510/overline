@@ -9,7 +9,7 @@ export class ShopsService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-  ) {}
+  ) { }
 
   async search(dto: SearchShopsDto) {
     const {
@@ -47,8 +47,20 @@ export class ShopsService {
       where.tenant = { type };
     }
 
-    // If we have lat/lng, we could use PostGIS for radius search
-    // For now, basic filter - in production, use raw SQL with ST_DWithin
+    // If we have coordinates, apply bounding box filter for performance
+    if (latitude && longitude) {
+      const latDelta = radiusKm / 111.32;
+      const lngDelta = radiusKm / (111.32 * Math.cos(latitude * Math.PI / 180));
+      where.latitude = {
+        gte: latitude - latDelta,
+        lte: latitude + latDelta,
+      };
+      where.longitude = {
+        gte: longitude - lngDelta,
+        lte: longitude + lngDelta,
+      };
+    }
+
     let orderBy: Prisma.ShopOrderByWithRelationInput = { name: 'asc' };
 
     const [shops, total] = await Promise.all([
@@ -87,12 +99,17 @@ export class ShopsService {
       this.prisma.shop.count({ where }),
     ]);
 
-    // Enhance with queue stats from Redis
+    // Enhance with queue stats from Redis and calculate distance
     const shopsWithQueue = await Promise.all(
       shops.map(async (shop) => {
         const queueStats = await this.redis.getShopQueueStats(shop.id);
+        const distance = (latitude && longitude && shop.latitude && shop.longitude)
+          ? this.calculateDistance(latitude, longitude, Number(shop.latitude), Number(shop.longitude))
+          : undefined;
+
         return {
           ...shop,
+          distance: distance !== undefined ? Math.round(distance * 100) / 100 : undefined,
           queueStats: queueStats || {
             waitingCount: 0,
             estimatedWaitMinutes: 0,
@@ -102,8 +119,16 @@ export class ShopsService {
       }),
     );
 
+    // Sort by distance if location was provided, filter out shops beyond radius
+    let sortedShops = shopsWithQueue;
+    if (latitude && longitude) {
+      sortedShops = shopsWithQueue
+        .filter((shop) => shop.distance === undefined || shop.distance <= radiusKm)
+        .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+    }
+
     return {
-      data: shopsWithQueue,
+      data: sortedShops,
       meta: {
         total,
         page,

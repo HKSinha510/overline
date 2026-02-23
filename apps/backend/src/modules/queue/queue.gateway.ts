@@ -10,6 +10,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { QueueService } from './queue.service';
+import { QueueTrackingService } from './queue-tracking.service';
 
 @WebSocketGateway({
   cors: {
@@ -23,7 +24,10 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(QueueGateway.name);
 
-  constructor(private readonly queueService: QueueService) {}
+  constructor(
+    private readonly queueService: QueueService,
+    private readonly queueTrackingService: QueueTrackingService,
+  ) { }
 
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
@@ -73,6 +77,48 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.join(room);
     this.logger.log(`Client ${client.id} tracking booking ${data.bookingId}`);
     return { event: 'tracking', room };
+  }
+
+  /**
+   * User emits live location updates
+   */
+  @SubscribeMessage('updateLocation')
+  async handleUpdateLocation(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { bookingId: string; lat: number; lng: number },
+  ) {
+    if (!data.bookingId || !data.lat || !data.lng) return;
+
+    // Save to Redis (TTL 30 mins)
+    await this.queueTrackingService.saveLocation(data.bookingId, { lat: data.lat, lng: data.lng });
+
+    // Broadcast to everyone in the booking room (such as the admin)
+    this.server.to(`booking:${data.bookingId}`).emit('locationUpdate', {
+      bookingId: data.bookingId,
+      lat: data.lat,
+      lng: data.lng,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Chat messages between user and owner
+   */
+  @SubscribeMessage('sendMessage')
+  async handleSendMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { bookingId: string; senderId: string; senderType: 'USER' | 'SHOP'; content: string },
+  ) {
+    if (!data.bookingId || !data.content) return;
+
+    const msg = await this.queueTrackingService.createMessage(
+      data.bookingId,
+      data.senderId,
+      data.senderType,
+      data.content,
+    );
+
+    this.server.to(`booking:${data.bookingId}`).emit('chatMessage', msg);
   }
 
   /**

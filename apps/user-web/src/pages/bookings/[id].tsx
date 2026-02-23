@@ -16,7 +16,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { Button, Card, Badge, Alert, Loading } from '@/components/ui';
-import { PaymentForm } from '@/components/booking';
+import { PaymentForm, LiveBookingTracker } from '@/components/booking';
 import { ReviewForm } from '@/components/reviews';
 import { useBooking, useCancelBooking, useCreatePaymentIntent, useQueueSocket } from '@/hooks';
 import { formatDate, formatTime, formatPrice, formatDuration, getEndTime } from '@/lib/utils';
@@ -268,6 +268,15 @@ export default function BookingDetailPage() {
                   </div>
                 </Card>
               )}
+
+            {/* Live Tracking & Chat feature */}
+            {['PENDING', 'CONFIRMED'].includes(booking.status) && (
+              <LiveBookingTracker
+                bookingId={booking.id}
+                shopId={booking.shopId}
+                startTime={booking.startTime}
+              />
+            )}
 
             {/* Shop Info */}
             <Card variant="bordered">

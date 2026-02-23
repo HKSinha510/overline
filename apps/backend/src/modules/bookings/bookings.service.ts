@@ -18,13 +18,13 @@ export class BookingsService {
     @Inject(forwardRef(() => QueueGateway))
     private queueGateway: QueueGateway,
     private slotEngine: SlotEngineService,
-  ) {}
+  ) { }
 
   /**
    * Create a new booking
    */
   async create(dto: CreateBookingDto, userId?: string) {
-    const { shopId, serviceIds, startTime, staffId, customerName, customerPhone, customerEmail, notes, source = BookingSource.WEB } = dto;
+    const { shopId, serviceIds, startTime, staffId, customerName, customerPhone, customerEmail, notes, source = BookingSource.WEB, offerCode } = dto;
 
     // Get shop
     const shop = await this.prisma.shop.findUnique({
@@ -49,8 +49,19 @@ export class BookingsService {
     }
 
     const totalDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
-    const totalAmount = services.reduce((sum, s) => sum + Number(s.price), 0);
+    let totalAmount = services.reduce((sum, s) => sum + Number(s.price), 0);
     const currency = services[0]?.currency || 'INR';
+
+    // Apply offer code discount
+    if (offerCode) {
+      if (offerCode.toUpperCase() === 'OVERLINE10') {
+        totalAmount = totalAmount * 0.9;
+      } else if (offerCode.toUpperCase() === 'OVERLINE20') {
+        totalAmount = totalAmount * 0.8;
+      } else if (offerCode.toUpperCase() === 'WELCOME50') {
+        totalAmount = Math.max(0, totalAmount - 50);
+      }
+    }
 
     const bookingStartTime = new Date(startTime);
     const bookingEndTime = new Date(bookingStartTime.getTime() + totalDuration * 60 * 1000);

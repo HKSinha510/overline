@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, TenantType, DayOfWeek } from '../src/generated/prisma';
+import { PrismaClient, UserRole, TenantType, DayOfWeek } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -8,7 +8,7 @@ async function main() {
 
   // Create Super Admin
   const hashedPassword = await bcrypt.hash('admin123', 12);
-  
+
   const superAdmin = await prisma.user.upsert({
     where: { email: 'admin@overline.app' },
     update: {},
@@ -339,6 +339,46 @@ async function main() {
     },
   });
   console.log('✅ Demo User created:', demoUser.email);
+
+  // --- Seed Demo Bookings for Live Tracking ---
+  const now = new Date();
+
+  // 1. Salon booking starting in 15 minutes (Trackable)
+  const salonStartTime = new Date(now.getTime() + 15 * 60000);
+  const salonEndTime = new Date(now.getTime() + 45 * 60000);
+
+  const trackableSalonBooking = await prisma.booking.create({
+    data: {
+      bookingNumber: 'SLN-' + Math.floor(1000 + Math.random() * 9000),
+      userId: demoUser.id,
+      shopId: salon.id,
+      status: 'CONFIRMED',
+      source: 'WEB',
+      startTime: salonStartTime,
+      endTime: salonEndTime,
+      totalDurationMinutes: 30,
+      totalAmount: 400,
+      services: {
+        create: {
+          serviceId: salonServices[0].id,
+          serviceName: salonServices[0].name,
+          durationMinutes: 30,
+          price: 400
+        }
+      }
+    }
+  });
+
+  // Add an initial chat message
+  await prisma.chatMessage.create({
+    data: {
+      bookingId: trackableSalonBooking.id,
+      senderId: salonOwner.id,
+      senderType: 'SHOP',
+      content: 'Hello! I see your appointment is coming up soon. Let me know if you need any directions.'
+    }
+  });
+  console.log('✅ Tracking-enabled Salon Booking created:', trackableSalonBooking.bookingNumber);
 
   console.log('\n🎉 Database seeding completed!');
   console.log('\n📧 Demo Accounts:');

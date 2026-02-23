@@ -47,4 +47,9 @@ export class CreateBookingDto {
   @IsOptional()
   @IsEnum(BookingSource)
   source?: BookingSource;
+
+  @ApiPropertyOptional({ description: 'Optional discount code' })
+  @IsOptional()
+  @IsString()
+  offerCode?: string;
 }

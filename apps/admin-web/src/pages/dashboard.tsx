@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { Card, Badge, Button, StatCard, Loading } from '@/components/ui';
 import { useDashboard, useAdminBookings, useStartService, useMarkComplete } from '@/hooks';
+import { useAuthStore } from '@/stores/auth';
+import { LiveTracking } from '@/components/dashboard/LiveTracking';
 import { formatTime, formatPrice, cn } from '@/lib/utils';
 import { BookingStatus } from '@/types';
 
@@ -25,6 +27,7 @@ export default function DashboardPage() {
 
   const startService = useStartService();
   const markComplete = useMarkComplete();
+  const { shopId } = useAuthStore();
 
   if (loadingDashboard || loadingBookings) {
     return <Loading text="Loading dashboard..." />;
@@ -170,6 +173,7 @@ export default function DashboardPage() {
 
           {/* Quick Actions & Activity */}
           <div className="space-y-6">
+            {shopId && <LiveTracking shopId={shopId} />}
             {/* Quick Actions */}
             <Card>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>

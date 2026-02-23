@@ -1,3 +1,4 @@
+export { useLocation } from './useLocation';
 export { useUser, useLogin, useSignup, useLogout, useUpdateProfile, useGoogleLogin } from './useAuth';
 export { useShops, useNearbyShops, useShop, useShopQueueStats } from './useShops';
 export {

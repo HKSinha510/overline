@@ -5,9 +5,9 @@ import type { Shop, ShopWithDetails, QueueStats, PaginatedResponse } from '@/typ
 interface SearchParams {
   query?: string;
   type?: 'SALON' | 'CLINIC';
-  lat?: number;
-  lng?: number;
-  radius?: number;
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
   page?: number;
   limit?: number;
 }
@@ -16,7 +16,17 @@ export function useShops(params: SearchParams = {}) {
   return useQuery<PaginatedResponse<Shop>>({
     queryKey: ['shops', params],
     queryFn: async () => {
-      const { data } = await api.get('/shops', { params });
+      // Only send non-empty params
+      const queryParams: Record<string, string | number> = {};
+      if (params.query) queryParams.query = params.query;
+      if (params.type) queryParams.type = params.type;
+      if (params.latitude) queryParams.latitude = params.latitude;
+      if (params.longitude) queryParams.longitude = params.longitude;
+      if (params.radiusKm) queryParams.radiusKm = params.radiusKm;
+      if (params.page) queryParams.page = params.page;
+      if (params.limit) queryParams.limit = params.limit;
+
+      const { data } = await api.get('/shops', { params: queryParams });
       return data;
     },
     staleTime: 1000 * 60 * 5,
@@ -57,7 +67,7 @@ export function useShopQueueStats(shopId: string) {
       return data;
     },
     enabled: !!shopId,
-    staleTime: 1000 * 30, // 30 seconds for real-time-ish updates
-    refetchInterval: 1000 * 30, // Auto-refresh every 30 seconds
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 30,
   });
 }

@@ -63,6 +63,8 @@ export interface Shop {
   maxConcurrentBookings: number;
   autoAcceptBookings: boolean;
   isActive: boolean;
+  distance?: number; // Distance in km (populated when user provides location)
+  queueStats?: QueueStats;
   createdAt: string;
   updatedAt: string;
 }

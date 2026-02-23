@@ -18,7 +18,12 @@ export function formatDateTime(date: string | Date): string {
   return format(d, 'MMM d, yyyy h:mm a');
 }
 
-export function formatTime(time: string): string {
+export function formatTime(time: string | Date): string {
+  if (!time) return '';
+  if (typeof time !== 'string' || time.includes('T') || time.includes('-')) {
+    const d = typeof time === 'string' ? parseISO(time) : time;
+    return format(d, 'h:mm a');
+  }
   const [hours, minutes] = time.split(':').map(Number);
   const date = new Date();
   date.setHours(hours, minutes, 0, 0);
