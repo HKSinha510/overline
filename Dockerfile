@@ -1,5 +1,5 @@
 # Backend Dockerfile - Run from repository root
-FROM node:20-alpine3.24
+FROM node:20-alpine
 
 WORKDIR /app
 
