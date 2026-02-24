@@ -91,6 +91,7 @@ export interface Service {
   shopId: string;
   name: string;
   description?: string;
+  imageUrl?: string;
   category?: string;
   durationMinutes: number;
   price: number;

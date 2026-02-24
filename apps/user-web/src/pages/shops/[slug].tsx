@@ -1,8 +1,11 @@
 import React from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { ArrowLeft, MapPin, Clock, Star, Phone, Globe, Share2, MessageSquare } from 'lucide-react';
-import { Button, Badge, Loading, Alert } from '@/components/ui';
+import {
+  ArrowLeft, MapPin, Clock, Star, Phone, Globe, Share2,
+  MessageSquare, ChevronLeft, ChevronRight, X, Camera,
+} from 'lucide-react';
+import { Button, Badge, Loading, Alert, Card } from '@/components/ui';
 import { ServiceList, StaffPicker, LiveQueueStatus } from '@/components/shop';
 import { DatePicker, SlotPicker, BookingSummary } from '@/components/booking';
 import { ReviewList } from '@/components/reviews';
@@ -13,6 +16,13 @@ import { format } from 'date-fns';
 
 type BookingStep = 'services' | 'staff' | 'datetime' | 'confirm';
 
+const STEP_LABELS: Record<BookingStep, string> = {
+  services: 'Select Services',
+  staff: 'Choose Staff',
+  datetime: 'Pick a Time',
+  confirm: 'Confirm',
+};
+
 export default function ShopDetailPage() {
   const router = useRouter();
   const { slug } = router.query;
@@ -20,6 +30,8 @@ export default function ShopDetailPage() {
 
   const [step, setStep] = React.useState<BookingStep>('services');
   const [error, setError] = React.useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = React.useState(false);
+  const [galleryIndex, setGalleryIndex] = React.useState(0);
 
   const { data: shop, isLoading: loadingShop } = useShop(slug as string);
   const { data: queueStats } = useShopQueueStats(shop?.id || '');
@@ -63,6 +75,15 @@ export default function ShopDetailPage() {
   React.useEffect(() => {
     return () => reset();
   }, [reset]);
+
+  // Gather all photos for gallery
+  const allPhotos = React.useMemo(() => {
+    if (!shop) return [];
+    const photos: string[] = [];
+    if (shop.coverUrl) photos.push(shop.coverUrl);
+    if (shop.photoUrls?.length) photos.push(...shop.photoUrls);
+    return photos;
+  }, [shop]);
 
   const handleNextStep = () => {
     const steps: BookingStep[] = ['services', 'staff', 'datetime', 'confirm'];
@@ -141,11 +162,50 @@ export default function ShopDetailPage() {
     );
   }
 
+  const heroImage = shop.coverUrl || shop.photoUrls?.[0] || shop.logoUrl;
+
   return (
     <>
       <Head>
         <title>{shop.name} - Overline</title>
+        <meta name="description" content={shop.description || `Book an appointment at ${shop.name}`} />
       </Head>
+
+      {/* Photo Gallery Lightbox */}
+      {galleryOpen && allPhotos.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
+          <button
+            onClick={() => setGalleryOpen(false)}
+            className="absolute top-4 right-4 p-2 text-white/80 hover:text-white z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          <button
+            onClick={() => setGalleryIndex((i) => (i > 0 ? i - 1 : allPhotos.length - 1))}
+            className="absolute left-4 p-2 text-white/80 hover:text-white"
+          >
+            <ChevronLeft className="w-8 h-8" />
+          </button>
+
+          <img
+            src={allPhotos[galleryIndex]}
+            alt={`Photo ${galleryIndex + 1}`}
+            className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg"
+          />
+
+          <button
+            onClick={() => setGalleryIndex((i) => (i < allPhotos.length - 1 ? i + 1 : 0))}
+            className="absolute right-4 p-2 text-white/80 hover:text-white"
+          >
+            <ChevronRight className="w-8 h-8" />
+          </button>
+
+          <div className="absolute bottom-4 text-white/80 text-sm">
+            {galleryIndex + 1} / {allPhotos.length}
+          </div>
+        </div>
+      )}
 
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
@@ -162,22 +222,30 @@ export default function ShopDetailPage() {
             </button>
 
             {/* Progress Steps */}
-            <div className="flex items-center gap-2">
-              {['services', 'staff', 'datetime', 'confirm'].map((s, i) => (
-                <div
-                  key={s}
-                  className={`w-2 h-2 rounded-full ${step === s
-                      ? 'bg-primary-500'
-                      : i <
-                        ['services', 'staff', 'datetime', 'confirm'].indexOf(step)
-                        ? 'bg-primary-300'
-                        : 'bg-gray-300'
-                    }`}
-                />
-              ))}
+            <div className="flex items-center gap-1.5">
+              {(['services', 'staff', 'datetime', 'confirm'] as BookingStep[]).map((s, i) => {
+                const stepIndex = ['services', 'staff', 'datetime', 'confirm'].indexOf(step);
+                return (
+                  <div key={s} className="flex items-center gap-1.5">
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${i <= stepIndex
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-gray-200 text-gray-500'
+                        }`}
+                    >
+                      {i + 1}
+                    </div>
+                    {i < 3 && (
+                      <div className={`w-6 h-0.5 ${i < stepIndex ? 'bg-primary-500' : 'bg-gray-200'}`} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="w-20" />
+            <span className="text-sm font-medium text-gray-600 hidden sm:block">
+              {STEP_LABELS[step]}
+            </span>
           </div>
         </div>
 
@@ -185,51 +253,141 @@ export default function ShopDetailPage() {
           <div className="lg:grid lg:grid-cols-3 lg:gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
-              {/* Shop Header (only on first step) */}
+              {/* Shop Header with Hero Image (only on first step) */}
               {step === 'services' && (
                 <div className="mb-6">
-                  <div className="relative h-48 md:h-64 rounded-xl overflow-hidden mb-4">
-                    {shop.logoUrl ? (
+                  {/* Cover Image / Gallery */}
+                  <div
+                    className="relative h-48 md:h-72 rounded-2xl overflow-hidden mb-5 cursor-pointer group"
+                    onClick={() => {
+                      if (allPhotos.length > 0) {
+                        setGalleryIndex(0);
+                        setGalleryOpen(true);
+                      }
+                    }}
+                  >
+                    {heroImage ? (
                       <img
-                        src={shop.logoUrl}
+                        src={heroImage}
                         alt={shop.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
-                        <span className="text-6xl text-white font-bold">
+                      <div className="w-full h-full bg-gradient-to-br from-primary-400 via-primary-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-7xl text-white/60 font-bold">
                           {shop.name.charAt(0)}
                         </span>
                       </div>
                     )}
-                    <div className="absolute bottom-4 left-4">
+
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+                    {/* Open badge */}
+                    <div className="absolute top-4 left-4">
                       <Badge variant="success">Open Now</Badge>
+                    </div>
+
+                    {/* Photo count + View all */}
+                    {allPhotos.length > 1 && (
+                      <div className="absolute bottom-4 right-4 flex items-center gap-1.5 bg-black/60 text-white text-sm px-3 py-1.5 rounded-full">
+                        <Camera className="w-4 h-4" />
+                        View all {allPhotos.length} photos
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Photo Thumbnails */}
+                  {allPhotos.length > 1 && (
+                    <div className="flex gap-2 mb-5 overflow-x-auto hide-scrollbar pb-1">
+                      {allPhotos.slice(0, 5).map((url, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setGalleryIndex(i); setGalleryOpen(true); }}
+                          className="w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 border-transparent hover:border-primary-400 transition-colors"
+                        >
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                      {allPhotos.length > 5 && (
+                        <button
+                          onClick={() => { setGalleryIndex(5); setGalleryOpen(true); }}
+                          className="w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-medium"
+                        >
+                          +{allPhotos.length - 5}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Shop Info */}
+                  <div className="flex items-start gap-4 mb-4">
+                    {shop.logoUrl && (
+                      <img
+                        src={shop.logoUrl}
+                        alt={shop.name}
+                        className="w-14 h-14 rounded-xl object-cover border border-gray-200 flex-shrink-0"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
+                        {shop.name}
+                      </h1>
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          {shop.address}, {shop.city}
+                        </span>
+                        {ratingStats && (
+                          <span className="flex items-center gap-1 text-amber-500">
+                            <Star className="w-4 h-4 fill-current" />
+                            <span className="font-medium text-gray-900">
+                              {ratingStats.averageRating?.toFixed(1) || 'New'}
+                            </span>
+                            <span className="text-gray-400">({ratingStats.totalReviews || 0})</span>
+                          </span>
+                        )}
+                        {queueStats && (
+                          <span className="flex items-center gap-1 text-primary-600">
+                            <Clock className="w-4 h-4" />
+                            ~{queueStats.estimatedWaitMinutes} min wait
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                    {shop.name}
-                  </h1>
-
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
-                    <span className="flex items-center">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      {shop.address}
-                    </span>
-                    {queueStats && (
-                      <span className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />~{queueStats.estimatedWaitMinutes} min wait
-                      </span>
-                    )}
-                    <span className="flex items-center text-amber-500">
-                      <Star className="w-4 h-4 fill-current mr-1" />
-                      {ratingStats?.averageRating?.toFixed(1) || 'New'} ({ratingStats?.totalReviews || 0} reviews)
-                    </span>
-                  </div>
-
                   {shop.description && (
-                    <p className="text-gray-600 mb-4">{shop.description}</p>
+                    <p className="text-gray-600 mb-4 leading-relaxed">{shop.description}</p>
                   )}
+
+                  {/* Quick Info Row */}
+                  <div className="flex flex-wrap gap-3 mb-2">
+                    {shop.phone && (
+                      <a
+                        href={`tel:${shop.phone}`}
+                        className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        {shop.phone}
+                      </a>
+                    )}
+                    {shop.website && (
+                      <a
+                        href={shop.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors"
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        Website
+                      </a>
+                    )}
+                    <button className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors">
+                      <Share2 className="w-3.5 h-3.5" />
+                      Share
+                    </button>
+                  </div>
                 </div>
               )}
 

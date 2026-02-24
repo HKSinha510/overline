@@ -16,40 +16,48 @@ interface ShopCardProps {
 const ShopCard: React.FC<ShopCardProps> = ({ shop, queueInfo, userLocation }) => {
   const isOpen = true; // TODO: Calculate based on working hours
 
-  // Use server-calculated distance if available, otherwise calculate client-side
+  // Use server-calculated distance if available
   let distanceKm = shop.distance;
   let travelTime: string | undefined;
   if (distanceKm !== undefined && distanceKm !== null) {
     travelTime = formatTravelTime(distanceKm);
   }
 
+  // Pick the best image: coverUrl > first photoUrl > logoUrl > gradient
+  const heroImage = shop.coverUrl || shop.photoUrls?.[0] || shop.logoUrl;
+
   return (
     <Link href={`/shops/${shop.slug}`}>
       <Card
         variant="bordered"
         padding="none"
-        className="overflow-hidden hover:shadow-md transition-shadow duration-200 cursor-pointer"
+        className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group"
       >
         {/* Shop Image */}
-        <div className="relative h-40 bg-gray-100">
-          {shop.logoUrl ? (
+        <div className="relative h-44 bg-gray-100 overflow-hidden">
+          {heroImage ? (
             <img
-              src={shop.logoUrl}
+              src={heroImage}
               alt={shop.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-400 to-primary-600">
-              <span className="text-4xl text-white font-bold">
+              <span className="text-5xl text-white/80 font-bold">
                 {shop.name.charAt(0)}
               </span>
             </div>
           )}
-          <div className="absolute top-3 left-3">
+
+          {/* Gradient overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+          <div className="absolute top-3 left-3 flex gap-2">
             <Badge variant={isOpen ? 'success' : 'error'}>
               {isOpen ? 'Open' : 'Closed'}
             </Badge>
           </div>
+
           {/* Distance badge */}
           {distanceKm !== undefined && (
             <div className="absolute top-3 right-3">
@@ -57,6 +65,24 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, queueInfo, userLocation }) =>
                 <Navigation className="w-3 h-3 text-primary-500" />
                 {distanceKm < 1 ? `${Math.round(distanceKm * 1000)}m` : `${distanceKm.toFixed(1)} km`}
               </div>
+            </div>
+          )}
+
+          {/* Logo overlay */}
+          {shop.logoUrl && heroImage !== shop.logoUrl && (
+            <div className="absolute bottom-3 left-3">
+              <img
+                src={shop.logoUrl}
+                alt=""
+                className="w-10 h-10 rounded-full border-2 border-white shadow-md object-cover"
+              />
+            </div>
+          )}
+
+          {/* Photo count indicator */}
+          {shop.photoUrls?.length > 1 && (
+            <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+              +{shop.photoUrls.length - 1} photos
             </div>
           )}
         </div>
@@ -67,9 +93,13 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, queueInfo, userLocation }) =>
             {shop.name}
           </h3>
 
+          {shop.description && (
+            <p className="text-sm text-gray-500 mb-2 line-clamp-1">{shop.description}</p>
+          )}
+
           <div className="flex items-center text-gray-500 text-sm mb-2">
             <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
-            <span className="truncate">{shop.address}</span>
+            <span className="truncate">{shop.address}, {shop.city}</span>
           </div>
 
           {/* Distance & Travel time */}
@@ -97,6 +127,18 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, queueInfo, userLocation }) =>
           </div>
 
           {/* Queue Info */}
+          {shop.queueStats && (
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              <div className="flex items-center text-sm text-gray-600">
+                <Users className="w-4 h-4 mr-1" />
+                <span>{shop.queueStats.waitingCount} in queue</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <Clock className="w-4 h-4 mr-1" />
+                <span>~{shop.queueStats.estimatedWaitMinutes} min wait</span>
+              </div>
+            </div>
+          )}
           {queueInfo && (
             <div className="flex items-center justify-between pt-3 border-t border-gray-100">
               <div className="flex items-center text-sm text-gray-600">

@@ -6,6 +6,7 @@ import type { Service } from '@/types';
 interface CreateServicePayload {
   name: string;
   description?: string;
+  imageUrl?: string;
   durationMinutes: number;
   price: number;
   category?: string;

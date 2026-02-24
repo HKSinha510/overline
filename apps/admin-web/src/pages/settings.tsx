@@ -1,6 +1,6 @@
 import React from 'react';
 import Head from 'next/head';
-import { Save, Upload, Bell, Clock, Globe, CreditCard } from 'lucide-react';
+import { Save, Upload, Bell, Clock, Globe, CreditCard, Camera, X, Loader2, Plus } from 'lucide-react';
 import { Card, Button, Input, Loading, useToast, ImageUpload } from '@/components/ui';
 import { useShopSettings, useUpdateShopSettings, useWorkingHours, useUpdateWorkingHours } from '@/hooks';
 import api from '@/lib/api';
@@ -25,8 +25,12 @@ export default function SettingsPage() {
 
   // General form state
   const [generalForm, setGeneralForm] = React.useState({
-    name: '', description: '', phone: '', email: '', address: '',
+    name: '', description: '', phone: '', email: '', address: '', city: '', state: '', postalCode: '',
   });
+
+  // Gallery upload state
+  const [galleryUploading, setGalleryUploading] = React.useState(false);
+  const galleryInputRef = React.useRef<HTMLInputElement>(null);
 
   // Sync shop data to form when loaded
   React.useEffect(() => {
@@ -37,6 +41,9 @@ export default function SettingsPage() {
         phone: shopData.phone || '',
         email: shopData.email || '',
         address: shopData.address || '',
+        city: shopData.city || '',
+        state: shopData.state || '',
+        postalCode: shopData.postalCode || '',
       });
     }
   }, [shopData]);
@@ -59,10 +66,55 @@ export default function SettingsPage() {
     }
   };
 
+  const handleUploadCover = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'shops');
+    const { data } = await api.post('/upload', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    // Update shop with new cover URL
+    await updateSettings.mutateAsync({ coverUrl: data.url });
+    addToast({ type: 'success', title: 'Cover photo uploaded!' });
+    return data.url;
+  };
+
+  const handleUploadGalleryPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setGalleryUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'shops');
+      const { data } = await api.post('/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const currentPhotos = shopData?.photoUrls || [];
+      await updateSettings.mutateAsync({ photoUrls: [...currentPhotos, data.url] });
+      addToast({ type: 'success', title: 'Photo added to gallery!' });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Upload failed', message: err.response?.data?.message || 'Try again.' });
+    } finally {
+      setGalleryUploading(false);
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveGalleryPhoto = async (indexToRemove: number) => {
+    const currentPhotos = shopData?.photoUrls || [];
+    const updated = currentPhotos.filter((_: string, i: number) => i !== indexToRemove);
+    await updateSettings.mutateAsync({ photoUrls: updated });
+    addToast({ type: 'success', title: 'Photo removed' });
+  };
+
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: Upload },
     { id: 'general', label: 'General', icon: Globe },
+    { id: 'media', label: 'Shop Media', icon: Camera },
     { id: 'hours', label: 'Working Hours', icon: Clock },
+    { id: 'profile', label: 'Profile', icon: Upload },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'payments', label: 'Payments', icon: CreditCard },
   ];
@@ -81,11 +133,6 @@ export default function SettingsPage() {
     avatarUrl: '',
   });
 
-  React.useEffect(() => {
-    // Optionally load admin profile data here if available
-    // For now, leave as blank/default
-  }, []);
-
   async function handleSaveProfile(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     try {
@@ -98,6 +145,7 @@ export default function SettingsPage() {
       addToast({ type: 'error', title: 'Failed to update profile', message: err.response?.data?.message || 'Try again.' });
     }
   }
+
   return (
     <>
       <Head>
@@ -120,11 +168,10 @@ export default function SettingsPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === tab.id
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.id
                         ? 'bg-primary-50 text-primary-600'
                         : 'text-gray-600 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <tab.icon className="w-5 h-5" />
                     {tab.label}
@@ -155,6 +202,7 @@ export default function SettingsPage() {
                     }}
                     label="Upload Logo"
                     hint="PNG, JPG up to 5MB. Recommended: 200x200px"
+                    shape="circle"
                   />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -175,6 +223,7 @@ export default function SettingsPage() {
                       rows={3}
                       value={generalForm.description}
                       onChange={(e) => setGeneralForm({ ...generalForm, description: e.target.value })}
+                      placeholder="Tell customers about your shop..."
                     />
                   </div>
 
@@ -201,12 +250,122 @@ export default function SettingsPage() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Input
+                      label="City"
+                      value={generalForm.city}
+                      onChange={(e) => setGeneralForm({ ...generalForm, city: e.target.value })}
+                    />
+                    <Input
+                      label="State"
+                      value={generalForm.state}
+                      onChange={(e) => setGeneralForm({ ...generalForm, state: e.target.value })}
+                    />
+                    <Input
+                      label="Postal Code"
+                      value={generalForm.postalCode}
+                      onChange={(e) => setGeneralForm({ ...generalForm, postalCode: e.target.value })}
+                    />
+                  </div>
+
                   <Button type="submit" isLoading={updateSettings.isPending}>
                     <Save className="w-4 h-4 mr-2" />
                     Save Changes
                   </Button>
                 </form>
               </Card>
+            )}
+
+            {/* Shop Media Tab */}
+            {activeTab === 'media' && (
+              <div className="space-y-6">
+                {/* Cover Photo */}
+                <Card>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Cover Photo</h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    This is the main image customers see when they visit your shop page. Use a high-quality photo.
+                  </p>
+
+                  <div className="relative w-full h-48 md:h-64 rounded-xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 mb-3">
+                    {shopData?.coverUrl ? (
+                      <img
+                        src={shopData.coverUrl}
+                        alt="Shop cover"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                        <Camera className="w-12 h-12 mb-2" />
+                        <p className="text-sm">No cover photo yet</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <ImageUpload
+                    currentUrl={shopData?.coverUrl}
+                    onUpload={handleUploadCover}
+                    label="Upload Cover Photo"
+                    hint="Recommended: 1200×400px, JPG or PNG"
+                    size="sm"
+                  />
+                </Card>
+
+                {/* Photo Gallery */}
+                <Card>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Photo Gallery</h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Add photos of your shop, interiors, work samples, and ambiance. Customers love seeing real photos!
+                  </p>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {/* Existing photos */}
+                    {shopData?.photoUrls?.map((url: string, index: number) => (
+                      <div key={index} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100">
+                        <img
+                          src={url}
+                          alt={`Shop photo ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          onClick={() => handleRemoveGalleryPhoto(index)}
+                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add photo button */}
+                    <button
+                      type="button"
+                      onClick={() => galleryInputRef.current?.click()}
+                      disabled={galleryUploading}
+                      className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-primary-400 hover:text-primary-500 transition-colors disabled:opacity-50"
+                    >
+                      {galleryUploading ? (
+                        <Loader2 className="w-8 h-8 animate-spin" />
+                      ) : (
+                        <>
+                          <Plus className="w-8 h-8 mb-1" />
+                          <span className="text-xs font-medium">Add Photo</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleUploadGalleryPhoto}
+                    className="hidden"
+                  />
+
+                  <p className="text-xs text-gray-400 mt-3">
+                    {shopData?.photoUrls?.length || 0} photo{(shopData?.photoUrls?.length || 0) !== 1 ? 's' : ''} uploaded · JPG, PNG, WebP up to 5MB each
+                  </p>
+                </Card>
+              </div>
             )}
 
             {activeTab === 'hours' && (
@@ -385,6 +544,7 @@ export default function SettingsPage() {
                     }}
                     label="Upload Profile Photo"
                     hint="PNG, JPG up to 5MB. Recommended: 200x200px"
+                    shape="circle"
                   />
                   <Input
                     label="Name"

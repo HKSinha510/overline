@@ -70,24 +70,25 @@ export default function DashboardPage() {
             title="Today's Appointments"
             value={todayStats.total}
             icon={Calendar}
+            gradient="bg-gradient-to-br from-blue-500 to-indigo-600"
           />
           <StatCard
             title="In Queue"
             value={todayStats.upcoming + todayStats.inProgress}
             icon={Users}
-            iconColor="bg-amber-100 text-amber-600"
+            gradient="bg-gradient-to-br from-amber-400 to-orange-500"
           />
           <StatCard
             title="Completed"
             value={todayStats.completed}
             icon={Clock}
-            iconColor="bg-purple-100 text-purple-600"
+            gradient="bg-gradient-to-br from-purple-500 to-pink-500"
           />
           <StatCard
             title="Today's Revenue"
             value={formatPrice(todayStats.revenue)}
             icon={DollarSign}
-            iconColor="bg-green-100 text-green-600"
+            gradient="bg-gradient-to-br from-emerald-500 to-green-600"
           />
         </div>
 

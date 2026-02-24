@@ -1,7 +1,10 @@
 import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Search, MapPin, Scissors, Stethoscope, ArrowRight, Star, Clock, Navigation, Loader2 } from 'lucide-react';
+import {
+  Search, MapPin, Scissors, Stethoscope, ArrowRight, Star, Clock,
+  Navigation, Loader2, Sparkles, Shield, Zap,
+} from 'lucide-react';
 import { Button, Input, Card } from '@/components/ui';
 import { ShopCard } from '@/components/shop';
 import { useShops, useLocation } from '@/hooks';
@@ -24,32 +27,37 @@ export default function HomePage() {
       icon: Scissors,
       description: 'Haircuts, styling, and grooming',
       href: '/explore?type=SALON',
-      color: 'bg-purple-100 text-purple-600',
+      gradient: 'from-purple-500 to-pink-500',
+      bgLight: 'bg-purple-50',
     },
     {
       name: 'Clinics',
       icon: Stethoscope,
       description: 'Medical consultations and checkups',
       href: '/explore?type=CLINIC',
-      color: 'bg-emerald-100 text-emerald-600',
+      gradient: 'from-emerald-500 to-teal-500',
+      bgLight: 'bg-emerald-50',
     },
   ];
 
   const features = [
     {
-      icon: Clock,
+      icon: Zap,
       title: 'Real-time Queue',
-      description: 'See live wait times and skip the queue',
+      description: 'See live wait times and book your slot instantly',
+      gradient: 'from-amber-400 to-orange-500',
     },
     {
-      icon: Star,
+      icon: Shield,
       title: 'Verified Reviews',
       description: 'Read honest reviews from real customers',
+      gradient: 'from-blue-400 to-indigo-500',
     },
     {
       icon: MapPin,
       title: 'Nearby Shops',
-      description: 'Find the best places close to you',
+      description: 'Find the best places close to you with GPS',
+      gradient: 'from-pink-400 to-rose-500',
     },
   ];
 
@@ -57,26 +65,40 @@ export default function HomePage() {
     <>
       <Head>
         <title>Overline - Book Appointments & Skip the Queue</title>
+        <meta name="description" content="Find and book appointments at the best salons and clinics near you. See real-time queue status and never wait again." />
       </Head>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white">
-        <div className="container-app py-12 md:py-20">
-          <div className="max-w-2xl mx-auto text-center mb-8">
-            <h1 className="text-3xl md:text-5xl font-bold mb-4">
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-primary-700 to-purple-800" />
+        {/* Abstract pattern overlay */}
+        <div className="absolute inset-0 opacity-10" style={{
+          backgroundImage: `radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)`,
+          backgroundSize: '40px 40px',
+        }} />
+
+        <div className="relative container-app py-16 md:py-24">
+          <div className="max-w-2xl mx-auto text-center mb-10 animate-fade-in-up">
+            <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white/90 text-sm px-4 py-1.5 rounded-full mb-6">
+              <Sparkles className="w-4 h-4" />
+              Smart Booking Platform
+            </div>
+            <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-5 leading-tight">
               Book Appointments.
               <br />
-              Skip the Queue.
+              <span className="bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">
+                Skip the Queue.
+              </span>
             </h1>
-            <p className="text-primary-100 text-lg">
-              Find and book appointments at the best salons and clinics near you.
+            <p className="text-primary-100 text-lg md:text-xl max-w-lg mx-auto">
+              Find and book at the best salons and clinics near you.
               See real-time queue status and never wait again.
             </p>
           </div>
 
           {/* Search Bar */}
-          <div className="max-w-xl mx-auto">
-            <div className="bg-white rounded-xl p-2 flex gap-2 shadow-lg">
+          <div className="max-w-xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+            <div className="bg-white rounded-2xl p-2 flex gap-2 shadow-2xl shadow-primary-900/20">
               <div className="flex-1">
                 <Input
                   placeholder="Search for salons, clinics..."
@@ -87,20 +109,20 @@ export default function HomePage() {
                 />
               </div>
               <Link href={`/explore?q=${searchQuery}`}>
-                <Button size="lg">Search</Button>
+                <Button size="lg" className="px-6 rounded-xl">Search</Button>
               </Link>
             </div>
           </div>
 
           {/* Location indicator */}
           {location && (
-            <div className="flex items-center justify-center gap-1.5 mt-4 text-primary-200 text-sm">
+            <div className="flex items-center justify-center gap-1.5 mt-5 text-primary-200 text-sm animate-fade-in">
               <MapPin className="w-4 h-4" />
               <span>{location.address || 'Location detected'}</span>
             </div>
           )}
           {locationLoading && (
-            <div className="flex items-center justify-center gap-1.5 mt-4 text-primary-200 text-sm">
+            <div className="flex items-center justify-center gap-1.5 mt-5 text-primary-200 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Detecting your location...</span>
             </div>
@@ -109,91 +131,96 @@ export default function HomePage() {
       </section>
 
       {/* Categories */}
-      <section className="container-app py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Browse by Category</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <section className="container-app py-14">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-7">Browse by Category</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {categories.map((category) => (
             <Link key={category.name} href={category.href}>
-              <Card
-                variant="bordered"
-                className="hover:shadow-md transition-shadow cursor-pointer"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-14 h-14 rounded-xl flex items-center justify-center ${category.color}`}
-                  >
-                    <category.icon className="w-7 h-7" />
+              <div className={`relative overflow-hidden rounded-2xl p-6 ${category.bgLight} border border-gray-100 hover:shadow-lg transition-all duration-300 cursor-pointer group`}>
+                <div className="flex items-center gap-5">
+                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${category.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                    <category.icon className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{category.name}</h3>
-                    <p className="text-sm text-gray-500">{category.description}</p>
+                    <h3 className="font-bold text-gray-900 text-lg">{category.name}</h3>
+                    <p className="text-sm text-gray-500 mt-0.5">{category.description}</p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400" />
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 transition-transform" />
                 </div>
-              </Card>
+              </div>
             </Link>
           ))}
         </div>
       </section>
 
       {/* Popular Shops */}
-      <section className="container-app py-12 bg-gray-50 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              {location ? 'Popular Near You' : 'Popular Shops'}
-            </h2>
-            {location?.address && (
-              <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" />
-                {location.address}
-              </p>
-            )}
-            {!location && !locationLoading && (
-              <button
-                onClick={requestLocation}
-                className="text-sm text-primary-600 mt-1 flex items-center gap-1 hover:text-primary-700"
-              >
-                <Navigation className="w-3.5 h-3.5" />
-                Enable location for nearby results
-              </button>
-            )}
-          </div>
-          <Link
-            href="/explore"
-            className="text-primary-600 font-medium flex items-center gap-1 hover:text-primary-700"
-          >
-            View All
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 bg-gray-200 rounded-xl animate-pulse" />
-            ))}
-          </div>
-        ) : popularShops?.data.length === 0 ? (
-          <Card variant="bordered" className="text-center py-8">
-            <MapPin className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No shops found nearby. Try expanding your search.</p>
-            <Link href="/explore" className="mt-3 inline-block">
-              <Button variant="outline" size="sm">Explore All Shops</Button>
+      <section className="bg-gray-50 py-14">
+        <div className="container-app">
+          <div className="flex items-center justify-between mb-7">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+                {location ? 'Popular Near You' : 'Popular Shops'}
+              </h2>
+              {location?.address && (
+                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {location.address}
+                </p>
+              )}
+              {!location && !locationLoading && (
+                <button
+                  onClick={requestLocation}
+                  className="text-sm text-primary-600 mt-1 flex items-center gap-1 hover:text-primary-700"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  Enable location for nearby results
+                </button>
+              )}
+            </div>
+            <Link
+              href="/explore"
+              className="text-primary-600 font-medium flex items-center gap-1 hover:text-primary-700 group"
+            >
+              View All
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {popularShops?.data.map((shop) => (
-              <ShopCard key={shop.id} shop={shop} userLocation={location || undefined} />
-            ))}
           </div>
-        )}
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-2xl overflow-hidden">
+                  <div className="h-44 skeleton" />
+                  <div className="p-4 space-y-3 bg-white">
+                    <div className="h-5 w-2/3 skeleton" />
+                    <div className="h-4 w-full skeleton" />
+                    <div className="h-4 w-1/3 skeleton" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : popularShops?.data.length === 0 ? (
+            <Card variant="bordered" className="text-center py-10">
+              <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 mb-2">No shops found nearby</p>
+              <p className="text-gray-400 text-sm mb-4">Try expanding your search area</p>
+              <Link href="/explore" className="inline-block">
+                <Button variant="outline" size="sm">Explore All Shops</Button>
+              </Link>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {popularShops?.data.map((shop) => (
+                <ShopCard key={shop.id} shop={shop} userLocation={location || undefined} />
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Features */}
-      <section className="container-app py-16">
-        <div className="text-center mb-12">
+      <section className="container-app py-20">
+        <div className="text-center mb-14">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
             Why Choose Overline?
           </h2>
@@ -205,36 +232,42 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {features.map((feature) => (
-            <div key={feature.title} className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary-100 text-primary-600 flex items-center justify-center mx-auto mb-4">
-                <feature.icon className="w-7 h-7" />
+            <div key={feature.title} className="text-center group">
+              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mx-auto mb-5 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                <feature.icon className="w-8 h-8 text-white" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
-              <p className="text-gray-500 text-sm">{feature.description}</p>
+              <h3 className="font-bold text-gray-900 text-lg mb-2">{feature.title}</h3>
+              <p className="text-gray-500">{feature.description}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* CTA */}
-      <section className="container-app py-12">
-        <Card className="bg-gradient-to-r from-primary-500 to-accent-500 text-white text-center py-10 px-6">
-          <h2 className="text-2xl md:text-3xl font-bold mb-3">
-            Ready to skip the queue?
-          </h2>
-          <p className="text-primary-100 mb-6 max-w-md mx-auto">
-            Join thousands of users who save time by booking ahead.
-          </p>
-          <Link href="/explore">
-            <Button
-              variant="secondary"
-              size="lg"
-              className="bg-white text-primary-600 hover:bg-gray-100"
-            >
-              Explore Shops
-            </Button>
-          </Link>
-        </Card>
+      <section className="container-app py-12 pb-20">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary-600 via-primary-500 to-purple-600 text-white text-center py-14 px-8">
+          {/* Abstract decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+
+          <div className="relative">
+            <h2 className="text-2xl md:text-4xl font-extrabold mb-4">
+              Ready to skip the queue?
+            </h2>
+            <p className="text-primary-100 mb-8 max-w-md mx-auto text-lg">
+              Join thousands of users who save time by booking ahead.
+            </p>
+            <Link href="/explore">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="bg-white text-primary-600 hover:bg-gray-100 font-bold px-8 rounded-xl shadow-lg"
+              >
+                Explore Shops →
+              </Button>
+            </Link>
+          </div>
+        </div>
       </section>
     </>
   );
