@@ -10,7 +10,7 @@ FROM base AS builder
 WORKDIR /app
 
 # Copy workspace configuration and install deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/admin-web/package.json ./apps/admin-web/
 

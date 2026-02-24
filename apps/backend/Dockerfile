@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apk update && apk upgrade && apk add --no-cache python3 make g++ openssl && npm install -g pnpm@9
 
 # Copy monorepo config first (for better layer caching)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/backend/package.json ./apps/backend/
 COPY packages/shared/package.json ./packages/shared/
 
