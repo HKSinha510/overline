@@ -10,6 +10,8 @@ export interface User {
   name: string;
   phone?: string;
   avatarUrl?: string;
+  dateOfBirth?: string;
+  gender?: string;
   role: UserRole;
   tenantId?: string;
   isEmailVerified: boolean;

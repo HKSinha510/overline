@@ -9,6 +9,9 @@ interface BookingState {
   selectedSlot: TimeSlot | null;
   notes: string;
   offerCode: string | null;
+  bookingForOther: boolean;
+  customerName: string;
+  customerPhone: string;
 
   setShop: (shop: Shop) => void;
   addService: (service: Service) => void;
@@ -19,6 +22,9 @@ interface BookingState {
   setSlot: (slot: TimeSlot | null) => void;
   setNotes: (notes: string) => void;
   setOfferCode: (code: string | null) => void;
+  setBookingForOther: (value: boolean) => void;
+  setCustomerName: (name: string) => void;
+  setCustomerPhone: (phone: string) => void;
   getTotalDuration: () => number;
   getTotalPrice: () => number;
   reset: () => void;
@@ -32,6 +38,9 @@ const initialState = {
   selectedSlot: null,
   notes: '',
   offerCode: null,
+  bookingForOther: false,
+  customerName: '',
+  customerPhone: '',
 };
 
 export const useBookingStore = create<BookingState>((set, get) => ({
@@ -70,6 +79,15 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   setNotes: (notes) => set({ notes }),
 
   setOfferCode: (offerCode) => set({ offerCode }),
+
+  setBookingForOther: (bookingForOther) => set({
+    bookingForOther,
+    ...(bookingForOther ? {} : { customerName: '', customerPhone: '' }),
+  }),
+
+  setCustomerName: (customerName) => set({ customerName }),
+
+  setCustomerPhone: (customerPhone) => set({ customerPhone }),
 
   getTotalDuration: () => {
     const { selectedServices } = get();

@@ -4,9 +4,10 @@ import { RedisService } from '@/common/redis/redis.service';
 import { QueueService } from '../queue/queue.service';
 import { QueueGateway } from '../queue/queue.gateway';
 import { SlotEngineService } from '../queue/slot-engine.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
-import { BookingStatus, BookingSource } from '@prisma/client';
+import { BookingStatus, BookingSource, NotificationChannel, NotificationType } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class BookingsService {
     @Inject(forwardRef(() => QueueGateway))
     private queueGateway: QueueGateway,
     private slotEngine: SlotEngineService,
+    private notificationsService: NotificationsService,
   ) { }
 
   /**
@@ -153,7 +155,50 @@ export class BookingsService {
     // Emit real-time queue update
     this.queueGateway.emitQueueUpdate(shopId).catch(console.error);
 
+    // Send booking confirmation notification to customer
+    this.notificationsService.sendBookingConfirmation(booking.id).catch(console.error);
+
+    // Send in-app notification to shop owner/admin
+    this.sendAdminBookingNotification(booking, shop).catch(console.error);
+
     return booking;
+  }
+
+  /**
+   * Send notification to shop admin about new booking
+   */
+  private async sendAdminBookingNotification(booking: any, shop: any) {
+    // Find all admin/owner users for this shop's tenant
+    const adminUsers = await this.prisma.user.findMany({
+      where: {
+        tenantId: shop.tenantId,
+        role: { in: ['ADMIN', 'OWNER', 'SUPER_ADMIN'] as any },
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    const customerName = booking.user?.name || booking.customerName || 'Guest';
+    const serviceNames = booking.services?.map((s: any) => s.serviceName).join(', ') || 'Service';
+    const startTime = new Date(booking.startTime);
+    const timeStr = startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+    for (const admin of adminUsers) {
+      await this.notificationsService.send({
+        userId: admin.id,
+        bookingId: booking.id,
+        type: NotificationType.BOOKING_CONFIRMED,
+        title: `New Booking from ${customerName}`,
+        body: `${customerName} booked ${serviceNames} at ${timeStr}. Booking #${booking.bookingNumber}`,
+        data: {
+          bookingNumber: booking.bookingNumber,
+          customerName,
+          services: serviceNames,
+          time: timeStr,
+        },
+        channels: [NotificationChannel.EMAIL],
+      });
+    }
   }
 
   /**

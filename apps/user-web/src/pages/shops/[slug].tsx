@@ -3,9 +3,9 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import {
   ArrowLeft, MapPin, Clock, Star, Phone, Globe, Share2,
-  MessageSquare, ChevronLeft, ChevronRight, X, Camera,
+  MessageSquare, ChevronLeft, ChevronRight, X, Camera, UserPlus,
 } from 'lucide-react';
-import { Button, Badge, Loading, Alert, Card } from '@/components/ui';
+import { Button, Badge, Loading, Alert, Card, Input } from '@/components/ui';
 import { ServiceList, StaffPicker, LiveQueueStatus } from '@/components/shop';
 import { DatePicker, SlotPicker, BookingSummary } from '@/components/booking';
 import { ReviewList } from '@/components/reviews';
@@ -50,6 +50,12 @@ export default function ShopDetailPage() {
     setSlot,
     setNotes,
     offerCode,
+    bookingForOther,
+    customerName,
+    customerPhone,
+    setBookingForOther,
+    setCustomerName,
+    setCustomerPhone,
     getTotalDuration,
     reset,
   } = useBookingStore();
@@ -123,6 +129,10 @@ export default function ShopDetailPage() {
         scheduledTime: selectedSlot.startTime,
         notes,
         ...(offerCode ? { offerCode } : {}),
+        ...(bookingForOther && customerName ? {
+          customerName,
+          customerPhone: customerPhone || undefined,
+        } : {}),
       });
 
       router.push(`/bookings/${booking.id}?success=true`);
@@ -229,8 +239,8 @@ export default function ShopDetailPage() {
                   <div key={s} className="flex items-center gap-1.5">
                     <div
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${i <= stepIndex
-                          ? 'bg-primary-500 text-white'
-                          : 'bg-gray-200 text-gray-500'
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-gray-200 text-gray-500'
                         }`}
                     >
                       {i + 1}
@@ -395,6 +405,19 @@ export default function ShopDetailPage() {
               <div className="bg-white rounded-xl p-6 shadow-sm">
                 {step === 'services' && (
                   <>
+                    {/* Inline Queue Banner */}
+                    {shop?.id && (
+                      <div className="mb-4">
+                        <LiveQueueStatus
+                          shopId={shop.id}
+                          fallbackStats={queueStats ? {
+                            waitingCount: queueStats.waitingCount,
+                            estimatedWaitMinutes: queueStats.estimatedWaitMinutes,
+                          } : null}
+                        />
+                      </div>
+                    )}
+
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
                       Select Services
                     </h2>
@@ -478,6 +501,43 @@ export default function ShopDetailPage() {
                     )}
 
                     <div className="space-y-4">
+                      {/* Booking For Someone Else */}
+                      <div className="p-4 bg-gray-50 rounded-xl">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={bookingForOther}
+                            onChange={(e) => setBookingForOther(e.target.checked)}
+                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                          />
+                          <div className="flex items-center gap-2">
+                            <UserPlus className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700">
+                              Booking for someone else?
+                            </span>
+                          </div>
+                        </label>
+
+                        {bookingForOther && (
+                          <div className="mt-4 space-y-3 pl-7">
+                            <Input
+                              label="Their Name"
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                              placeholder="Enter their full name"
+                              required
+                            />
+                            <Input
+                              label="Their Phone (optional)"
+                              type="tel"
+                              value={customerPhone}
+                              onChange={(e) => setCustomerPhone(e.target.value)}
+                              placeholder="+91 XXXXX XXXXX"
+                            />
+                          </div>
+                        )}
+                      </div>
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Notes (Optional)
@@ -526,7 +586,6 @@ export default function ShopDetailPage() {
             {/* Sidebar - Booking Summary */}
             <div className="hidden lg:block space-y-4">
               <BookingSummary />
-              {shop?.id && <LiveQueueStatus shopId={shop.id} />}
             </div>
           </div>
         </div>

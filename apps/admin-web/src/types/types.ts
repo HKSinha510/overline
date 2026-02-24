@@ -224,3 +224,37 @@ export interface ApiError {
   message: string;
   error?: string;
 }
+
+// ============================================================================
+// Notifications
+// ============================================================================
+
+export interface Notification {
+  id: string;
+  userId: string;
+  bookingId?: string;
+  type: 'BOOKING_CONFIRMED' | 'BOOKING_REMINDER' | 'QUEUE_UPDATE' | 'NEW_MESSAGE';
+  title: string;
+  body: string;
+  data: Record<string, any>;
+  status: 'PENDING' | 'SENT' | 'FAILED';
+  readAt: string | null;
+  createdAt: string;
+  booking?: {
+    id: string;
+    bookingNumber: string;
+    status: BookingStatus;
+    startTime: string;
+    customerName: string;
+  };
+}
+
+export interface NotificationsResponse {
+  data: Notification[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}

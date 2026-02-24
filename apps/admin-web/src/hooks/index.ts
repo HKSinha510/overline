@@ -21,3 +21,9 @@ export {
 } from './useServices';
 export { useAnalytics, useDailyMetrics, usePopularServices } from './useAnalytics';
 export { useQueueSocket } from './useQueueSocket';
+export {
+  useNotifications,
+  useUnreadNotificationsCount,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from './useNotifications';

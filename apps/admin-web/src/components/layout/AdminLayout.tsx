@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
-import { useLogout } from '@/hooks';
+import { useLogout, useUnreadNotificationsCount } from '@/hooks';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -28,12 +28,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const logout = useLogout();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
+  // Fetch unread count if authenticated
+  const { data: unreadData } = useUnreadNotificationsCount();
+  const unreadCount = unreadData?.count || 0;
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Appointments', href: '/appointments', icon: Calendar },
     { name: 'Services', href: '/services', icon: Scissors },
     { name: 'Staff', href: '/staff', icon: Users },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Notifications', href: '/notifications', icon: Bell },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -147,9 +152,15 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
             <div className="flex items-center gap-3">
               {/* Notifications */}
-              <button className="relative p-2 rounded-lg hover:bg-gray-100">
+              <button
+                onClick={() => router.push('/notifications')}
+                className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Notifications"
+              >
                 <Bell className="w-5 h-5 text-gray-500" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full" />
+                )}
               </button>
 
               {/* User Menu */}

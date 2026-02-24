@@ -1,17 +1,24 @@
 import React from 'react';
-import { Users, Clock, Wifi, WifiOff } from 'lucide-react';
-import { Card, Badge } from '@/components/ui';
+import { Users, Clock, WifiOff, AlertCircle } from 'lucide-react';
+import { Card } from '@/components/ui';
 import { useQueueSocket } from '@/hooks';
 
 interface LiveQueueStatusProps {
   shopId: string;
+  /** Fallback stats from REST API (shop data) */
+  fallbackStats?: {
+    waitingCount: number;
+    estimatedWaitMinutes: number;
+  } | null;
 }
 
-export const LiveQueueStatus: React.FC<LiveQueueStatusProps> = ({ shopId }) => {
+export const LiveQueueStatus: React.FC<LiveQueueStatusProps> = ({ shopId, fallbackStats }) => {
   const [stats, setStats] = React.useState<{
     waitingCount: number;
     estimatedWaitMinutes: number;
   } | null>(null);
+
+  const [timedOut, setTimedOut] = React.useState(false);
 
   const { connected, lastUpdate } = useQueueSocket({
     shopId,
@@ -24,58 +31,60 @@ export const LiveQueueStatus: React.FC<LiveQueueStatusProps> = ({ shopId }) => {
     },
   });
 
-  // Use live data if available, otherwise fallback
-  const displayStats = stats || lastUpdate?.stats;
+  // Timeout: if WS doesn't connect in 5 seconds, stop waiting
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!connected) {
+        setTimedOut(true);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [connected]);
+
+  // Clear timeout flag if we connect
+  React.useEffect(() => {
+    if (connected) setTimedOut(false);
+  }, [connected]);
+
+  // Use live data > last WS update > REST fallback
+  const displayStats = stats || lastUpdate?.stats || fallbackStats;
+
+  // Don't show anything if there's no data and connection timed out
+  if (!displayStats && timedOut) {
+    return null; // Don't render a stuck widget
+  }
+
+  // Still connecting and no fallback data
+  if (!displayStats && !timedOut) {
+    return null; // Don't show "connecting..." — just skip until data is ready
+  }
 
   return (
-    <Card variant="bordered" className="relative overflow-hidden">
-      {/* Live indicator */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-gray-900 text-sm">Live Queue</h3>
-        <div className="flex items-center gap-1.5">
-          {connected ? (
-            <>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-              </span>
-              <span className="text-xs text-green-600 font-medium">Live</span>
-            </>
-          ) : (
-            <>
-              <WifiOff className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs text-gray-400">Offline</span>
-            </>
-          )}
-        </div>
+    <div className="flex items-center gap-3 px-4 py-3 bg-indigo-50 rounded-xl border border-indigo-100">
+      <div className="flex items-center gap-1.5">
+        {connected ? (
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          </span>
+        ) : (
+          <span className="relative flex h-2 w-2">
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-400" />
+          </span>
+        )}
       </div>
 
-      {displayStats ? (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-center mb-1">
-              <Users className="w-5 h-5 text-indigo-500" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {displayStats.waitingCount}
-            </div>
-            <div className="text-xs text-gray-500">In Queue</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-center mb-1">
-              <Clock className="w-5 h-5 text-amber-500" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              ~{displayStats.estimatedWaitMinutes}
-            </div>
-            <div className="text-xs text-gray-500">Min Wait</div>
-          </div>
-        </div>
-      ) : (
-        <div className="text-center py-4 text-sm text-gray-500">
-          Connecting to live queue...
-        </div>
-      )}
-    </Card>
+      <div className="flex items-center gap-4 text-sm">
+        <span className="flex items-center gap-1 text-indigo-700 font-medium">
+          <Users className="w-4 h-4" />
+          {displayStats!.waitingCount} in queue
+        </span>
+        <span className="text-indigo-300">•</span>
+        <span className="flex items-center gap-1 text-indigo-600">
+          <Clock className="w-4 h-4" />
+          ~{displayStats!.estimatedWaitMinutes} min wait
+        </span>
+      </div>
+    </div>
   );
 };
