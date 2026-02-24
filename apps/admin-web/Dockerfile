@@ -24,8 +24,9 @@ COPY apps/admin-web ./apps/admin-web
 # Build shared package first
 RUN cd packages/shared && pnpm build
 
-# Build Next.js app
+# Build Next.js app (DOCKER_BUILD enables standalone output in next.config.js)
 WORKDIR /app/apps/admin-web
+ENV DOCKER_BUILD=true
 RUN pnpm build
 
 # Production stage
