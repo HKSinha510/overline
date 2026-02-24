@@ -27,7 +27,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN apk update && apk upgrade && apk add --no-cache openssl && rm -rf /var/cache/apk/*
+RUN apk update && apk upgrade && apk add --no-cache openssl && npm install -g pnpm@9 && rm -rf /var/cache/apk/*
 
 # Copy entire built workspace from builder (includes node_modules, dist, prisma client)
 COPY --from=builder /app ./
