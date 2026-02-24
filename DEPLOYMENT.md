@@ -50,8 +50,9 @@
 1. Go to [railway.app](https://railway.app)
 2. Create new project from GitHub
 3. Select your repository
-4. Set root directory to `apps/backend`
-5. Add environment variables:
+4. **Set root directory to `/` (repo root)** — NOT `apps/backend`. The Dockerfile needs access to monorepo root files.
+5. Railway will auto-detect `railway.json` which points to `apps/backend/Dockerfile`
+6. Add environment variables:
 
 ```env
 NODE_ENV=production
