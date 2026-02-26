@@ -11,6 +11,7 @@ interface QueueUpdate {
 interface UseQueueSocketOptions {
   shopId?: string;
   onQueueUpdate?: (update: QueueUpdate) => void;
+  onBookingUpdate?: (update: any) => void;
   enabled?: boolean;
 }
 
@@ -55,6 +56,10 @@ export function useQueueSocket({
       onQueueUpdate?.(data);
     });
 
+    socket.on('bookingUpdate', (data: any) => {
+      onBookingUpdate?.(data);
+    });
+
     socketRef.current = socket;
 
     return () => {
@@ -62,12 +67,12 @@ export function useQueueSocket({
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [enabled, shopId]);
+  }, [enabled, shopId, onQueueUpdate, onBookingUpdate]);
 
   useEffect(() => {
     const cleanup = connect();
     return cleanup;
   }, [connect]);
 
-  return { connected };
+  return { connected, socket: socketRef.current };
 }

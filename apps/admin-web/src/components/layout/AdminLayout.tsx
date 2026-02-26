@@ -16,7 +16,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
-import { useLogout, useUnreadNotificationsCount } from '@/hooks';
+import { useLogout, useUnreadNotificationsCount, useQueueSocket } from '@/hooks';
+import { useToast } from '@/components/ui/Toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -27,10 +29,58 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { user, isAuthenticated, shopId } = useAuthStore();
   const logout = useLogout();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const { addToast } = useToast();
+  const queryClient = useQueryClient();
+  const prevQueueLengthRef = React.useRef<number | null>(null);
 
   // Fetch unread count if authenticated
   const { data: unreadData } = useUnreadNotificationsCount();
   const unreadCount = unreadData?.count || 0;
+
+  // Global socket listener for new bookings
+  useQueueSocket({
+    shopId: shopId || undefined,
+    enabled: isAuthenticated && !!shopId,
+    onQueueUpdate: React.useCallback(
+      (update: any) => {
+        // Invalidate queries so the dashboard refreshes automatically
+        queryClient.invalidateQueries({ queryKey: ['adminBookings'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
+        // Check if queue grew to display a new booking toast
+        const currentLength = update?.queue?.length || 0;
+        if (
+          prevQueueLengthRef.current !== null &&
+          currentLength > prevQueueLengthRef.current
+        ) {
+          addToast({
+            type: 'info',
+            title: 'New Booking',
+            message: 'A new appointment has been added to the queue.',
+            duration: 5000,
+          });
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        }
+        prevQueueLengthRef.current = currentLength;
+      },
+      [addToast, queryClient]
+    ),
+    onBookingUpdate: React.useCallback(
+      (update: any) => {
+        // Optional: show toasts for specific status changes (e.g. user cancelled)
+        if (update?.status === 'CANCELLED') {
+          addToast({
+            type: 'warning',
+            title: 'Booking Cancelled',
+            message: `A booking was just cancelled.`,
+            duration: 5000,
+          });
+          queryClient.invalidateQueries({ queryKey: ['adminBookings'] });
+        }
+      },
+      [addToast, queryClient]
+    ),
+  });
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
