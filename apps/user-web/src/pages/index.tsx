@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { ShopCard } from '@/components/shop';
+import { ShopCard, ShopMap } from '@/components/shop';
 import { useShops, useLocation } from '@/hooks';
 
 export default function HomePage() {
@@ -140,32 +140,27 @@ export default function HomePage() {
               </motion.div>
             </motion.div>
 
-            {/* Asymmetric Right Image/Card */}
+            {/* Asymmetric Right Image/Map */}
             <motion.div
-              className="lg:col-span-5 hidden lg:block"
-              initial={{ opacity: 0, x: 100, rotate: 5 }}
+              className="lg:col-span-5 hidden lg:block h-full"
+              initial={{ opacity: 0, x: 100, rotate: 2 }}
               animate={{ opacity: 1, x: 0, rotate: 0 }}
               transition={{ duration: 1, type: "spring", bounce: 0.4 }}
             >
-              <div className="relative">
-                <div className="absolute inset-0 bg-lexo-charcoal rounded-[3rem] translate-x-4 translate-y-4 -z-10" />
-                <div className="w-full aspect-[4/5] rounded-[3rem] overflow-hidden shadow-2xl relative">
-                  <img src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800" alt="Premium Salon" className="w-full h-full object-cover" />
-                  <div className="absolute bottom-6 left-6 right-6">
-                    <div className="glass-dark rounded-2xl p-6 shadow-2xl backdrop-blur-xl border border-white/20">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-white font-bold text-xl">The Grooming Lounge</h3>
-                        <div className="flex items-center gap-1 bg-white/20 px-2.5 py-1 rounded-lg">
-                          <Star className="w-4 h-4 text-amber-400 fill-current" />
-                          <span className="text-white font-bold text-sm">4.9</span>
-                        </div>
-                      </div>
-                      <p className="text-white/70 text-sm mb-4">Live Queue: 2 waiting</p>
-                      <Button className="w-full bg-white text-lexo-black hover:bg-gray-100 rounded-xl font-bold py-5">
-                        Book Next Slot
-                      </Button>
+              <div className="relative h-full min-h-[500px] w-full mt-4">
+                <div className="absolute inset-0 bg-lexo-charcoal rounded-[3rem] translate-x-4 translate-y-4 -z-10 opacity-20" />
+                <div className="w-full h-[600px] rounded-[3rem] overflow-hidden shadow-2xl relative border-4 border-white">
+                  <ShopMap
+                    shops={popularShops?.data || []}
+                    userLocation={location || undefined}
+                    className="w-full h-full"
+                    zoom={12}
+                  />
+                  {!popularShops?.data && isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 backdrop-blur-sm z-20">
+                      <Loader2 className="w-8 h-8 animate-spin text-lexo-black" />
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </motion.div>

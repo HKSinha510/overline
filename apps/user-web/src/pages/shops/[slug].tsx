@@ -16,12 +16,12 @@ import { format } from 'date-fns';
 
 type BookingStep = 'services' | 'staff' | 'datetime' | 'confirm';
 
-const STEP_LABELS: Record<BookingStep, string> = {
-  services: 'Select Services',
-  staff: 'Choose Staff',
+const getStepLabels = (type?: string): Record<BookingStep, string> => ({
+  services: type === 'CLINIC' ? 'Consultation Type' : type === 'SALON' ? 'Grooming Services' : 'Select Services',
+  staff: type === 'CLINIC' ? 'Choose Specialist' : type === 'SALON' ? 'Choose Stylist' : 'Choose Staff',
   datetime: 'Pick a Time',
-  confirm: 'Confirm',
-};
+  confirm: 'Confirm Details',
+});
 
 export default function ShopDetailPage() {
   const router = useRouter();
@@ -173,6 +173,15 @@ export default function ShopDetailPage() {
   }
 
   const heroImage = shop.coverUrl || shop.photoUrls?.[0] || shop.logoUrl;
+  const isClinic = shop.tenant?.type === 'CLINIC';
+  const isSalon = shop.tenant?.type === 'SALON' || shop.tenant?.type === 'BARBER';
+
+  // Dynamic Theming Variables
+  const themeBgColor = isClinic ? 'bg-blue-50/50' : isSalon ? 'bg-zinc-950' : 'bg-[#F8F9FA]';
+  const themeNavBgColor = isClinic ? 'bg-white/90' : isSalon ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white/80';
+  const themeTextColorPrimary = isClinic ? 'text-blue-950' : isSalon ? 'text-white' : 'text-lexo-black';
+  const themeTextColorSecondary = isClinic ? 'text-blue-700/70' : isSalon ? 'text-zinc-400' : 'text-lexo-gray';
+  const stepLabels = getStepLabels(shop.tenant?.type);
 
   return (
     <>
@@ -217,13 +226,13 @@ export default function ShopDetailPage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-[#F8F9FA] pb-32">
+      <div className={`min-h-screen pb-32 transition-colors duration-500 ${themeBgColor}`}>
         {/* Sleek Breadcrumb/Top Nav */}
-        <div className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 transition-all">
+        <div className={`${themeNavBgColor} backdrop-blur-md border-b sticky top-0 z-40 transition-all`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
             <button
               onClick={handlePrevStep}
-              className="flex items-center gap-2 text-lexo-gray hover:text-lexo-black font-semibold transition-colors"
+              className={`flex items-center gap-2 font-semibold transition-colors ${themeTextColorSecondary} hover:${themeTextColorPrimary}`}
             >
               <ArrowLeft className="w-5 h-5" />
               <span className="hidden sm:inline">
@@ -236,28 +245,27 @@ export default function ShopDetailPage() {
               {(['services', 'staff', 'datetime', 'confirm'] as BookingStep[]).map((s, i) => {
                 const stepIndex = ['services', 'staff', 'datetime', 'confirm'].indexOf(step);
                 const isActive = i <= stepIndex;
-                const isCurrent = i === stepIndex;
 
                 return (
                   <div key={s} className="flex items-center gap-2">
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${isActive
-                        ? 'bg-lexo-black text-white shadow-md scale-110'
-                        : 'bg-gray-100 text-gray-400'
+                        ? isSalon ? 'bg-white text-black shadow-md scale-110' : 'bg-lexo-black text-white shadow-md scale-110'
+                        : isSalon ? 'bg-zinc-800 text-zinc-500' : 'bg-gray-100 text-gray-400'
                         }`}
                     >
                       {i + 1}
                     </div>
                     {i < 3 && (
-                      <div className={`w-8 h-1 rounded-full transition-colors ${i < stepIndex ? 'bg-lexo-black' : 'bg-gray-200'}`} />
+                      <div className={`w-8 h-1 rounded-full transition-colors ${i < stepIndex ? (isSalon ? 'bg-white' : 'bg-lexo-black') : (isSalon ? 'bg-zinc-800' : 'bg-gray-200')}`} />
                     )}
                   </div>
                 );
               })}
             </div>
 
-            <span className="text-sm font-bold text-lexo-charcoal hidden sm:block">
-              {STEP_LABELS[step]}
+            <span className={`text-sm font-bold hidden sm:block ${themeTextColorPrimary}`}>
+              {stepLabels[step]}
             </span>
           </div>
         </div>
@@ -273,13 +281,13 @@ export default function ShopDetailPage() {
               {step === 'services' && (
                 <div className="mb-12 relative">
                   {/* Title absolutely massive */}
-                  <h1 className="text-5xl md:text-7xl font-black text-lexo-black tracking-tight leading-[0.9] mb-8 relative z-10 text-balance mix-blend-difference">
+                  <h1 className={`text-5xl md:text-7xl font-black tracking-tight leading-[0.9] mb-8 relative z-10 text-balance ${themeTextColorPrimary}`}>
                     {shop.name}
                   </h1>
 
                   {/* Cover Image / Gallery */}
                   <div
-                    className="relative h-64 md:h-96 w-full rounded-[2.5rem] overflow-hidden cursor-pointer group shadow-2xl z-0 -mt-16 md:-mt-24 ml-0 md:ml-12"
+                    className="relative h-64 md:h-96 w-full rounded-[2.5rem] overflow-hidden cursor-pointer group shadow-2xl z-0 -mt-8 md:-mt-12 ml-0 md:ml-12"
                     onClick={() => {
                       if (allPhotos.length > 0) {
                         setGalleryIndex(0);
@@ -302,12 +310,12 @@ export default function ShopDetailPage() {
                     )}
 
                     {/* Gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-lexo-black/80 via-transparent to-transparent opacity-60" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
 
                     {/* Shop Info Overlay */}
                     <div className="absolute bottom-6 left-8 right-8 flex flex-col sm:flex-row justify-between items-end gap-4">
                       <div className="flex gap-3">
-                        <Badge variant="success" className="bg-green-500 hover:bg-green-400 text-white font-bold px-4 py-1! rounded-full shadow-lg">Open</Badge>
+                        <Badge variant="success" className="bg-green-500 hover:bg-green-400 text-white font-bold px-4 py-1! rounded-full shadow-lg border-0">Open</Badge>
                         {ratingStats && (
                           <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-4 py-1 rounded-full text-white font-bold shadow-lg">
                             <Star className="w-4 h-4 text-amber-400 fill-current" />
@@ -326,21 +334,21 @@ export default function ShopDetailPage() {
                   </div>
 
                   {/* Minimal Info Row */}
-                  <div className="flex flex-wrap items-center gap-x-8 gap-y-4 mt-8 md:pl-12">
-                    <span className="flex items-center gap-2 text-lexo-charcoal font-medium text-lg">
-                      <MapPin className="w-5 h-5 text-lexo-gray" />
+                  <div className={`flex flex-wrap items-center gap-x-8 gap-y-4 mt-8 md:pl-12 ${themeTextColorPrimary}`}>
+                    <span className="flex items-center gap-2 font-medium text-lg">
+                      <MapPin className={`w-5 h-5 ${themeTextColorSecondary}`} />
                       {shop.address}, {shop.city}
                     </span>
                     {shop.phone && (
-                      <a href={`tel:${shop.phone}`} className="flex items-center gap-2 text-lexo-charcoal font-medium text-lg hover:text-indigo-600 transition-colors">
-                        <Phone className="w-5 h-5 text-lexo-gray" />
+                      <a href={`tel:${shop.phone}`} className="flex items-center gap-2 font-medium text-lg hover:text-indigo-500 transition-colors">
+                        <Phone className={`w-5 h-5 ${themeTextColorSecondary}`} />
                         {shop.phone}
                       </a>
                     )}
                   </div>
 
                   {shop.description && (
-                    <p className="mt-6 md:pl-12 text-lg text-lexo-gray leading-relaxed max-w-3xl">
+                    <p className={`mt-6 md:pl-12 text-lg leading-relaxed max-w-3xl ${themeTextColorSecondary}`}>
                       {shop.description}
                     </p>
                   )}

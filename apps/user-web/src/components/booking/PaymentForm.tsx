@@ -161,9 +161,42 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         appearance: {
           theme: 'stripe',
           variables: {
-            colorPrimary: '#6366f1',
-            borderRadius: '8px',
+            colorPrimary: '#111827', // lexo-black
+            colorBackground: '#ffffff',
+            colorText: '#111827',
+            colorDanger: '#ef4444',
+            fontFamily: 'system-ui, -apple-system, blinkmacsystemfont, sans-serif',
+            spacingUnit: '4px',
+            borderRadius: '16px', // Premium soft rounded corners matching Overline UI
           },
+          rules: {
+            '.Input': {
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)',
+              padding: '12px 16px',
+            },
+            '.Input:focus': {
+              border: '1px solid #111827',
+              boxShadow: '0 0 0 1px #111827',
+            },
+            '.Label': {
+              fontWeight: '700',
+              marginBottom: '8px',
+              color: '#6b7280', // lexo-gray equivalent
+              textTransform: 'uppercase',
+              fontSize: '12px',
+              letterSpacing: '0.05em',
+            },
+            '.Tab': {
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)',
+              borderRadius: '12px',
+            },
+            '.Tab--selected': {
+              border: '2px solid #111827',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+            }
+          }
         },
       }}
     >

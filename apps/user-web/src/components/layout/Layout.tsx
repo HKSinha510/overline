@@ -80,6 +80,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Desktop User Menu */}
             <div className="hidden md:flex items-center gap-3">
+              {/* Partner Link */}
+              <a
+                href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.overline.app"}
+                className="text-sm font-bold text-lexo-gray hover:text-lexo-black px-4 transition-colors hidden lg:block"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Partner Login
+              </a>
+
+              <div className="w-px h-5 bg-gray-200 hidden lg:block mx-1" />
+
               {isAuthenticated && user ? (
                 <Link href="/profile" className="flex items-center gap-3 bg-white/40 border border-gray-200/50 pl-2 pr-4 py-1.5 rounded-full hover:bg-white/80 transition-colors">
                   <Avatar src={user.avatarUrl || null} name={user.name} size="sm" />
@@ -162,6 +174,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 </motion.div>
               )}
+
+              {/* Mobile Partner Link */}
+              <motion.div
+                className="mt-4 pt-4 border-t border-gray-100 flex flex-col"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <a
+                  href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.overline.app"}
+                  className="text-center font-bold text-lexo-gray hover:text-lexo-black py-4 transition-colors"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Partner / Admin Login
+                </a>
+              </motion.div>
             </nav>
           </motion.div>
         )}
