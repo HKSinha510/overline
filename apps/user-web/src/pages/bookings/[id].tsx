@@ -51,9 +51,12 @@ export default function BookingDetailPage() {
     onQueueUpdate: () => refetch(),
   });
 
+  const [paymentError, setPaymentError] = React.useState<string | null>(null);
+
   const handlePayNow = async () => {
     if (!booking) return;
     try {
+      setPaymentError(null);
       const data = await createPaymentIntent.mutateAsync({
         bookingId: booking.id,
       });
@@ -65,6 +68,8 @@ export default function BookingDetailPage() {
       setShowPayment(true);
     } catch (err: any) {
       console.error('Failed to create payment intent:', err);
+      // Ensure we display the error from the backend (like Stripe missing configuration)
+      setPaymentError(err.response?.data?.message || err.message || 'Failed to initialize payment');
     }
   };
 
@@ -384,6 +389,12 @@ export default function BookingDetailPage() {
                       </p>
                     </div>
                   </div>
+
+                  {paymentError && (
+                    <Alert variant="error" className="mb-4">
+                      {paymentError}
+                    </Alert>
+                  )}
 
                   {showPayment && paymentData ? (
                     <PaymentForm
