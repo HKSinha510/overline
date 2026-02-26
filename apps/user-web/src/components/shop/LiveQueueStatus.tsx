@@ -1,11 +1,10 @@
 import React from 'react';
-import { Users, Clock, WifiOff, AlertCircle } from 'lucide-react';
-import { Card } from '@/components/ui';
+import { Users, Clock, Zap } from 'lucide-react';
 import { useQueueSocket } from '@/hooks';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface LiveQueueStatusProps {
   shopId: string;
-  /** Fallback stats from REST API (shop data) */
   fallbackStats?: {
     waitingCount: number;
     estimatedWaitMinutes: number;
@@ -31,7 +30,6 @@ export const LiveQueueStatus: React.FC<LiveQueueStatusProps> = ({ shopId, fallba
     },
   });
 
-  // Timeout: if WS doesn't connect in 5 seconds, stop waiting
   React.useEffect(() => {
     const timer = setTimeout(() => {
       if (!connected) {
@@ -41,50 +39,48 @@ export const LiveQueueStatus: React.FC<LiveQueueStatusProps> = ({ shopId, fallba
     return () => clearTimeout(timer);
   }, [connected]);
 
-  // Clear timeout flag if we connect
   React.useEffect(() => {
     if (connected) setTimedOut(false);
   }, [connected]);
 
-  // Use live data > last WS update > REST fallback
   const displayStats = stats || lastUpdate?.stats || fallbackStats;
 
-  // Don't show anything if there's no data and connection timed out
-  if (!displayStats && timedOut) {
-    return null; // Don't render a stuck widget
-  }
-
-  // Still connecting and no fallback data
-  if (!displayStats && !timedOut) {
-    return null; // Don't show "connecting..." — just skip until data is ready
-  }
+  if (!displayStats && timedOut) return null;
+  if (!displayStats && !timedOut) return null;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-indigo-50 rounded-xl border border-indigo-100">
-      <div className="flex items-center gap-1.5">
-        {connected ? (
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-          </span>
-        ) : (
-          <span className="relative flex h-2 w-2">
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-400" />
-          </span>
-        )}
-      </div>
+    <AnimatePresence>
+      {displayStats && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="fixed bottom-6 inset-x-0 mx-auto w-max z-50 pointer-events-none px-4"
+        >
+          <div className="glass-dark bg-lexo-black/80 text-white rounded-full px-5 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 flex items-center justify-between gap-6 pointer-events-auto backdrop-blur-2xl">
 
-      <div className="flex items-center gap-4 text-sm">
-        <span className="flex items-center gap-1 text-indigo-700 font-medium">
-          <Users className="w-4 h-4" />
-          {displayStats!.waitingCount} in queue
-        </span>
-        <span className="text-indigo-300">•</span>
-        <span className="flex items-center gap-1 text-indigo-600">
-          <Clock className="w-4 h-4" />
-          ~{displayStats!.estimatedWaitMinutes} min wait
-        </span>
-      </div>
-    </div>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                {connected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />}
+                <span className={`relative inline-flex rounded-full h-3 w-3 ${connected ? 'bg-green-500' : 'bg-gray-500'}`} />
+              </span>
+              <span className="font-bold tracking-wide uppercase text-[10px] text-white/50 hidden sm:inline-block">Live Status</span>
+            </div>
+
+            <div className="flex items-center gap-4 text-sm sm:text-base font-bold">
+              <span className="flex items-center gap-1.5 text-white/90">
+                <Users className="w-5 h-5 text-indigo-400" />
+                {displayStats.waitingCount} <span className="text-white/50 font-medium hidden sm:inline">in line</span>
+              </span>
+              <span className="w-1 h-1 rounded-full bg-white/20"></span>
+              <span className="flex items-center gap-1.5 text-white/90">
+                <Clock className="w-5 h-5 text-amber-400" />
+                ~{displayStats.estimatedWaitMinutes}m <span className="text-white/50 font-medium hidden sm:inline">wait</span>
+              </span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

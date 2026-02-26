@@ -41,7 +41,7 @@ export default function ProfilePage() {
   const { isLoading: userLoading } = useUser();
   const updateProfile = useUpdateProfile();
   const logout = useLogout();
-  const { data: bookingsData } = useMyBookings({ limit: 1 });
+  const { data: bookingsData } = useMyBookings();
 
   const [isEditing, setIsEditing] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
@@ -377,8 +377,8 @@ export default function ProfilePage() {
                   key={item.label}
                   onClick={() => router.push(item.href)}
                   className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${index !== menuItems.length - 1
-                      ? 'border-b border-gray-100'
-                      : ''
+                    ? 'border-b border-gray-100'
+                    : ''
                     }`}
                 >
                   <div className="flex items-center gap-3">

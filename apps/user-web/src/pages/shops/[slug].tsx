@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import {
   ArrowLeft, MapPin, Clock, Star, Phone, Globe, Share2,
-  MessageSquare, ChevronLeft, ChevronRight, X, Camera, UserPlus,
+  MessageSquare, ChevronLeft, ChevronRight, X, Camera, UserPlus, Check,
 } from 'lucide-react';
 import { Button, Badge, Loading, Alert, Card, Input } from '@/components/ui';
 import { ServiceList, StaffPicker, LiveQueueStatus } from '@/components/shop';
@@ -217,58 +217,69 @@ export default function ShopDetailPage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
-          <div className="container-app flex items-center justify-between h-14">
+      <div className="min-h-screen bg-[#F8F9FA] pb-32">
+        {/* Sleek Breadcrumb/Top Nav */}
+        <div className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 transition-all">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
             <button
               onClick={handlePrevStep}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+              className="flex items-center gap-2 text-lexo-gray hover:text-lexo-black font-semibold transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
               <span className="hidden sm:inline">
-                {step === 'services' ? 'Back' : 'Previous'}
+                {step === 'services' ? 'Back to Explore' : 'Previous Step'}
               </span>
             </button>
 
             {/* Progress Steps */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {(['services', 'staff', 'datetime', 'confirm'] as BookingStep[]).map((s, i) => {
                 const stepIndex = ['services', 'staff', 'datetime', 'confirm'].indexOf(step);
+                const isActive = i <= stepIndex;
+                const isCurrent = i === stepIndex;
+
                 return (
-                  <div key={s} className="flex items-center gap-1.5">
+                  <div key={s} className="flex items-center gap-2">
                     <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${i <= stepIndex
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${isActive
+                        ? 'bg-lexo-black text-white shadow-md scale-110'
+                        : 'bg-gray-100 text-gray-400'
                         }`}
                     >
                       {i + 1}
                     </div>
                     {i < 3 && (
-                      <div className={`w-6 h-0.5 ${i < stepIndex ? 'bg-primary-500' : 'bg-gray-200'}`} />
+                      <div className={`w-8 h-1 rounded-full transition-colors ${i < stepIndex ? 'bg-lexo-black' : 'bg-gray-200'}`} />
                     )}
                   </div>
                 );
               })}
             </div>
 
-            <span className="text-sm font-medium text-gray-600 hidden sm:block">
+            <span className="text-sm font-bold text-lexo-charcoal hidden sm:block">
               {STEP_LABELS[step]}
             </span>
           </div>
         </div>
 
-        <div className="container-app py-6">
-          <div className="lg:grid lg:grid-cols-3 lg:gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2">
-              {/* Shop Header with Hero Image (only on first step) */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+          <div className="lg:grid lg:grid-cols-12 lg:gap-12 relative">
+
+            {/* Main Content (Left) */}
+            <div className="lg:col-span-7 xl:col-span-8">
+
+              {/* Massive Header & Cover (Always show on top) */}
               {step === 'services' && (
-                <div className="mb-6">
+                <div className="mb-12 relative">
+                  {/* Title absolutely massive */}
+                  <h1 className="text-5xl md:text-7xl font-black text-lexo-black tracking-tight leading-[0.9] mb-8 relative z-10 text-balance mix-blend-difference">
+                    {shop.name}
+                  </h1>
+
                   {/* Cover Image / Gallery */}
                   <div
-                    className="relative h-48 md:h-72 rounded-2xl overflow-hidden mb-5 cursor-pointer group"
+                    className="relative h-64 md:h-96 w-full rounded-[2.5rem] overflow-hidden cursor-pointer group shadow-2xl z-0 -mt-16 md:-mt-24 ml-0 md:ml-12"
                     onClick={() => {
                       if (allPhotos.length > 0) {
                         setGalleryIndex(0);
@@ -280,134 +291,69 @@ export default function ShopDetailPage() {
                       <img
                         src={heroImage}
                         alt={shop.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary-400 via-primary-500 to-purple-600 flex items-center justify-center">
-                        <span className="text-7xl text-white/60 font-bold">
+                      <div className="w-full h-full bg-gradient-to-br from-gray-800 to-lexo-black flex items-center justify-center">
+                        <span className="text-9xl text-white/20 font-black tracking-tighter">
                           {shop.name.charAt(0)}
                         </span>
                       </div>
                     )}
 
                     {/* Gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-lexo-black/80 via-transparent to-transparent opacity-60" />
 
-                    {/* Open badge */}
-                    <div className="absolute top-4 left-4">
-                      <Badge variant="success">Open Now</Badge>
-                    </div>
-
-                    {/* Photo count + View all */}
-                    {allPhotos.length > 1 && (
-                      <div className="absolute bottom-4 right-4 flex items-center gap-1.5 bg-black/60 text-white text-sm px-3 py-1.5 rounded-full">
-                        <Camera className="w-4 h-4" />
-                        View all {allPhotos.length} photos
+                    {/* Shop Info Overlay */}
+                    <div className="absolute bottom-6 left-8 right-8 flex flex-col sm:flex-row justify-between items-end gap-4">
+                      <div className="flex gap-3">
+                        <Badge variant="success" className="bg-green-500 hover:bg-green-400 text-white font-bold px-4 py-1! rounded-full shadow-lg">Open</Badge>
+                        {ratingStats && (
+                          <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-4 py-1 rounded-full text-white font-bold shadow-lg">
+                            <Star className="w-4 h-4 text-amber-400 fill-current" />
+                            {ratingStats.averageRating?.toFixed(1) || 'New'}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Photo Thumbnails */}
-                  {allPhotos.length > 1 && (
-                    <div className="flex gap-2 mb-5 overflow-x-auto hide-scrollbar pb-1">
-                      {allPhotos.slice(0, 5).map((url, i) => (
-                        <button
-                          key={i}
-                          onClick={() => { setGalleryIndex(i); setGalleryOpen(true); }}
-                          className="w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 border-transparent hover:border-primary-400 transition-colors"
-                        >
-                          <img src={url} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                      {allPhotos.length > 5 && (
-                        <button
-                          onClick={() => { setGalleryIndex(5); setGalleryOpen(true); }}
-                          className="w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-medium"
-                        >
-                          +{allPhotos.length - 5}
-                        </button>
+                      {allPhotos.length > 1 && (
+                        <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full text-white text-sm font-semibold shadow-lg hover:bg-black/60 transition-colors">
+                          <Camera className="w-4 h-4" />
+                          {allPhotos.length} Photos
+                        </div>
                       )}
                     </div>
-                  )}
-
-                  {/* Shop Info */}
-                  <div className="flex items-start gap-4 mb-4">
-                    {shop.logoUrl && (
-                      <img
-                        src={shop.logoUrl}
-                        alt={shop.name}
-                        className="w-14 h-14 rounded-xl object-cover border border-gray-200 flex-shrink-0"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
-                        {shop.name}
-                      </h1>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          {shop.address}, {shop.city}
-                        </span>
-                        {ratingStats && (
-                          <span className="flex items-center gap-1 text-amber-500">
-                            <Star className="w-4 h-4 fill-current" />
-                            <span className="font-medium text-gray-900">
-                              {ratingStats.averageRating?.toFixed(1) || 'New'}
-                            </span>
-                            <span className="text-gray-400">({ratingStats.totalReviews || 0})</span>
-                          </span>
-                        )}
-                        {queueStats && (
-                          <span className="flex items-center gap-1 text-primary-600">
-                            <Clock className="w-4 h-4" />
-                            ~{queueStats.estimatedWaitMinutes} min wait
-                          </span>
-                        )}
-                      </div>
-                    </div>
                   </div>
 
-                  {shop.description && (
-                    <p className="text-gray-600 mb-4 leading-relaxed">{shop.description}</p>
-                  )}
-
-                  {/* Quick Info Row */}
-                  <div className="flex flex-wrap gap-3 mb-2">
+                  {/* Minimal Info Row */}
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-4 mt-8 md:pl-12">
+                    <span className="flex items-center gap-2 text-lexo-charcoal font-medium text-lg">
+                      <MapPin className="w-5 h-5 text-lexo-gray" />
+                      {shop.address}, {shop.city}
+                    </span>
                     {shop.phone && (
-                      <a
-                        href={`tel:${shop.phone}`}
-                        className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors"
-                      >
-                        <Phone className="w-3.5 h-3.5" />
+                      <a href={`tel:${shop.phone}`} className="flex items-center gap-2 text-lexo-charcoal font-medium text-lg hover:text-indigo-600 transition-colors">
+                        <Phone className="w-5 h-5 text-lexo-gray" />
                         {shop.phone}
                       </a>
                     )}
-                    {shop.website && (
-                      <a
-                        href={shop.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors"
-                      >
-                        <Globe className="w-3.5 h-3.5" />
-                        Website
-                      </a>
-                    )}
-                    <button className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors">
-                      <Share2 className="w-3.5 h-3.5" />
-                      Share
-                    </button>
                   </div>
+
+                  {shop.description && (
+                    <p className="mt-6 md:pl-12 text-lg text-lexo-gray leading-relaxed max-w-3xl">
+                      {shop.description}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Step Content */}
-              <div className="bg-white rounded-xl p-6 shadow-sm">
+              {/* Step Content Area */}
+              <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 mb-8">
                 {step === 'services' && (
-                  <>
-                    {/* Inline Queue Banner */}
+                  <div className="animate-fade-in">
+                    {/* Inline Queue Banner embedded here if active */}
                     {shop?.id && (
-                      <div className="mb-4">
+                      <div className="mb-8">
                         <LiveQueueStatus
                           shopId={shop.id}
                           fallbackStats={queueStats ? {
@@ -418,8 +364,8 @@ export default function ShopDetailPage() {
                       </div>
                     )}
 
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                      Select Services
+                    <h2 className="text-3xl font-black text-lexo-black mb-8 tracking-tight">
+                      Curated Services
                     </h2>
                     {shop.services && shop.services.length > 0 ? (
                       <ServiceList
@@ -428,25 +374,26 @@ export default function ShopDetailPage() {
                         onToggleService={toggleService}
                       />
                     ) : (
-                      <p className="text-gray-500">No services available</p>
+                      <div className="p-12 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                        <p className="text-lg text-lexo-gray font-medium">No services currently available.</p>
+                      </div>
                     )}
-                  </>
-                )}
 
-                {step === 'services' && shop && (
-                  <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5" />
-                      Reviews
-                    </h2>
-                    <ReviewList shopId={shop.id} />
+                    {/* Reviews injected naturally below services */}
+                    <div className="mt-16 pt-12 border-t border-gray-100">
+                      <h2 className="text-2xl font-black text-lexo-black mb-8 tracking-tight flex items-center gap-3">
+                        <MessageSquare className="w-6 h-6 text-lexo-gray" />
+                        What people are saying
+                      </h2>
+                      <ReviewList shopId={shop.id} />
+                    </div>
                   </div>
                 )}
 
                 {step === 'staff' && (
-                  <>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                      Choose Staff (Optional)
+                  <div className="animate-fade-in">
+                    <h2 className="text-3xl font-black text-lexo-black mb-8 tracking-tight">
+                      Select Professional
                     </h2>
                     {shop.staff && shop.staff.length > 0 ? (
                       <StaffPicker
@@ -455,17 +402,17 @@ export default function ShopDetailPage() {
                         onSelectStaff={setStaff}
                       />
                     ) : (
-                      <p className="text-gray-500">
-                        Staff selection not available for this shop
-                      </p>
+                      <div className="p-12 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                        <p className="text-lg text-lexo-gray font-medium">No specific professionals available for request.</p>
+                      </div>
                     )}
-                  </>
+                  </div>
                 )}
 
                 {step === 'datetime' && (
-                  <>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                      Select Date
+                  <div className="animate-fade-in">
+                    <h2 className="text-3xl font-black text-lexo-black mb-8 tracking-tight">
+                      When is good?
                     </h2>
                     <DatePicker
                       selectedDate={selectedDate}
@@ -473,9 +420,9 @@ export default function ShopDetailPage() {
                     />
 
                     {selectedDate && (
-                      <div className="mt-8">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                          Available Times
+                      <div className="mt-12 animate-fade-in-up">
+                        <h3 className="text-xl font-bold text-lexo-charcoal mb-6">
+                          Available Times on {format(selectedDate, 'MMM d, yyyy')}
                         </h3>
                         <SlotPicker
                           slots={slots || []}
@@ -485,108 +432,137 @@ export default function ShopDetailPage() {
                         />
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
 
                 {step === 'confirm' && (
-                  <>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                      Confirm Booking
+                  <div className="animate-fade-in max-w-2xl mx-auto">
+                    <h2 className="text-3xl font-black text-lexo-black mb-8 tracking-tight text-center">
+                      Final Details
                     </h2>
 
                     {error && (
-                      <Alert variant="error" className="mb-4">
+                      <Alert variant="error" className="mb-8 rounded-2xl">
                         {error}
                       </Alert>
                     )}
 
-                    <div className="space-y-4">
+                    <div className="space-y-8">
                       {/* Booking For Someone Else */}
-                      <div className="p-4 bg-gray-50 rounded-xl">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={bookingForOther}
-                            onChange={(e) => setBookingForOther(e.target.checked)}
-                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                          />
-                          <div className="flex items-center gap-2">
-                            <UserPlus className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm font-medium text-gray-700">
+                      <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 transition-all focus-within:ring-2 ring-lexo-black/5">
+                        <label className="flex items-center gap-4 cursor-pointer group">
+                          <div className="relative flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={bookingForOther}
+                              onChange={(e) => setBookingForOther(e.target.checked)}
+                              className="peer sr-only"
+                            />
+                            <div className="w-6 h-6 border-2 border-gray-300 rounded-md peer-checked:bg-lexo-black peer-checked:border-lexo-black transition-colors"></div>
+                            <Check className="w-4 h-4 text-white absolute opacity-0 peer-checked:opacity-100 transition-opacity" />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-lexo-gray group-hover:text-lexo-black transition-colors">
+                              <UserPlus className="w-5 h-5" />
+                            </div>
+                            <span className="text-lg font-bold text-lexo-charcoal group-hover:text-lexo-black transition-colors">
                               Booking for someone else?
                             </span>
                           </div>
                         </label>
 
                         {bookingForOther && (
-                          <div className="mt-4 space-y-3 pl-7">
+                          <div className="mt-6 space-y-5 animate-fade-in-up">
                             <Input
-                              label="Their Name"
+                              label="Guest Name"
                               value={customerName}
                               onChange={(e) => setCustomerName(e.target.value)}
-                              placeholder="Enter their full name"
+                              placeholder="Enter full name"
+                              className="h-14 text-lg bg-white rounded-xl"
                               required
                             />
                             <Input
-                              label="Their Phone (optional)"
+                              label="Guest Phone (optional)"
                               type="tel"
                               value={customerPhone}
                               onChange={(e) => setCustomerPhone(e.target.value)}
                               placeholder="+91 XXXXX XXXXX"
+                              className="h-14 text-lg bg-white rounded-xl"
                             />
                           </div>
                         )}
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Notes (Optional)
+                        <label className="block text-sm font-bold text-lexo-gray uppercase tracking-wider mb-2 pl-2">
+                          Special Requests
                         </label>
                         <textarea
                           value={notes}
                           onChange={(e) => setNotes(e.target.value)}
-                          placeholder="Any special requests or notes for your appointment..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                          rows={3}
+                          placeholder="Anything we should know before you arrive?"
+                          className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-lexo-black focus:border-lexo-black transition-all text-lg resize-none"
+                          rows={4}
                         />
                       </div>
 
                       {!isAuthenticated && (
-                        <Alert variant="info">
-                          You'll need to login to complete your booking
-                        </Alert>
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+                          <p className="text-amber-800 font-bold mb-3">Almost there!</p>
+                          <Button
+                            onClick={() => router.push(`/auth/login?redirect=/shops/${slug}`)}
+                            className="w-full bg-lexo-black text-white hover:bg-lexo-dark rounded-xl h-12"
+                          >
+                            Login to Complete Booking
+                          </Button>
+                        </div>
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
 
-              {/* Navigation Buttons */}
-              <div className="flex justify-between mt-6">
-                <Button variant="outline" onClick={handlePrevStep}>
-                  {step === 'services' ? 'Cancel' : 'Back'}
+              {/* Navigation Action Buttons (Mobile View handled cleanly) */}
+              <div className="flex flex-col-reverse sm:flex-row justify-between gap-4 mt-8 pb-8">
+                <Button
+                  variant="outline"
+                  onClick={handlePrevStep}
+                  className="rounded-full h-14 px-8 text-lg font-bold border-2 border-gray-200 text-lexo-charcoal hover:border-lexo-black hover:bg-transparent"
+                >
+                  {step === 'services' ? 'Cancel' : 'Go Back'}
                 </Button>
 
                 {step !== 'confirm' ? (
-                  <Button onClick={handleNextStep} disabled={!canProceed()}>
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={!canProceed()}
+                    className="rounded-full h-14 px-8 text-lg font-bold bg-lexo-black hover:bg-lexo-dark text-white shadow-xl hover:-translate-y-1 transition-transform"
+                  >
                     Continue
                   </Button>
                 ) : (
                   <Button
                     onClick={handleConfirmBooking}
                     isLoading={createBooking.isPending}
-                    disabled={!canProceed()}
+                    disabled={!canProceed() || (!isAuthenticated)}
+                    className="rounded-full h-14 px-12 text-lg font-black bg-lexo-black hover:bg-lexo-dark text-white shadow-[0_10px_40px_rgba(0,0,0,0.15)] hover:-translate-y-1 transition-transform"
                   >
-                    {isAuthenticated ? 'Confirm Booking' : 'Login to Book'}
+                    Confirm & Book Now
                   </Button>
                 )}
               </div>
+
             </div>
 
-            {/* Sidebar - Booking Summary */}
-            <div className="hidden lg:block space-y-4">
-              <BookingSummary />
+            {/* Sticky Sidebar - Booking Summary */}
+            <div className="hidden lg:block lg:col-span-5 xl:col-span-4 relative">
+              <div className="sticky top-24 pt-6">
+                <div className="transform transition-all duration-500 hover:-translate-y-2">
+                  <BookingSummary />
+                </div>
+              </div>
             </div>
+
           </div>
         </div>
       </div>

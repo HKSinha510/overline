@@ -1,7 +1,8 @@
 import React from 'react';
-import { Check, Clock, ImageIcon } from 'lucide-react';
+import { Check, Clock } from 'lucide-react';
 import { cn, formatPrice, formatDuration } from '@/lib/utils';
 import type { Service } from '@/types';
+import { motion } from 'framer-motion';
 
 interface ServiceListProps {
   services: Service[];
@@ -18,68 +19,69 @@ const ServiceList: React.FC<ServiceListProps> = ({
     selectedServices.some((s) => s.id === serviceId);
 
   return (
-    <div className="space-y-3">
-      {services.map((service) => {
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {services.map((service, idx) => {
         const selected = isSelected(service.id);
 
         return (
-          <button
+          <motion.button
             key={service.id}
             onClick={() => onToggleService(service)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.05 }}
             className={cn(
-              'w-full rounded-xl border-2 text-left transition-all duration-200 overflow-hidden',
-              selected
-                ? 'border-primary-500 bg-primary-50 shadow-sm'
-                : 'border-gray-200 hover:border-gray-300 bg-white'
+              'relative w-full text-left rounded-3xl p-[2px] overflow-hidden transition-all duration-300',
+              selected ? 'shadow-lg' : 'hover:shadow-md'
             )}
           >
-            <div className="flex">
-              {/* Service Image */}
-              {service.imageUrl && (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0">
-                  <img
-                    src={service.imageUrl}
-                    alt={service.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
+            {/* Gradient Border Background */}
+            <div className={cn(
+              "absolute inset-0 transition-opacity duration-300",
+              selected ? "bg-gradient-to-br from-lexo-charcoal to-lexo-black opacity-100" : "bg-gray-200 opacity-50"
+            )} />
 
-              {/* Service Info */}
-              <div className="flex-1 p-4 flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{service.name}</h4>
+            {/* Inner Content */}
+            <div className={cn(
+              "relative h-full w-full bg-white rounded-[22px] flex flex-col p-5",
+              selected ? "bg-white/95" : ""
+            )}>
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1 pr-4">
+                  <h4 className={cn("text-lg font-bold transition-colors", selected ? "text-lexo-black" : "text-lexo-charcoal")}>
+                    {service.name}
+                  </h4>
                   {service.description && (
-                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">
+                    <p className="text-sm text-lexo-gray mt-1 line-clamp-2">
                       {service.description}
                     </p>
                   )}
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="flex items-center text-sm text-gray-600">
-                      <Clock className="w-3.5 h-3.5 mr-1" />
-                      {formatDuration(service.durationMinutes)}
-                    </span>
-                  </div>
                 </div>
-
-                <div className="flex items-center gap-3 ml-3">
-                  <span className="font-semibold text-gray-900 whitespace-nowrap">
-                    {formatPrice(service.price)}
-                  </span>
-                  <div
-                    className={cn(
-                      'w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0',
-                      selected
-                        ? 'bg-primary-500 border-primary-500'
-                        : 'border-gray-300'
-                    )}
-                  >
-                    {selected && <Check className="w-4 h-4 text-white" />}
-                  </div>
+                <div
+                  className={cn(
+                    'w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0',
+                    selected
+                      ? 'bg-lexo-black border-lexo-black text-white'
+                      : 'border-gray-300 text-transparent'
+                  )}
+                >
+                  <Check className="w-4 h-4" />
                 </div>
               </div>
+
+              <div className="mt-auto flex items-center justify-between pt-2">
+                <span className="flex items-center text-sm text-lexo-gray font-medium">
+                  <Clock className="w-4 h-4 mr-1.5" />
+                  {formatDuration(service.durationMinutes)}
+                </span>
+                <span className="text-xl font-black text-lexo-black">
+                  {formatPrice(service.price)}
+                </span>
+              </div>
             </div>
-          </button>
+          </motion.button>
         );
       })}
     </div>

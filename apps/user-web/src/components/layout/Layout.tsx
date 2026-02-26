@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Home, Search, Calendar, User, Menu, X } from 'lucide-react';
+import { Home, Search, Calendar, User, Menu, X, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
 import { Avatar, Button } from '@/components/ui';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,7 +14,16 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
@@ -28,30 +38,39 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Desktop Header */}
-      <header className="hidden md:block bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+    <div className="flex flex-col min-h-screen bg-[#F8F9FA] text-[#282D3C]">
+      {/* ========================================================= */}
+      {/* Floating Navigation Bar                                    */}
+      {/* ========================================================= */}
+      <header className="fixed top-0 inset-x-0 z-50 px-4 sm:px-6 lg:px-8 pt-6 pb-2 pointer-events-none">
+        <div
+          className={cn(
+            "max-w-7xl mx-auto pointer-events-auto rounded-full transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]",
+            scrolled
+              ? "bg-white/80 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgb(0,0,0,0.04)] py-3 px-6"
+              : "bg-transparent py-4 px-2"
+          )}
+        >
+          <div className="flex items-center justify-between">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">O</span>
+            <Link href="/" className="flex items-center gap-2 group">
+              <div className="w-10 h-10 rounded-xl bg-lexo-black flex items-center justify-center transition-transform duration-300 group-hover:scale-95 group-hover:rotate-3">
+                <span className="text-white font-bold text-lg">O</span>
               </div>
-              <span className="text-xl font-bold text-gray-900">Overline</span>
+              <span className="text-2xl font-bold tracking-tight">Overline</span>
             </Link>
 
-            {/* Navigation */}
-            <nav className="flex items-center gap-1">
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-1 bg-white/40 p-1.5 rounded-full border border-gray-200/50">
               {navigation.slice(0, 3).map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300',
                     isActive(item.href)
-                      ? 'bg-primary-50 text-primary-600'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-lexo-black text-white shadow-md'
+                      : 'text-lexo-gray hover:text-lexo-charcoal hover:bg-white/60'
                   )}
                 >
                   {item.name}
@@ -59,115 +78,152 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               ))}
             </nav>
 
-            {/* User Menu */}
-            <div className="flex items-center gap-3">
+            {/* Desktop User Menu */}
+            <div className="hidden md:flex items-center gap-3">
               {isAuthenticated && user ? (
-                <Link href="/profile" className="flex items-center gap-2">
-                  <Avatar src={null} name={user.name} size="sm" />
-                  <span className="text-sm font-medium text-gray-700">
+                <Link href="/profile" className="flex items-center gap-3 bg-white/40 border border-gray-200/50 pl-2 pr-4 py-1.5 rounded-full hover:bg-white/80 transition-colors">
+                  <Avatar src={user.avatarUrl || null} name={user.name} size="sm" />
+                  <span className="text-sm font-semibold">
                     {user.name.split(' ')[0]}
                   </span>
                 </Link>
               ) : (
                 <div className="flex items-center gap-2">
                   <Link href="/auth/login">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" className="rounded-full font-semibold hover:bg-white/40 text-lexo-charcoal">
                       Login
                     </Button>
                   </Link>
                   <Link href="/auth/signup">
-                    <Button size="sm">Sign Up</Button>
+                    <Button className="rounded-full bg-lexo-black text-white hover:bg-lexo-dark shadow-[0_4px_14px_0_rgb(0,0,0,0.1)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] transition-all font-semibold">
+                      Sign Up
+                    </Button>
                   </Link>
                 </div>
               )}
             </div>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-full bg-white/60 border border-gray-200/50 hover:bg-white/80 transition-colors"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Header */}
-      <header className="md:hidden bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="flex items-center justify-between h-14 px-4">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-primary-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">O</span>
-            </div>
-            <span className="text-lg font-bold text-gray-900">Overline</span>
-          </Link>
-
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100"
-          >
-            {mobileMenuOpen ? (
-              <X className="w-6 h-6" />
-            ) : (
-              <Menu className="w-6 h-6" />
-            )}
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
         {mobileMenuOpen && (
-          <div className="absolute top-14 left-0 right-0 bg-white border-b border-gray-200 shadow-lg">
-            <nav className="px-4 py-3 space-y-1">
-              {navigation.map((item) => (
-                <Link
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 z-40 bg-white/95 backdrop-blur-3xl pt-28 px-6 md:hidden"
+          >
+            <nav className="flex flex-col gap-4">
+              {navigation.map((item, i) => (
+                <motion.div
                   key={item.name}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    isActive(item.href)
-                      ? 'bg-primary-50 text-primary-600'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  )}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.1 }}
                 >
-                  <item.icon className="w-5 h-5" />
-                  {item.name}
-                </Link>
+                  <Link
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      'flex items-center gap-4 py-4 border-b border-gray-100 text-2xl font-bold tracking-tight',
+                      isActive(item.href) ? 'text-lexo-black' : 'text-lexo-gray'
+                    )}
+                  >
+                    <item.icon className="w-8 h-8" />
+                    {item.name}
+                  </Link>
+                </motion.div>
               ))}
 
               {!isAuthenticated && (
-                <div className="pt-3 border-t border-gray-100 flex gap-2">
-                  <Link href="/auth/login" className="flex-1">
-                    <Button variant="outline" className="w-full">
+                <motion.div
+                  className="mt-8 flex flex-col gap-3"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <Link href="/auth/signup" className="w-full">
+                    <Button className="w-full rounded-full bg-lexo-black py-6 text-lg">Sign Up Free</Button>
+                  </Link>
+                  <Link href="/auth/login" className="w-full">
+                    <Button variant="outline" className="w-full rounded-full py-6 text-lg border-2 border-gray-200">
                       Login
                     </Button>
                   </Link>
-                  <Link href="/auth/signup" className="flex-1">
-                    <Button className="w-full">Sign Up</Button>
-                  </Link>
-                </div>
+                </motion.div>
               )}
             </nav>
-          </div>
+          </motion.div>
         )}
-      </header>
+      </AnimatePresence>
 
       {/* Main Content */}
-      <main className="pb-20 md:pb-8">{children}</main>
+      <main className="flex-1 pt-32 pb-20 md:pb-0">{children}</main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-        <div className="grid grid-cols-4 h-16">
-          {navigation.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                'flex flex-col items-center justify-center gap-1 transition-colors',
-                isActive(item.href)
-                  ? 'text-primary-600'
-                  : 'text-gray-400'
-              )}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="text-xs">{item.name}</span>
-            </Link>
-          ))}
+      {/* ========================================================= */}
+      {/* Massive Lexogrine Footer                                   */}
+      {/* ========================================================= */}
+      <footer className="mt-20 px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="max-w-7xl mx-auto bg-lexo-black text-white rounded-[2.5rem] p-8 md:p-16 lg:p-24 overflow-hidden relative">
+
+          {/* Abstract Glow Effect inside Footer */}
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-indigo-500/30 to-purple-600/30 blur-[100px] rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+
+          <div className="relative z-10 grid lg:grid-cols-2 gap-16 lg:gap-8 items-end">
+            <div>
+              <h2 className="text-5xl md:text-7xl font-bold tracking-tighter mb-8 leading-[1.1]">
+                Ready to<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
+                  book now?
+                </span>
+              </h2>
+              <p className="text-lexo-gray text-lg md:text-xl max-w-md mb-10 leading-relaxed font-medium">
+                Skip the line and experience premium grooming. Secure your appointment in seconds.
+              </p>
+              <Link href="/explore">
+                <Button className="bg-white text-lexo-black hover:bg-gray-100 rounded-full py-6 px-10 text-lg font-bold group shadow-[0_0_40px_rgba(255,255,255,0.15)] flex items-center gap-3">
+                  Find a Shop
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between lg:justify-end gap-12 lg:gap-24">
+              <div className="space-y-4">
+                <h4 className="text-lexo-gray font-semibold tracking-wide uppercase text-sm">Platform</h4>
+                <div className="flex flex-col gap-3">
+                  <Link href="/explore" className="font-semibold hover:text-indigo-400 transition-colors">Explore</Link>
+                  <Link href="/bookings" className="font-semibold hover:text-indigo-400 transition-colors">My Bookings</Link>
+                  <Link href="/auth/signup" className="font-semibold hover:text-indigo-400 transition-colors">Create Account</Link>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-lexo-gray font-semibold tracking-wide uppercase text-sm">Legal</h4>
+                <div className="flex flex-col gap-3">
+                  <Link href="#" className="font-semibold hover:text-indigo-400 transition-colors">Privacy Policy</Link>
+                  <Link href="#" className="font-semibold hover:text-indigo-400 transition-colors">Terms of Service</Link>
+                  <Link href="/admin" className="font-semibold hover:text-indigo-400 transition-colors text-white/50">Partner Login</Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-24 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm font-medium text-lexo-gray relative z-10">
+            <p>© {new Date().getFullYear()} Overline. All rights reserved.</p>
+            <p>Designed for aesthetics & performance.</p>
+          </div>
         </div>
-      </nav>
+      </footer>
     </div>
   );
 };

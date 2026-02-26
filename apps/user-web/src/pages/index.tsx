@@ -1,11 +1,13 @@
 import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import {
-  Search, MapPin, Scissors, Stethoscope, ArrowRight, Star, Clock,
-  Navigation, Loader2, Sparkles, Shield, Zap,
+  Search, MapPin, Scissors, Stethoscope, ArrowRight, Star,
+  Navigation, Loader2, Sparkles, Zap, ShieldCheck, HeartHandshake
 } from 'lucide-react';
-import { Button, Input, Card } from '@/components/ui';
+import { Button, Input } from '@/components/ui';
+import { cn } from '@/lib/utils';
 import { ShopCard } from '@/components/shop';
 import { useShops, useLocation } from '@/hooks';
 
@@ -13,262 +15,290 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const { location, loading: locationLoading, requestLocation } = useLocation(true);
 
-  // Fetch shops — if location available, send it for distance-based sorting
   const { data: popularShops, isLoading } = useShops({
-    limit: 6,
+    limit: 5, // 5 fits a bento box layout well (2 large, 3 small)
     latitude: location?.lat,
     longitude: location?.lng,
-    radiusKm: 50, // Show shops within 50km on homepage
+    radiusKm: 50,
   });
 
   const categories = [
-    {
-      name: 'Salons & Barbers',
-      icon: Scissors,
-      description: 'Haircuts, styling, and grooming',
-      href: '/explore?type=SALON',
-      gradient: 'from-purple-500 to-pink-500',
-      bgLight: 'bg-purple-50',
-    },
-    {
-      name: 'Clinics',
-      icon: Stethoscope,
-      description: 'Medical consultations and checkups',
-      href: '/explore?type=CLINIC',
-      gradient: 'from-emerald-500 to-teal-500',
-      bgLight: 'bg-emerald-50',
-    },
+    { name: 'Haircut & Styling', icon: Scissors, href: '/explore?type=SALON' },
+    { name: 'Medical Checkups', icon: Stethoscope, href: '/explore?type=CLINIC' },
+    { name: 'Beard Trimming', icon: Scissors, href: '/explore?type=SALON' },
+    { name: 'Dental Care', icon: Stethoscope, href: '/explore?type=CLINIC' },
+    { name: 'Massage Therapy', icon: HeartHandshake, href: '/explore?type=SALON' },
+    { name: 'Skin Consultations', icon: Stethoscope, href: '/explore?type=CLINIC' },
   ];
 
   const features = [
     {
       icon: Zap,
-      title: 'Real-time Queue',
-      description: 'See live wait times and book your slot instantly',
-      gradient: 'from-amber-400 to-orange-500',
+      title: 'Zero Wait',
+      desc: 'Live queue tracking means you walk in right when it is your turn.',
     },
     {
-      icon: Shield,
-      title: 'Verified Reviews',
-      description: 'Read honest reviews from real customers',
-      gradient: 'from-blue-400 to-indigo-500',
-    },
-    {
-      icon: MapPin,
-      title: 'Nearby Shops',
-      description: 'Find the best places close to you with GPS',
-      gradient: 'from-pink-400 to-rose-500',
+      icon: ShieldCheck,
+      title: 'Verified Partners',
+      desc: 'We only onboard the most trusted local professionals.',
     },
   ];
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
+  };
 
   return (
     <>
       <Head>
-        <title>Overline - Book Appointments & Skip the Queue</title>
-        <meta name="description" content="Find and book appointments at the best salons and clinics near you. See real-time queue status and never wait again." />
+        <title>Overline - Premium Booking</title>
+        <meta name="description" content="Experience premium booking with real-time queue tracking." />
       </Head>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-primary-700 to-purple-800" />
-        {/* Abstract pattern overlay */}
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: `radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-        }} />
+      {/* ========================================================================= */}
+      {/* 1. Asymmetric Hero Section                                                */}
+      {/* ========================================================================= */}
+      <section className="relative overflow-hidden pt-12 pb-24 md:pt-24 md:pb-32 bg-[#F8F9FA]">
+        {/* Background Gradients */}
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-primary-400/20 via-purple-400/10 to-transparent blur-[120px] rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-accent-400/10 to-transparent blur-[100px] rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none" />
 
-        <div className="relative container-app py-16 md:py-24">
-          <div className="max-w-2xl mx-auto text-center mb-10 animate-fade-in-up">
-            <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white/90 text-sm px-4 py-1.5 rounded-full mb-6">
-              <Sparkles className="w-4 h-4" />
-              Smart Booking Platform
-            </div>
-            <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-5 leading-tight">
-              Book Appointments.
-              <br />
-              <span className="bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">
-                Skip the Queue.
-              </span>
-            </h1>
-            <p className="text-primary-100 text-lg md:text-xl max-w-lg mx-auto">
-              Find and book at the best salons and clinics near you.
-              See real-time queue status and never wait again.
-            </p>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid lg:grid-cols-12 gap-12 items-center">
 
-          {/* Search Bar */}
-          <div className="max-w-xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
-            <div className="bg-white rounded-2xl p-2 flex gap-2 shadow-2xl shadow-primary-900/20">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search for salons, clinics..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  leftIcon={<Search className="w-5 h-5" />}
-                  className="border-0 focus:ring-0"
-                />
+            <motion.div
+              className="lg:col-span-7"
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+            >
+              <motion.div variants={itemVariants} className="inline-flex items-center gap-2 bg-lexo-black text-white text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-8">
+                <Sparkles className="w-4 h-4 text-primary-400" />
+                <span>The Future of Booking</span>
+              </motion.div>
+
+              <motion.h1 variants={itemVariants} className="text-5xl sm:text-7xl lg:text-8xl font-black text-lexo-black leading-[0.95] tracking-tighter mb-8 text-balance">
+                Don't waste <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-lexo-charcoal to-lexo-gray">your time</span> <br />
+                in line.
+              </motion.h1>
+
+              <motion.p variants={itemVariants} className="text-xl md:text-2xl text-lexo-gray font-medium max-w-xl mb-12">
+                Discover premium salons and clinics. Track live queues and walk in exactly when it's your turn.
+              </motion.p>
+
+              {/* Minimal Search Bar */}
+              <motion.div variants={itemVariants} className="max-w-xl">
+                <div className="bg-white rounded-full p-2 flex gap-2 shadow-[0_8px_40px_rgba(0,0,0,0.08)] border border-gray-100">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="What are you looking for?"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      leftIcon={<Search className="w-6 h-6 text-lexo-gray px-1" />}
+                      className="border-0 focus:ring-0 text-lg h-14 bg-transparent outline-none shadow-none"
+                    />
+                  </div>
+                  <Link href={`/explore?q=${searchQuery}`}>
+                    <Button className="h-full px-8 rounded-full bg-lexo-black hover:bg-lexo-dark text-white text-lg font-bold transition-all hover:scale-105 active:scale-95 shadow-md">
+                      Find
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Location Detection */}
+                <div className="mt-6 flex items-center gap-3 px-4">
+                  {location ? (
+                    <div className="flex items-center gap-2 text-primary-600 font-medium bg-primary-50 px-3 py-1.5 rounded-full">
+                      <MapPin className="w-4 h-4" />
+                      <span className="text-sm">{location.address || 'Location detected'}</span>
+                    </div>
+                  ) : locationLoading ? (
+                    <div className="flex items-center gap-2 text-lexo-gray font-medium">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Detecting location...</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={requestLocation}
+                      className="flex items-center gap-2 text-lexo-gray hover:text-lexo-black font-medium transition-colors"
+                    >
+                      <Navigation className="w-4 h-4" />
+                      <span className="text-sm border-b border-lexo-gray hover:border-lexo-black border-dashed">Use my current location</span>
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+
+            {/* Asymmetric Right Image/Card */}
+            <motion.div
+              className="lg:col-span-5 hidden lg:block"
+              initial={{ opacity: 0, x: 100, rotate: 5 }}
+              animate={{ opacity: 1, x: 0, rotate: 0 }}
+              transition={{ duration: 1, type: "spring", bounce: 0.4 }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-lexo-charcoal rounded-[3rem] translate-x-4 translate-y-4 -z-10" />
+                <div className="w-full aspect-[4/5] rounded-[3rem] overflow-hidden shadow-2xl relative">
+                  <img src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800" alt="Premium Salon" className="w-full h-full object-cover" />
+                  <div className="absolute bottom-6 left-6 right-6">
+                    <div className="glass-dark rounded-2xl p-6 shadow-2xl backdrop-blur-xl border border-white/20">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-white font-bold text-xl">The Grooming Lounge</h3>
+                        <div className="flex items-center gap-1 bg-white/20 px-2.5 py-1 rounded-lg">
+                          <Star className="w-4 h-4 text-amber-400 fill-current" />
+                          <span className="text-white font-bold text-sm">4.9</span>
+                        </div>
+                      </div>
+                      <p className="text-white/70 text-sm mb-4">Live Queue: 2 waiting</p>
+                      <Button className="w-full bg-white text-lexo-black hover:bg-gray-100 rounded-xl font-bold py-5">
+                        Book Next Slot
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <Link href={`/explore?q=${searchQuery}`}>
-                <Button size="lg" className="px-6 rounded-xl">Search</Button>
-              </Link>
-            </div>
-          </div>
+            </motion.div>
 
-          {/* Location indicator */}
-          {location && (
-            <div className="flex items-center justify-center gap-1.5 mt-5 text-primary-200 text-sm animate-fade-in">
-              <MapPin className="w-4 h-4" />
-              <span>{location.address || 'Location detected'}</span>
-            </div>
-          )}
-          {locationLoading && (
-            <div className="flex items-center justify-center gap-1.5 mt-5 text-primary-200 text-sm">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Detecting your location...</span>
-            </div>
-          )}
+          </div>
         </div>
       </section>
 
-      {/* Categories */}
-      <section className="container-app py-14">
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-7">Browse by Category</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {categories.map((category) => (
-            <Link key={category.name} href={category.href}>
-              <div className={`relative overflow-hidden rounded-2xl p-6 ${category.bgLight} border border-gray-100 hover:shadow-lg transition-all duration-300 cursor-pointer group`}>
-                <div className="flex items-center gap-5">
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${category.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                    <category.icon className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-900 text-lg">{category.name}</h3>
-                    <p className="text-sm text-gray-500 mt-0.5">{category.description}</p>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 transition-transform" />
-                </div>
+      {/* ========================================================================= */}
+      {/* 2. Category Tag Marquee                                                   */}
+      {/* ========================================================================= */}
+      <section className="py-12 border-y border-gray-100 bg-white overflow-hidden flex whitespace-nowrap">
+        <div className="animate-marquee flex gap-4 pr-4">
+          {[...categories, ...categories, ...categories].map((cat, i) => (
+            <Link key={i} href={cat.href}>
+              <div className="inline-flex items-center gap-3 px-8 py-4 rounded-full border border-gray-200 hover:border-lexo-black hover:bg-lexo-black hover:text-white transition-all duration-300 group cursor-pointer shadow-sm">
+                <cat.icon className="w-5 h-5 text-lexo-gray group-hover:text-white transition-colors" />
+                <span className="text-lg font-bold text-lexo-charcoal group-hover:text-white transition-colors">{cat.name}</span>
               </div>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* Popular Shops */}
-      <section className="bg-gray-50 py-14">
-        <div className="container-app">
-          <div className="flex items-center justify-between mb-7">
+      {/* ========================================================================= */}
+      {/* 3. Bento Box Featured Shops                                               */}
+      {/* ========================================================================= */}
+      <section className="py-24 bg-[#F8F9FA]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                {location ? 'Popular Near You' : 'Popular Shops'}
+              <h2 className="text-4xl md:text-5xl font-black text-lexo-black tracking-tight mb-4 text-balance">
+                Trending {location ? 'Near You' : 'Spots'}
               </h2>
-              {location?.address && (
-                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" />
-                  {location.address}
-                </p>
-              )}
-              {!location && !locationLoading && (
-                <button
-                  onClick={requestLocation}
-                  className="text-sm text-primary-600 mt-1 flex items-center gap-1 hover:text-primary-700"
-                >
-                  <Navigation className="w-3.5 h-3.5" />
-                  Enable location for nearby results
-                </button>
-              )}
+              <p className="text-xl text-lexo-gray font-medium max-w-xl">
+                The most booked and highly rated professionals right now.
+              </p>
             </div>
-            <Link
-              href="/explore"
-              className="text-primary-600 font-medium flex items-center gap-1 hover:text-primary-700 group"
-            >
-              View All
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            <Link href="/explore">
+              <Button variant="outline" className="rounded-full border-2 border-gray-200 text-lexo-charcoal hover:border-lexo-black hover:bg-lexo-black hover:text-white font-bold px-8 h-14 text-lg transition-all duration-300">
+                View All Directory
+              </Button>
             </Link>
           </div>
 
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="rounded-2xl overflow-hidden">
-                  <div className="h-44 skeleton" />
-                  <div className="p-4 space-y-3 bg-white">
-                    <div className="h-5 w-2/3 skeleton" />
-                    <div className="h-4 w-full skeleton" />
-                    <div className="h-4 w-1/3 skeleton" />
-                  </div>
-                </div>
+                <div key={i} className="h-96 skeleton" />
               ))}
             </div>
           ) : popularShops?.data.length === 0 ? (
-            <Card variant="bordered" className="text-center py-10">
-              <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 mb-2">No shops found nearby</p>
-              <p className="text-gray-400 text-sm mb-4">Try expanding your search area</p>
-              <Link href="/explore" className="inline-block">
-                <Button variant="outline" size="sm">Explore All Shops</Button>
+            <div className="bg-white rounded-[2rem] p-16 text-center border border-gray-200 shadow-sm">
+              <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-lexo-black mb-2">No spots found</h3>
+              <p className="text-lexo-gray text-lg mb-8">Try expanding your search or enabling location.</p>
+              <Link href="/explore">
+                <Button className="rounded-full bg-lexo-black text-white px-8 h-12">Browse Everything</Button>
               </Link>
-            </Card>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {popularShops?.data.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} userLocation={location || undefined} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-[400px]">
+              {popularShops?.data.slice(0, 5).map((shop, idx) => (
+                <div
+                  key={shop.id}
+                  className={cn(
+                    "hover-scale-wrapper transition-transform duration-500",
+                    // Bento layout logic: First two cards are wide on lg screens
+                    idx === 0 ? "lg:col-span-2" : "",
+                    idx === 1 ? "lg:col-span-1" : "",
+                    idx > 2 ? "lg:col-span-1" : ""
+                  )}
+                >
+                  <ShopCard shop={shop} userLocation={location || undefined} />
+                </div>
               ))}
             </div>
           )}
         </div>
       </section>
 
-      {/* Features */}
-      <section className="container-app py-20">
-        <div className="text-center mb-14">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-            Why Choose Overline?
-          </h2>
-          <p className="text-gray-500 max-w-lg mx-auto">
-            We make booking appointments effortless and help you save time with
-            real-time queue information.
-          </p>
-        </div>
+      {/* ========================================================================= */}
+      {/* 4. Core Features (Minimalist Glass Cards)                                 */}
+      {/* ========================================================================= */}
+      <section className="py-24 bg-white border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+              <h2 className="text-4xl md:text-5xl font-black text-lexo-black tracking-tight mb-8 text-balance">
+                Built for those who value their time.
+              </h2>
+              <p className="text-xl text-lexo-gray font-medium mb-10 leading-relaxed max-w-lg">
+                We've stripped away the noise. Just pure, seamless booking experiences that connect you to local experts instantly.
+              </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {features.map((feature) => (
-            <div key={feature.title} className="text-center group">
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mx-auto mb-5 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                <feature.icon className="w-8 h-8 text-white" />
+              <div className="space-y-6">
+                {features.map((feature, i) => (
+                  <div key={i} className="flex gap-6 group cursor-pointer">
+                    <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-[#F8F9FA] border border-gray-100 flex items-center justify-center group-hover:bg-lexo-black group-hover:text-white transition-all duration-300">
+                      <feature.icon className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h4 className="text-2xl font-bold text-lexo-black mb-2">{feature.title}</h4>
+                      <p className="text-lexo-gray text-lg">{feature.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <h3 className="font-bold text-gray-900 text-lg mb-2">{feature.title}</h3>
-              <p className="text-gray-500">{feature.description}</p>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* CTA */}
-      <section className="container-app py-12 pb-20">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary-600 via-primary-500 to-purple-600 text-white text-center py-14 px-8">
-          {/* Abstract decoration */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
-
-          <div className="relative">
-            <h2 className="text-2xl md:text-4xl font-extrabold mb-4">
-              Ready to skip the queue?
-            </h2>
-            <p className="text-primary-100 mb-8 max-w-md mx-auto text-lg">
-              Join thousands of users who save time by booking ahead.
-            </p>
-            <Link href="/explore">
-              <Button
-                variant="secondary"
-                size="lg"
-                className="bg-white text-primary-600 hover:bg-gray-100 font-bold px-8 rounded-xl shadow-lg"
-              >
-                Explore Shops →
-              </Button>
-            </Link>
+            <div className="relative h-[600px] w-full bg-lexo-light rounded-[3rem] overflow-hidden border border-gray-200">
+              {/* Abstract decorative graphic replacing an app screenshot */}
+              <div className="absolute inset-0 flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1516975080661-46bace915715?auto=format&fit=crop&q=80')] bg-cover bg-center blur-sm opacity-50"></div>
+              <div className="absolute inset-0 bg-gradient-to-tr from-lexo-charcoal/90 to-transparent flex items-center justify-center p-8">
+                <div className="glass rounded-[2rem] p-10 max-w-sm w-full shadow-2xl backdrop-blur-3xl transform rotate-[-3deg] hover:rotate-0 transition-all duration-500">
+                  <div className="flex justify-between items-center mb-8 pb-8 border-b border-gray-200/50">
+                    <div className="w-12 h-12 bg-lexo-black rounded-xl"></div>
+                    <div className="w-24 h-4 bg-gray-200 rounded-full"></div>
+                  </div>
+                  <div className="space-y-4 mb-8">
+                    <div className="w-full h-12 bg-gray-100 rounded-xl"></div>
+                    <div className="w-3/4 h-12 bg-gray-100 rounded-xl"></div>
+                  </div>
+                  <div className="w-full h-16 bg-gradient-to-r from-primary-500 to-purple-500 rounded-2xl shadow-lg mt-12 flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">Confirmed</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
     </>
   );
 }
