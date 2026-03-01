@@ -59,7 +59,7 @@ export default function SignupPage() {
         name: data.name,
         email: data.email,
         password: data.password,
-        phone: data.phone,
+        ...(data.phone && { phone: data.phone }),
       });
 
       // Show OTP form if phone is provided
