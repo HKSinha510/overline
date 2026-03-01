@@ -4,7 +4,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findById(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -108,10 +108,10 @@ export class UsersService {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await this.prisma.user.update({
+    await (this.prisma.user as any).update({
       where: { id: userId },
       data: { otpCode, otpExpiresAt },
-    });
+    } as any);
 
     console.log(
       `\n\n=== [OTP SIMULATION] ===\nResent OTP ${otpCode} to ${user.phone}\n========================\n\n`,
@@ -128,26 +128,26 @@ export class UsersService {
       return { success: true, message: 'Phone already verified' };
     }
 
-    if (!user.otpCode || !user.otpExpiresAt) {
+    if (!(user as any).otpCode || !(user as any).otpExpiresAt) {
       throw new BadRequestException('No OTP was requested');
     }
 
-    if (new Date() > user.otpExpiresAt) {
+    if (new Date() > (user as any).otpExpiresAt) {
       throw new BadRequestException('OTP has expired');
     }
 
-    if (user.otpCode !== code) {
+    if ((user as any).otpCode !== code) {
       throw new BadRequestException('Invalid OTP code');
     }
 
-    await this.prisma.user.update({
+    await (this.prisma.user as any).update({
       where: { id: userId },
       data: {
         isPhoneVerified: true,
         otpCode: null,
         otpExpiresAt: null,
       },
-    });
+    } as any);
 
     return { success: true, message: 'Phone verified successfully' };
   }

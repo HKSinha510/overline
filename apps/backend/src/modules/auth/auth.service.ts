@@ -92,10 +92,10 @@ export class AuthService {
     if (user.phone) {
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-      user = await this.prisma.user.update({
+      user = await (this.prisma.user as any).update({
         where: { id: user.id },
         data: { otpCode, otpExpiresAt },
-      });
+      } as any);
       console.log(
         `\n\n=== [OTP SIMULATION] ===\nSent OTP ${otpCode} to ${user.phone}\n========================\n\n`,
       );
