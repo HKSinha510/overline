@@ -32,10 +32,7 @@ export class AdminController {
   @Roles(UserRole.OWNER, UserRole.STAFF, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get shop dashboard data' })
   @ApiParam({ name: 'shopId', description: 'Shop ID' })
-  async getDashboard(
-    @Param('shopId') shopId: string,
-    @CurrentUser('tenantId') tenantId: string,
-  ) {
+  async getDashboard(@Param('shopId') shopId: string, @CurrentUser('tenantId') tenantId: string) {
     return this.adminService.getDashboard(shopId, tenantId);
   }
 
@@ -86,10 +83,7 @@ export class AdminController {
   @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get shop staff' })
   @ApiParam({ name: 'shopId', description: 'Shop ID' })
-  async getStaff(
-    @Param('shopId') shopId: string,
-    @CurrentUser('tenantId') tenantId: string,
-  ) {
+  async getStaff(@Param('shopId') shopId: string, @CurrentUser('tenantId') tenantId: string) {
     return this.adminService.getStaff(shopId, tenantId);
   }
 
@@ -122,10 +116,7 @@ export class AdminController {
   @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get shop settings' })
   @ApiParam({ name: 'shopId', description: 'Shop ID' })
-  async getSettings(
-    @Param('shopId') shopId: string,
-    @CurrentUser('tenantId') tenantId: string,
-  ) {
+  async getSettings(@Param('shopId') shopId: string, @CurrentUser('tenantId') tenantId: string) {
     return this.adminService.getShopSettings(shopId, tenantId);
   }
 

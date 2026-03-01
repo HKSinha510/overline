@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Body, HttpCode, HttpStatus, UseGuards, Req, Res, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Req,
+  Res,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
@@ -17,7 +28,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   @Post('signup')
   @ApiOperation({ summary: 'Register a new user' })
@@ -77,11 +88,17 @@ export class AuthController {
 
   @Get('google/callback')
   @ApiOperation({ summary: 'Google OAuth callback' })
-  async googleCallback(@Req() req: any, @Res() res: Response, @Query('code') code?: string, @Query('state') state?: string, @Query('error') error?: string) {
+  async googleCallback(
+    @Req() req: any,
+    @Res() res: Response,
+    @Query('code') code?: string,
+    @Query('state') state?: string,
+    @Query('error') error?: string,
+  ) {
     const isAdmin = state === 'admin';
     const frontendUrl = isAdmin
-      ? (this.configService.get<string>('frontendUrls.admin') || 'http://localhost:3002')
-      : (this.configService.get<string>('frontendUrls.user') || 'http://localhost:3000');
+      ? this.configService.get<string>('frontendUrls.admin') || 'http://localhost:3002'
+      : this.configService.get<string>('frontendUrls.user') || 'http://localhost:3000';
     const loginPath = isAdmin ? '/login' : '/auth/login';
 
     if (error || !code) {
@@ -168,7 +185,10 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Logout and invalidate refresh tokens' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@Req() req: any, @Body() body: { refreshToken?: string }): Promise<{ message: string }> {
+  async logout(
+    @Req() req: any,
+    @Body() body: { refreshToken?: string },
+  ): Promise<{ message: string }> {
     await this.authService.logout(req.user.id, body.refreshToken);
     return { message: 'Logged out successfully' };
   }

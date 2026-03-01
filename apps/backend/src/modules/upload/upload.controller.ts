@@ -16,12 +16,10 @@ import { UploadService } from './upload.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
-export const CurrentUser = createParamDecorator(
-  (data: string, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
-    return data ? request.user?.[data] : request.user;
-  },
-);
+export const CurrentUser = createParamDecorator((data: string, ctx: ExecutionContext) => {
+  const request = ctx.switchToHttp().getRequest();
+  return data ? request.user?.[data] : request.user;
+});
 
 @ApiTags('upload')
 @Controller({ path: 'upload', version: '1' })
@@ -48,10 +46,7 @@ export class UploadController {
       },
     },
   })
-  async uploadImage(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('folder') folder?: string,
-  ) {
+  async uploadImage(@UploadedFile() file: Express.Multer.File, @Body('folder') folder?: string) {
     const result = await this.uploadService.uploadImage(file, folder || 'overline');
     return result;
   }
@@ -64,10 +59,7 @@ export class UploadController {
   @ApiBearerAuth('JWT-auth')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
   @ApiConsumes('multipart/form-data')
-  async uploadShopLogo(
-    @Param('shopId') shopId: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
+  async uploadShopLogo(@Param('shopId') shopId: string, @UploadedFile() file: Express.Multer.File) {
     const shop = await this.prisma.shop.findUnique({ where: { id: shopId } });
     if (!shop) throw new NotFoundException('Shop not found');
 
@@ -131,4 +123,3 @@ export class UploadController {
     return { avatarUrl: result.url };
   }
 }
-

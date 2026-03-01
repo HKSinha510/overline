@@ -141,7 +141,8 @@ export class NotificationsService {
       return;
     }
 
-    const fromEmail = this.configService.get<string>('SENDGRID_FROM_EMAIL') || 'noreply@overline.app';
+    const fromEmail =
+      this.configService.get<string>('SENDGRID_FROM_EMAIL') || 'noreply@overline.app';
 
     try {
       await sgMail.send({
@@ -265,7 +266,8 @@ export class NotificationsService {
       minute: '2-digit',
     });
 
-    const message = `Your booking at ${booking.shop.name} is confirmed!\n\n` +
+    const message =
+      `Your booking at ${booking.shop.name} is confirmed!\n\n` +
       `📅 Date: ${dateStr}\n` +
       `⏰ Time: ${timeStr}\n` +
       `📍 Address: ${booking.shop.address}\n` +
@@ -309,7 +311,8 @@ export class NotificationsService {
       minute: '2-digit',
     });
 
-    const message = `Reminder: Your appointment at ${booking.shop.name} is in 1 hour at ${timeStr}.\n` +
+    const message =
+      `Reminder: Your appointment at ${booking.shop.name} is in 1 hour at ${timeStr}.\n` +
       `📍 ${booking.shop.address}\n` +
       `Booking #: ${booking.bookingNumber}`;
 

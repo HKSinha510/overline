@@ -141,8 +141,8 @@ export class QueueService {
     });
 
     // Group by status
-    const upcoming = bookings.filter((b) => 
-      ['PENDING', 'CONFIRMED'].includes(b.status) && b.startTime > now
+    const upcoming = bookings.filter(
+      (b) => ['PENDING', 'CONFIRMED'].includes(b.status) && b.startTime > now,
     );
     const inProgress = bookings.filter((b) => b.status === 'IN_PROGRESS');
     const completed = bookings.filter((b) => b.status === 'COMPLETED');

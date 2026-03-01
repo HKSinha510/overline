@@ -1,5 +1,12 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto, ReplyReviewDto } from './dto/create-review.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -17,10 +24,7 @@ export class ReviewsController {
   @ApiOperation({ summary: 'Create a review for a completed booking' })
   @ApiResponse({ status: 201, description: 'Review created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request or already reviewed' })
-  async create(
-    @Body() dto: CreateReviewDto,
-    @CurrentUser() user: any,
-  ) {
+  async create(@Body() dto: CreateReviewDto, @CurrentUser() user: any) {
     return this.reviewsService.create(dto, user.id);
   }
 
@@ -51,8 +55,8 @@ export class ReviewsController {
   @Get('my')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current user\'s reviews' })
-  @ApiResponse({ status: 200, description: 'List of user\'s reviews' })
+  @ApiOperation({ summary: "Get current user's reviews" })
+  @ApiResponse({ status: 200, description: "List of user's reviews" })
   async findMyReviews(@CurrentUser() user: any) {
     return this.reviewsService.findByUser(user.id);
   }
@@ -63,11 +67,7 @@ export class ReviewsController {
   @ApiOperation({ summary: 'Reply to a review (shop owner only)' })
   @ApiParam({ name: 'id', description: 'Review ID' })
   @ApiResponse({ status: 200, description: 'Reply added' })
-  async reply(
-    @Param('id') id: string,
-    @Body() dto: ReplyReviewDto,
-    @CurrentUser() user: any,
-  ) {
+  async reply(@Param('id') id: string, @Body() dto: ReplyReviewDto, @CurrentUser() user: any) {
     return this.reviewsService.replyToReview(id, dto, user.id, user.tenantId);
   }
 }

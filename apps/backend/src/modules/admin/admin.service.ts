@@ -63,10 +63,13 @@ export class AdminService {
         noShow: todayQueue.stats.noShowCount,
         revenue: todayRevenue._sum.totalAmount || 0,
       },
-      weeklyStats: weeklyStats.reduce((acc, stat) => {
-        acc[stat.status] = stat._count;
-        return acc;
-      }, {} as Record<string, number>),
+      weeklyStats: weeklyStats.reduce(
+        (acc, stat) => {
+          acc[stat.status] = stat._count;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
     };
   }
 

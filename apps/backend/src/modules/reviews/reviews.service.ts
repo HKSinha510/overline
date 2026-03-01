@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { CreateReviewDto, ReplyReviewDto } from './dto/create-review.dto';
 import { BookingStatus } from '@prisma/client';
@@ -177,7 +182,7 @@ export class ReviewsService {
    */
   private async updateShopRating(shopId: string) {
     const stats = await this.getShopRatingStats(shopId);
-    
+
     // Store in shop's settings JSON field
     await this.prisma.shop.update({
       where: { id: shopId },

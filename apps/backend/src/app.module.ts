@@ -64,4 +64,4 @@ import configuration from './config/configuration';
     UploadModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

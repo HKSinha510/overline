@@ -13,4 +13,4 @@ import { UsersModule } from '../users/users.module';
   providers: [BookingsService, NoShowCron],
   exports: [BookingsService],
 })
-export class BookingsModule { }
+export class BookingsModule {}

@@ -4,7 +4,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findById(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -113,7 +113,9 @@ export class UsersService {
       data: { otpCode, otpExpiresAt },
     });
 
-    console.log(`\n\n=== [OTP SIMULATION] ===\nResent OTP ${otpCode} to ${user.phone}\n========================\n\n`);
+    console.log(
+      `\n\n=== [OTP SIMULATION] ===\nResent OTP ${otpCode} to ${user.phone}\n========================\n\n`,
+    );
 
     return { success: true, message: 'OTP sent successfully' };
   }

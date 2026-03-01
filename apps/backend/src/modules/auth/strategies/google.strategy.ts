@@ -12,7 +12,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const callbackURL = `${backendUrl}/api/v1/auth/google/callback`;
 
     console.log('[GoogleStrategy] clientID:', clientID?.substring(0, 20) + '...');
-    console.log('[GoogleStrategy] clientSecret set:', !!clientSecret, 'length:', clientSecret?.length);
+    console.log(
+      '[GoogleStrategy] clientSecret set:',
+      !!clientSecret,
+      'length:',
+      clientSecret?.length,
+    );
     console.log('[GoogleStrategy] callbackURL:', callbackURL);
 
     super({

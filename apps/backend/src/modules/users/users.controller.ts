@@ -10,7 +10,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
@@ -20,10 +20,7 @@ export class UsersController {
 
   @Patch('me')
   @ApiOperation({ summary: 'Update current user profile' })
-  async updateProfile(
-    @CurrentUser('id') userId: string,
-    @Body() dto: UpdateProfileDto,
-  ) {
+  async updateProfile(@CurrentUser('id') userId: string, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateProfile(userId, dto);
   }
 
@@ -54,10 +51,7 @@ export class UsersController {
 
   @Post('me/otp/verify')
   @ApiOperation({ summary: 'Verify user phone OTP' })
-  async verifyOtp(
-    @CurrentUser('id') userId: string,
-    @Body('code') code: string,
-  ) {
+  async verifyOtp(@CurrentUser('id') userId: string, @Body('code') code: string) {
     return this.usersService.verifyOtp(userId, code);
   }
 }

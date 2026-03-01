@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Star, Clock } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import type { Shop } from '@/types';
 
 // CartoDB Dark Matter tiles for a sleek, Lexogrine-style aesthetic
@@ -31,27 +32,34 @@ export const ShopMapInner: React.FC<ShopMapProps> = ({
     zoom = 13
 }) => {
     const router = useRouter();
-    const [customIcon, setCustomIcon] = useState<any>(null);
+    const [customIcon, setCustomIcon] = useState<L.DivIcon | null>(null);
+    const [userIcon, setUserIcon] = useState<L.DivIcon | null>(null);
 
     // Default to a central coordinate if no user location (e.g., center of India/Delhi or user's city)
     const defaultCenter: [number, number] = [28.6139, 77.2090]; // New Delhi
     const center: [number, number] = userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter;
 
     useEffect(() => {
-        const L = typeof window !== 'undefined' ? require('leaflet') : null;
-        if (L) {
-            // Create a sleek, modern, minimal dot icon for shops
-            const icon = L.divIcon({
-                className: 'custom-map-marker',
-                html: `<div class="w-4 h-4 rounded-full bg-white border-4 border-lexo-black shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-pulse"></div>`,
-                iconSize: [16, 16],
-                iconAnchor: [8, 8],
-            });
-            setCustomIcon(icon);
-        }
+        // Create a sleek, modern, minimal dot icon for shops
+        const shopIcon = L.divIcon({
+            className: 'custom-map-marker',
+            html: `<div class="w-4 h-4 rounded-full bg-white border-4 border-lexo-black shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-pulse"></div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+        });
+        setCustomIcon(shopIcon);
+
+        const uIcon = L.divIcon({
+            className: 'user-marker',
+            html: `<div class="relative w-6 h-6"><div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-75"></div><div class="relative w-6 h-6 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div></div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+        setUserIcon(uIcon);
     }, []);
 
-    // Return null while icon initializes to prevent marker errors, though it handles it
+    if (!customIcon || !userIcon) return null;
+
     return (
         <div className={`w-full overflow-hidden rounded-[2.5rem] relative ${className}`}>
             <MapContainer
@@ -71,15 +79,10 @@ export const ShopMapInner: React.FC<ShopMapProps> = ({
                 )}
 
                 {/* User Location Marker (Blue Dot) */}
-                {userLocation && customIcon && (
+                {userLocation && (
                     <Marker
                         position={[userLocation.lat, userLocation.lng]}
-                        icon={require('leaflet').divIcon({
-                            className: 'user-marker',
-                            html: `<div class="relative w-6 h-6"><div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-75"></div><div class="relative w-6 h-6 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div></div>`,
-                            iconSize: [24, 24],
-                            iconAnchor: [12, 12]
-                        })}
+                        icon={userIcon}
                     >
                         <Popup className="custom-popup">
                             <div className="font-bold text-lexo-black">You are here</div>

@@ -27,7 +27,7 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly queueService: QueueService,
     private readonly queueTrackingService: QueueTrackingService,
-  ) { }
+  ) {}
 
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
@@ -41,10 +41,7 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Client subscribes to queue updates for a specific shop
    */
   @SubscribeMessage('joinShopQueue')
-  handleJoinShopQueue(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { shopId: string },
-  ) {
+  handleJoinShopQueue(@ConnectedSocket() client: Socket, @MessageBody() data: { shopId: string }) {
     const room = `shop:${data.shopId}`;
     client.join(room);
     this.logger.log(`Client ${client.id} joined room ${room}`);
@@ -55,10 +52,7 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Client unsubscribes from a shop queue
    */
   @SubscribeMessage('leaveShopQueue')
-  handleLeaveShopQueue(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { shopId: string },
-  ) {
+  handleLeaveShopQueue(@ConnectedSocket() client: Socket, @MessageBody() data: { shopId: string }) {
     const room = `shop:${data.shopId}`;
     client.leave(room);
     this.logger.log(`Client ${client.id} left room ${room}`);
@@ -107,7 +101,8 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { bookingId: string; senderId: string; senderType: 'USER' | 'SHOP'; content: string },
+    @MessageBody()
+    data: { bookingId: string; senderId: string; senderType: 'USER' | 'SHOP'; content: string },
   ) {
     if (!data.bookingId || !data.content) return;
 

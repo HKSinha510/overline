@@ -31,14 +31,9 @@ export class AnalyticsService {
     const completedBookings = bookings.filter((b) => b.status === BookingStatus.COMPLETED).length;
     const cancelledBookings = bookings.filter((b) => b.status === BookingStatus.CANCELLED).length;
     const noShowBookings = bookings.filter((b) => b.status === BookingStatus.NO_SHOW).length;
-    
-    const completedWithPayment = bookings.filter(
-      (b) => b.status === BookingStatus.COMPLETED,
-    );
-    const totalRevenue = completedWithPayment.reduce(
-      (sum, b) => sum + Number(b.totalAmount),
-      0,
-    );
+
+    const completedWithPayment = bookings.filter((b) => b.status === BookingStatus.COMPLETED);
+    const totalRevenue = completedWithPayment.reduce((sum, b) => sum + Number(b.totalAmount), 0);
 
     // Average wait time (from booking creation to start)
     const avgWaitMinutes =

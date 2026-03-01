@@ -60,10 +60,7 @@ export class ServicesController {
   @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete (deactivate) a service' })
   @ApiParam({ name: 'id', description: 'Service ID' })
-  async delete(
-    @Param('id') id: string,
-    @CurrentUser('tenantId') tenantId: string,
-  ) {
+  async delete(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
     return this.servicesService.delete(id, tenantId);
   }
 

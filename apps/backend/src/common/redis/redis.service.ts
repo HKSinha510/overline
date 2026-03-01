@@ -13,7 +13,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     try {
       const redisUrl = this.configService.get('redis.url');
-      
+
       const redisOptions: any = {
         retryStrategy: (times: number) => {
           if (times > 3) {
@@ -52,7 +52,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       // Try to connect but don't block startup
       await this.client.connect().catch((err) => {
-        this.logger.warn(`Redis initial connection failed: ${err.message} - app will continue without Redis`);
+        this.logger.warn(
+          `Redis initial connection failed: ${err.message} - app will continue without Redis`,
+        );
       });
     } catch (error) {
       this.logger.warn(`Redis setup failed: ${error.message} - app will continue without Redis`);

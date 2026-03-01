@@ -9,19 +9,10 @@ export class ShopsService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-  ) { }
+  ) {}
 
   async search(dto: SearchShopsDto) {
-    const {
-      query,
-      city,
-      type,
-      latitude,
-      longitude,
-      radiusKm = 10,
-      page = 1,
-      limit = 20,
-    } = dto;
+    const { query, city, type, latitude, longitude, radiusKm = 10, page = 1, limit = 20 } = dto;
 
     const skip = (page - 1) * limit;
     const where: Prisma.ShopWhereInput = {
@@ -50,7 +41,7 @@ export class ShopsService {
     // If we have coordinates, apply bounding box filter for performance
     if (latitude && longitude) {
       const latDelta = radiusKm / 111.32;
-      const lngDelta = radiusKm / (111.32 * Math.cos(latitude * Math.PI / 180));
+      const lngDelta = radiusKm / (111.32 * Math.cos((latitude * Math.PI) / 180));
       where.latitude = {
         gte: latitude - latDelta,
         lte: latitude + latDelta,
@@ -61,7 +52,7 @@ export class ShopsService {
       };
     }
 
-    let orderBy: Prisma.ShopOrderByWithRelationInput = { name: 'asc' };
+    const orderBy: Prisma.ShopOrderByWithRelationInput = { name: 'asc' };
 
     const [shops, total] = await Promise.all([
       this.prisma.shop.findMany({
@@ -103,9 +94,15 @@ export class ShopsService {
     const shopsWithQueue = await Promise.all(
       shops.map(async (shop) => {
         const queueStats = await this.redis.getShopQueueStats(shop.id);
-        const distance = (latitude && longitude && shop.latitude && shop.longitude)
-          ? this.calculateDistance(latitude, longitude, Number(shop.latitude), Number(shop.longitude))
-          : undefined;
+        const distance =
+          latitude && longitude && shop.latitude && shop.longitude
+            ? this.calculateDistance(
+                latitude,
+                longitude,
+                Number(shop.latitude),
+                Number(shop.longitude),
+              )
+            : undefined;
 
         return {
           ...shop,
@@ -274,7 +271,7 @@ export class ShopsService {
     });
 
     const estimatedWaitMinutes = Math.round(
-      waitingBookings * (avgDuration._avg.durationMinutes || 15) / shop.maxConcurrentBookings
+      (waitingBookings * (avgDuration._avg.durationMinutes || 15)) / shop.maxConcurrentBookings,
     );
 
     const stats = {
@@ -304,7 +301,7 @@ export class ShopsService {
     // For production, use PostGIS with ST_DWithin
     // This is a simplified version using bounding box approximation
     const latDelta = radiusKm / 111.32; // 1 degree latitude ≈ 111.32 km
-    const lngDelta = radiusKm / (111.32 * Math.cos(latitude * Math.PI / 180));
+    const lngDelta = radiusKm / (111.32 * Math.cos((latitude * Math.PI) / 180));
 
     const shops = await this.prisma.shop.findMany({
       where: {
@@ -351,8 +348,10 @@ export class ShopsService {
     const dLng = this.toRad(lng2 - lng1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      Math.cos(this.toRad(lat1)) *
+        Math.cos(this.toRad(lat2)) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }

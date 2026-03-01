@@ -1,4 +1,11 @@
-import { IsString, IsArray, IsOptional, ArrayMinSize, Matches, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsArray,
+  IsOptional,
+  ArrayMinSize,
+  Matches,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateWalkInDto {

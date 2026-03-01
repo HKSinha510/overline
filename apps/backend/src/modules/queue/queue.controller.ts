@@ -12,7 +12,7 @@ export class QueueController {
     private readonly queueService: QueueService,
     private readonly slotEngine: SlotEngineService,
     private readonly queueTrackingService: QueueTrackingService,
-  ) { }
+  ) {}
 
   @Get('slots/:shopId')
   @Public()
@@ -20,7 +20,11 @@ export class QueueController {
   @ApiParam({ name: 'shopId', description: 'Shop ID' })
   @ApiQuery({ name: 'date', required: true, description: 'Date in YYYY-MM-DD format' })
   @ApiQuery({ name: 'serviceIds', required: false, description: 'Comma-separated service IDs' })
-  @ApiQuery({ name: 'duration', required: false, description: 'Duration in minutes (used if no serviceIds)' })
+  @ApiQuery({
+    name: 'duration',
+    required: false,
+    description: 'Duration in minutes (used if no serviceIds)',
+  })
   @ApiQuery({ name: 'staffId', required: false, description: 'Optional specific staff member' })
   @ApiResponse({ status: 200, description: 'List of available time slots' })
   async getSlots(
@@ -46,10 +50,7 @@ export class QueueController {
   @ApiParam({ name: 'shopId', description: 'Shop ID' })
   @ApiQuery({ name: 'serviceIds', required: true, description: 'Comma-separated service IDs' })
   @ApiResponse({ status: 200, description: 'Next available time slot' })
-  async getNextSlot(
-    @Param('shopId') shopId: string,
-    @Query('serviceIds') serviceIds: string,
-  ) {
+  async getNextSlot(@Param('shopId') shopId: string, @Query('serviceIds') serviceIds: string) {
     const serviceIdArray = serviceIds.split(',').filter(Boolean);
     const slot = await this.slotEngine.getNextAvailableSlot(shopId, serviceIdArray);
     return { slot };
@@ -85,8 +86,13 @@ export class QueueController {
   @ApiParam({ name: 'bookingId', description: 'Booking ID' })
   async postMessage(
     @Param('bookingId') bookingId: string,
-    @Body() data: { senderId: string; senderType: 'USER' | 'SHOP'; content: string }
+    @Body() data: { senderId: string; senderType: 'USER' | 'SHOP'; content: string },
   ) {
-    return this.queueTrackingService.createMessage(bookingId, data.senderId, data.senderType, data.content);
+    return this.queueTrackingService.createMessage(
+      bookingId,
+      data.senderId,
+      data.senderType,
+      data.content,
+    );
   }
 }

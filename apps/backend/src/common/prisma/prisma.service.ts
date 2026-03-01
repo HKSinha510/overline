@@ -7,9 +7,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     super({
-      log: process.env.NODE_ENV === 'development' 
-        ? ['query', 'info', 'warn', 'error']
-        : ['warn', 'error'],
+      log:
+        process.env.NODE_ENV === 'development'
+          ? ['query', 'info', 'warn', 'error']
+          : ['warn', 'error'],
       datasources: {
         db: {
           url: process.env.DATABASE_URL,
@@ -29,7 +30,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         retries--;
         this.logger.warn(`Database connection failed, ${retries} retries left`);
         if (retries === 0) throw error;
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 2000));
       }
     }
   }

@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -45,9 +50,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {
-    this.googleClient = new OAuth2Client(
-      this.configService.get<string>('google.clientId'),
-    );
+    this.googleClient = new OAuth2Client(this.configService.get<string>('google.clientId'));
   }
 
   async signup(dto: SignupDto): Promise<TokenResponse> {
@@ -91,9 +94,11 @@ export class AuthService {
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
       user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { otpCode, otpExpiresAt }
+        data: { otpCode, otpExpiresAt },
       });
-      console.log(`\n\n=== [OTP SIMULATION] ===\nSent OTP ${otpCode} to ${user.phone}\n========================\n\n`);
+      console.log(
+        `\n\n=== [OTP SIMULATION] ===\nSent OTP ${otpCode} to ${user.phone}\n========================\n\n`,
+      );
     }
 
     // Generate tokens
@@ -114,7 +119,10 @@ export class AuthService {
     const saltRounds = this.configService.get<number>('bcrypt.saltRounds') || 12;
     const hashedPassword = await bcrypt.hash(dto.password, saltRounds);
 
-    const slug = dto.shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(1000 + Math.random() * 9000);
+    const slug =
+      dto.shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-') +
+      '-' +
+      Math.floor(1000 + Math.random() * 9000);
 
     // Create Tenant, Shop, Owner, QueueStats, and WorkingHours in a transaction
     const user = await this.prisma.$transaction(async (tx) => {
@@ -231,7 +239,9 @@ export class AuthService {
 
     // If user signed up via Google and has no password
     if (!user.hashedPassword) {
-      throw new UnauthorizedException('This account uses Google Sign-In. Please login with Google.');
+      throw new UnauthorizedException(
+        'This account uses Google Sign-In. Please login with Google.',
+      );
     }
 
     // Verify password
@@ -283,10 +293,7 @@ export class AuthService {
     // Check if user already exists by googleId or email
     let user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { googleId },
-          { email },
-        ],
+        OR: [{ googleId }, { email }],
       },
     });
 
@@ -415,7 +422,9 @@ export class AuthService {
 
     // If user doesn't have a password (Google-only account), they can't use change-password
     if (!user.hashedPassword) {
-      throw new BadRequestException('Cannot change password for Google-only accounts. Set a password first.');
+      throw new BadRequestException(
+        'Cannot change password for Google-only accounts. Set a password first.',
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(currentPassword, user.hashedPassword);

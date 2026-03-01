@@ -10,4 +10,4 @@ import { TrustScoreService } from './trust-score.service';
   providers: [UsersService, TrustScoreService],
   exports: [UsersService, TrustScoreService],
 })
-export class UsersModule { }
+export class UsersModule {}

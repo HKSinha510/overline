@@ -14,4 +14,4 @@ import { QueueTrackingService } from './queue-tracking.service';
   providers: [QueueService, QueueGateway, SlotEngineService, QueueTrackingService],
   exports: [QueueService, QueueGateway, SlotEngineService, QueueTrackingService],
 })
-export class QueueModule { }
+export class QueueModule {}

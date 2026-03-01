@@ -27,12 +27,14 @@ export class PaymentsService {
    */
   async createPaymentIntent(dto: CreatePaymentDto, userId: string) {
     if (!this.stripe) {
-      throw new BadRequestException('Payment processing is not configured. Add STRIPE_SECRET_KEY to enable payments.');
+      throw new BadRequestException(
+        'Payment processing is not configured. Add STRIPE_SECRET_KEY to enable payments.',
+      );
     }
 
     const booking = await this.prisma.booking.findUnique({
       where: { id: dto.bookingId },
-      include: { 
+      include: {
         payment: true,
         shop: true,
         services: true,
@@ -140,7 +142,7 @@ export class PaymentsService {
     }
 
     const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
-    
+
     let event: Stripe.Event;
     try {
       event = this.stripe.webhooks.constructEvent(payload, signature, webhookSecret!);
@@ -155,7 +157,7 @@ export class PaymentsService {
       case 'payment_intent.succeeded':
         await this.handlePaymentSuccess(event.data.object as Stripe.PaymentIntent);
         break;
-      
+
       case 'payment_intent.payment_failed':
         await this.handlePaymentFailed(event.data.object as Stripe.PaymentIntent);
         break;
@@ -176,7 +178,7 @@ export class PaymentsService {
    */
   private async handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     const bookingId = paymentIntent.metadata.bookingId;
-    
+
     if (!bookingId) {
       this.logger.warn('No bookingId in payment metadata');
       return;
@@ -210,7 +212,7 @@ export class PaymentsService {
    */
   private async handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
     const bookingId = paymentIntent.metadata.bookingId;
-    
+
     if (!bookingId) return;
 
     await this.prisma.payment.update({
@@ -228,7 +230,7 @@ export class PaymentsService {
    */
   private async handleRefund(charge: Stripe.Charge) {
     const paymentIntentId = charge.payment_intent as string;
-    
+
     const payment = await this.prisma.payment.findFirst({
       where: { providerOrderId: paymentIntentId },
     });

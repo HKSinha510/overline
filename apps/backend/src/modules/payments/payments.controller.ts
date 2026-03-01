@@ -16,10 +16,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Create a Stripe PaymentIntent' })
-  async createPaymentIntent(
-    @Body() dto: CreatePaymentDto,
-    @CurrentUser('id') userId: string,
-  ) {
+  async createPaymentIntent(@Body() dto: CreatePaymentDto, @CurrentUser('id') userId: string) {
     return this.paymentsService.createPaymentIntent(dto, userId);
   }
 
@@ -28,20 +25,14 @@ export class PaymentsController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get payment status' })
   @ApiParam({ name: 'id', description: 'Payment ID' })
-  async getPayment(
-    @Param('id') id: string,
-    @CurrentUser('id') userId: string,
-  ) {
+  async getPayment(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.paymentsService.getPayment(id, userId);
   }
 
   @Post('webhook')
   @Public()
   @ApiOperation({ summary: 'Stripe webhook endpoint' })
-  async stripeWebhook(
-    @Req() req: Request,
-    @Headers('stripe-signature') signature: string,
-  ) {
+  async stripeWebhook(@Req() req: Request, @Headers('stripe-signature') signature: string) {
     // Need raw body for signature verification
     const payload = (req as any).rawBody || req.body;
     return this.paymentsService.handleStripeWebhook(payload, signature);

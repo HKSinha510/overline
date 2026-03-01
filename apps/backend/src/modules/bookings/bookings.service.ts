@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { RedisService } from '@/common/redis/redis.service';
 import { QueueService } from '../queue/queue.service';
@@ -8,7 +15,12 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { TrustScoreService } from '../users/trust-score.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
-import { BookingStatus, BookingSource, NotificationChannel, NotificationType } from '@prisma/client';
+import {
+  BookingStatus,
+  BookingSource,
+  NotificationChannel,
+  NotificationType,
+} from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -22,13 +34,24 @@ export class BookingsService {
     private slotEngine: SlotEngineService,
     private notificationsService: NotificationsService,
     private trustScoreService: TrustScoreService,
-  ) { }
+  ) {}
 
   /**
    * Create a new booking
    */
   async create(dto: CreateBookingDto, userId?: string) {
-    const { shopId, serviceIds, startTime, staffId, customerName, customerPhone, customerEmail, notes, source = BookingSource.WEB, offerCode } = dto;
+    const {
+      shopId,
+      serviceIds,
+      startTime,
+      staffId,
+      customerName,
+      customerPhone,
+      customerEmail,
+      notes,
+      source = BookingSource.WEB,
+      offerCode,
+    } = dto;
 
     // Get shop
     const shop = await this.prisma.shop.findUnique({
@@ -80,12 +103,18 @@ export class BookingsService {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException('User not found');
       if (!user.phone || !user.isPhoneVerified) {
-        throw new BadRequestException('A verified phone number is required to book an appointment.');
+        throw new BadRequestException(
+          'A verified phone number is required to book an appointment.',
+        );
       }
     }
 
     // A single user (by userId or phone) can only hold ONE active booking across the platform
-    const activeBookingConditions: any[] = [{ status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS] } }];
+    const activeBookingConditions: any[] = [
+      {
+        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS] },
+      },
+    ];
     if (userId) {
       activeBookingConditions.push({ userId });
     } else if (customerPhone) {
@@ -100,7 +129,9 @@ export class BookingsService {
       });
 
       if (existingActiveBooking) {
-        throw new ConflictException('You already have an active appointment. Please complete or cancel it before booking another.');
+        throw new ConflictException(
+          'You already have an active appointment. Please complete or cancel it before booking another.',
+        );
       }
     }
     // --- END SPAM PREVENTION ---
@@ -334,7 +365,11 @@ export class BookingsService {
       } else if (status === 'past') {
         // Past = completed, cancelled, no-show, or past start time
         where.OR = [
-          { status: { in: [BookingStatus.COMPLETED, BookingStatus.CANCELLED, BookingStatus.NO_SHOW] } },
+          {
+            status: {
+              in: [BookingStatus.COMPLETED, BookingStatus.CANCELLED, BookingStatus.NO_SHOW],
+            },
+          },
           { startTime: { lt: now } },
         ];
       } else if (Object.values(BookingStatus).includes(status as BookingStatus)) {
@@ -449,7 +484,11 @@ export class BookingsService {
     });
 
     // --- TRUST SCORE CALCULATION ---
-    const scoreTriggerStatuses: BookingStatus[] = [BookingStatus.COMPLETED, BookingStatus.CANCELLED, BookingStatus.NO_SHOW];
+    const scoreTriggerStatuses: BookingStatus[] = [
+      BookingStatus.COMPLETED,
+      BookingStatus.CANCELLED,
+      BookingStatus.NO_SHOW,
+    ];
     if (updatedBooking.userId && scoreTriggerStatuses.includes(status)) {
       this.trustScoreService.recalculateTrustScore(updatedBooking.userId).catch(console.error);
     }
@@ -531,8 +570,16 @@ export class BookingsService {
 
   private validateStatusTransition(currentStatus: BookingStatus, newStatus: BookingStatus): void {
     const allowedTransitions: Record<BookingStatus, BookingStatus[]> = {
-      [BookingStatus.PENDING]: [BookingStatus.CONFIRMED, BookingStatus.REJECTED, BookingStatus.CANCELLED],
-      [BookingStatus.CONFIRMED]: [BookingStatus.IN_PROGRESS, BookingStatus.CANCELLED, BookingStatus.NO_SHOW],
+      [BookingStatus.PENDING]: [
+        BookingStatus.CONFIRMED,
+        BookingStatus.REJECTED,
+        BookingStatus.CANCELLED,
+      ],
+      [BookingStatus.CONFIRMED]: [
+        BookingStatus.IN_PROGRESS,
+        BookingStatus.CANCELLED,
+        BookingStatus.NO_SHOW,
+      ],
       [BookingStatus.IN_PROGRESS]: [BookingStatus.COMPLETED],
       [BookingStatus.COMPLETED]: [],
       [BookingStatus.CANCELLED]: [],
@@ -541,9 +588,7 @@ export class BookingsService {
     };
 
     if (!allowedTransitions[currentStatus].includes(newStatus)) {
-      throw new BadRequestException(
-        `Cannot transition from ${currentStatus} to ${newStatus}`,
-      );
+      throw new BadRequestException(`Cannot transition from ${currentStatus} to ${newStatus}`);
     }
   }
 

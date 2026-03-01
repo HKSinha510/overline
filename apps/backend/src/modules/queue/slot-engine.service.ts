@@ -5,16 +5,16 @@ import { DayOfWeek } from '@prisma/client';
 
 export interface TimeSlot {
   startTime: string; // ISO string
-  endTime: string;   // ISO string
+  endTime: string; // ISO string
   available: boolean;
   staffId?: string;
 }
 
 export interface SlotQuery {
   shopId: string;
-  date: string;        // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   serviceIds: string[];
-  duration?: number;   // Duration in minutes (used if no serviceIds provided)
+  duration?: number; // Duration in minutes (used if no serviceIds provided)
   staffId?: string;
 }
 
@@ -59,7 +59,7 @@ export class SlotEngineService {
 
     // Calculate total duration from services or use provided duration
     let totalDuration = duration || 30;
-    
+
     if (serviceIds.length > 0) {
       const services = await this.prisma.service.findMany({
         where: {
@@ -150,7 +150,11 @@ export class SlotEngineService {
     const currentMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
 
     // Generate slots at regular intervals
-    for (let minutes = startMinutes; minutes + serviceDuration <= endMinutes; minutes += this.SLOT_INTERVAL_MINUTES) {
+    for (
+      let minutes = startMinutes;
+      minutes + serviceDuration <= endMinutes;
+      minutes += this.SLOT_INTERVAL_MINUTES
+    ) {
       // Skip past slots for today
       if (isToday && minutes < currentMinutes + 30) {
         continue; // Require at least 30 min advance booking
@@ -200,7 +204,7 @@ export class SlotEngineService {
    */
   async getNextAvailableSlot(shopId: string, serviceIds: string[]): Promise<TimeSlot | null> {
     const today = new Date();
-    
+
     // Check next 7 days
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
@@ -245,22 +249,13 @@ export class SlotEngineService {
       status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
       OR: [
         {
-          AND: [
-            { startTime: { lte: startTime } },
-            { endTime: { gt: startTime } },
-          ],
+          AND: [{ startTime: { lte: startTime } }, { endTime: { gt: startTime } }],
         },
         {
-          AND: [
-            { startTime: { lt: endTime } },
-            { endTime: { gte: endTime } },
-          ],
+          AND: [{ startTime: { lt: endTime } }, { endTime: { gte: endTime } }],
         },
         {
-          AND: [
-            { startTime: { gte: startTime } },
-            { endTime: { lte: endTime } },
-          ],
+          AND: [{ startTime: { gte: startTime } }, { endTime: { lte: endTime } }],
         },
       ],
     };

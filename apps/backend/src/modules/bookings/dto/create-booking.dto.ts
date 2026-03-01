@@ -1,4 +1,13 @@
-import { IsString, IsArray, IsDateString, IsOptional, IsEnum, ArrayMinSize, IsEmail, Matches } from 'class-validator';
+import {
+  IsString,
+  IsArray,
+  IsDateString,
+  IsOptional,
+  IsEnum,
+  ArrayMinSize,
+  IsEmail,
+  Matches,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BookingSource } from '@prisma/client';
 
