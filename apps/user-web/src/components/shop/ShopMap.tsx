@@ -1,19 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/router';
-import { Star, Clock } from 'lucide-react';
 import type { Shop } from '@/types';
-
-// Dynamically import Leaflet so it doesn't break Next.js SSR
-const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
-const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
-const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false });
-const useMap = dynamic(() => import('react-leaflet').then(mod => mod.useMap), { ssr: false });
-
-// CartoDB Dark Matter tiles for a sleek, Lexogrine-style aesthetic
-const MAP_TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-const MAP_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 interface ShopMapProps {
     shops: Shop[];
@@ -22,137 +9,20 @@ interface ShopMapProps {
     zoom?: number;
 }
 
-// Component to handle map re-centering when userLocation changes
-const MapCenterUpdater = ({ center }: { center: [number, number] }) => {
-    const map = useMap();
-    useEffect(() => {
-        map.setView(center, map.getZoom());
-    }, [center, map]);
-    return null;
-};
-
-export const ShopMap: React.FC<ShopMapProps> = ({
-    shops,
-    userLocation,
-    className = '',
-    zoom = 13
-}) => {
-    const router = useRouter();
-    const [mounted, setMounted] = useState(false);
-    const [customIcon, setCustomIcon] = useState<any>(null);
-
-    // Default to a central coordinate if no user location (e.g., center of India/Delhi or user's city)
-    const defaultCenter: [number, number] = [28.6139, 77.2090]; // New Delhi
-    const center: [number, number] = userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter;
-
-    useEffect(() => {
-        setMounted(true);
-        // Initialize Leaflet icon only on client side
-        if (typeof window !== 'undefined') {
-            const L = require('leaflet');
-
-            // Create a sleek, modern, minimal dot icon for shops
-            const icon = L.divIcon({
-                className: 'custom-map-marker',
-                html: `<div class="w-4 h-4 rounded-full bg-white border-4 border-lexo-black shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-pulse"></div>`,
-                iconSize: [16, 16],
-                iconAnchor: [8, 8],
-            });
-            setCustomIcon(icon);
-        }
-    }, []);
-
-    if (!mounted) {
-        return (
-            <div className={`w-full bg-lexo-charcoal rounded-[2.5rem] flex items-center justify-center ${className}`}>
+// Dynamically import the inner map component so Leaflet and React-Leaflet
+// are only ever loaded on the client side, bypassing Next.js SSR ESM issues
+const ShopMapInner = dynamic(
+    () => import('./ShopMapInner').then((mod) => mod.ShopMapInner),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="w-full bg-lexo-charcoal rounded-[2.5rem] flex items-center justify-center p-8">
                 <p className="text-white font-medium animate-pulse">Initializing Map Engine...</p>
             </div>
-        );
+        )
     }
+);
 
-    return (
-        <div className={`w-full overflow-hidden rounded-[2.5rem] relative ${className}`}>
-            <MapContainer
-                center={center}
-                zoom={zoom}
-                scrollWheelZoom={false}
-                className="w-full h-full z-0"
-                zoomControl={false} // Disable default zoom for cleaner UI
-            >
-                <TileLayer
-                    attribution={MAP_ATTRIBUTION}
-                    url={MAP_TILES}
-                />
-
-                {userLocation && (
-                    <MapCenterUpdater center={center} />
-                )}
-
-                {/* User Location Marker (Blue Dot) */}
-                {userLocation && customIcon && (
-                    <Marker
-                        position={[userLocation.lat, userLocation.lng]}
-                        icon={require('leaflet').divIcon({
-                            className: 'user-marker',
-                            html: `<div class="relative w-6 h-6"><div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-75"></div><div class="relative w-6 h-6 bg-blue-600 rounded-full border-2 border-white shadow-lg"></div></div>`,
-                            iconSize: [24, 24],
-                            iconAnchor: [12, 12]
-                        })}
-                    >
-                        <Popup className="custom-popup">
-                            <div className="font-bold text-lexo-black">You are here</div>
-                        </Popup>
-                    </Marker>
-                )}
-
-                {/* Shop Markers */}
-                {shops.map((shop) => {
-                    if (!shop.latitude || !shop.longitude) return null;
-
-                    return (
-                        <Marker
-                            key={shop.id}
-                            position={[Number(shop.latitude), Number(shop.longitude)]}
-                            icon={customIcon}
-                        >
-                            <Popup className="custom-popup">
-                                <div className="p-1 min-w-[200px]">
-                                    {/* Shop Cover Image */}
-                                    <div
-                                        className="h-24 w-full rounded-xl bg-gray-200 mb-3 bg-cover bg-center"
-                                        style={{ backgroundImage: `url(${shop.coverUrl || shop.logoUrl || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=500&q=80'})` }}
-                                    />
-
-                                    <h3 className="font-bold text-lexo-black text-lg leading-tight mb-1">{shop.name}</h3>
-                                    <p className="text-lexo-gray text-xs mb-3 truncate">{shop.address}, {shop.city}</p>
-
-                                    <div className="flex justify-between items-center mb-3">
-                                        <span className="flex items-center gap-1 text-amber-500 text-sm font-bold bg-amber-50 px-2 py-0.5 rounded-md">
-                                            <Star className="w-3 h-3 fill-current" /> 4.9
-                                        </span>
-                                        <span className="flex items-center gap-1 text-green-600 text-sm font-bold bg-green-50 px-2 py-0.5 rounded-md">
-                                            <Clock className="w-3 h-3" /> 0 wait
-                                        </span>
-                                    </div>
-
-                                    <button
-                                        onClick={() => router.push(`/shops/${shop.slug}`)}
-                                        className="w-full bg-lexo-black text-white text-sm font-bold py-2 rounded-lg hover:bg-lexo-dark transition-colors"
-                                    >
-                                        View Details
-                                    </button>
-                                </div>
-                            </Popup>
-                        </Marker>
-                    );
-                })}
-            </MapContainer>
-
-            {/* Decorative Gradient Overlays for sleek blending */}
-            <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-lexo-charcoal/20 to-transparent pointer-events-none z-10" />
-            <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-lexo-charcoal/20 to-transparent pointer-events-none z-10" />
-            <div className="absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-lexo-charcoal/20 to-transparent pointer-events-none z-10" />
-            <div className="absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-lexo-charcoal/20 to-transparent pointer-events-none z-10" />
-        </div>
-    );
+export const ShopMap: React.FC<ShopMapProps> = (props) => {
+    return <ShopMapInner {...props} />;
 };
