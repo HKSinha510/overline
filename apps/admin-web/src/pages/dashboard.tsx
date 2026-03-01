@@ -80,8 +80,8 @@ export default function DashboardPage() {
           <p className="text-gray-500">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Stats Grid - Auto-fit for flexible desktop layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
           <StatCard
             title="Today's Appointments"
             value={todayStats.total}
@@ -108,9 +108,9 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Today's Queue */}
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Today's Queue - takes 8 of 12 columns on desktop */}
+          <div className="lg:col-span-8 xl:col-span-8">
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Today's Queue</h2>
@@ -208,8 +208,8 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Quick Actions & Activity */}
-          <div className="space-y-6">
+          {/* Quick Actions & Activity - takes 4 of 12 columns on desktop */}
+          <div className="lg:col-span-4 xl:col-span-4 space-y-6">
             {shopId && <LiveTracking shopId={shopId} />}
             {/* Quick Actions */}
             <Card>

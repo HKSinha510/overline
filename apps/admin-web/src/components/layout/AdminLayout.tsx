@@ -16,9 +16,18 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
-import { useLogout, useUnreadNotificationsCount, useQueueSocket } from '@/hooks';
-import { useToast } from '@/components/ui/Toast';
+import { useLogout, useUnreadNotificationsCount, useQueueSocket, useUpdateBookingStatus } from '@/hooks';
+import { useToast, BookingApprovalModal } from '@/components/ui';
 import { useQueryClient } from '@tanstack/react-query';
+
+interface PendingBooking {
+  id: string;
+  bookingNumber: string;
+  customerName?: string;
+  startTime: string;
+  services?: { serviceName: string }[];
+  user?: { name: string; phone?: string; trustScore?: number };
+}
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -32,6 +41,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { addToast } = useToast();
   const queryClient = useQueryClient();
   const prevQueueLengthRef = React.useRef<number | null>(null);
+
+  // Pending booking approval modal state
+  const [pendingBookings, setPendingBookings] = React.useState<PendingBooking[]>([]);
+  const updateBookingStatus = useUpdateBookingStatus();
 
   // Fetch unread count if authenticated
   const { data: unreadData } = useUnreadNotificationsCount();
@@ -47,18 +60,32 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         queryClient.invalidateQueries({ queryKey: ['adminBookings'] });
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 
-        // Check if queue grew to display a new booking toast
+        // Check if queue grew to display a new booking toast/popup
         const currentLength = update?.queue?.length || 0;
         if (
           prevQueueLengthRef.current !== null &&
           currentLength > prevQueueLengthRef.current
         ) {
-          addToast({
-            type: 'info',
-            title: 'New Booking',
-            message: 'A new appointment has been added to the queue.',
-            duration: 5000,
-          });
+          // Find new PENDING bookings to show approval popup
+          const newBookings = update?.queue?.filter(
+            (b: any) => b.status === 'PENDING'
+          ) || [];
+          
+          if (newBookings.length > 0) {
+            setPendingBookings((prev) => {
+              const existingIds = new Set(prev.map((p) => p.id));
+              const toAdd = newBookings.filter((b: any) => !existingIds.has(b.id));
+              return [...prev, ...toAdd];
+            });
+          } else {
+            // Just show toast if no pending bookings
+            addToast({
+              type: 'info',
+              title: 'New Booking',
+              message: 'A new appointment has been added to the queue.',
+              duration: 5000,
+            });
+          }
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
         }
         prevQueueLengthRef.current = currentLength;
@@ -67,7 +94,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     ),
     onBookingUpdate: React.useCallback(
       (update: any) => {
-        // Optional: show toasts for specific status changes (e.g. user cancelled)
+        // Show popup for new PENDING booking
+        if (update?.status === 'PENDING' && update?.id) {
+          setPendingBookings((prev) => {
+            if (prev.some((p) => p.id === update.id)) return prev;
+            return [...prev, update];
+          });
+        }
+        // Show toast for cancelled bookings
         if (update?.status === 'CANCELLED') {
           addToast({
             type: 'warning',
@@ -81,6 +115,53 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       [addToast, queryClient]
     ),
   });
+
+  // Handlers for booking approval/denial
+  const handleApproveBooking = React.useCallback(
+    async (bookingId: string) => {
+      try {
+        await updateBookingStatus.mutateAsync({ bookingId, status: 'CONFIRMED' });
+        setPendingBookings((prev) => prev.filter((b) => b.id !== bookingId));
+        addToast({
+          type: 'success',
+          title: 'Booking Approved',
+          message: 'The booking has been confirmed.',
+        });
+      } catch (err) {
+        addToast({
+          type: 'error',
+          title: 'Failed to approve',
+          message: 'Could not approve the booking. Please try again.',
+        });
+      }
+    },
+    [updateBookingStatus, addToast]
+  );
+
+  const handleDenyBooking = React.useCallback(
+    async (bookingId: string) => {
+      try {
+        await updateBookingStatus.mutateAsync({ bookingId, status: 'CANCELLED' });
+        setPendingBookings((prev) => prev.filter((b) => b.id !== bookingId));
+        addToast({
+          type: 'success',
+          title: 'Booking Denied',
+          message: 'The booking has been cancelled.',
+        });
+      } catch (err) {
+        addToast({
+          type: 'error',
+          title: 'Failed to deny',
+          message: 'Could not deny the booking. Please try again.',
+        });
+      }
+    },
+    [updateBookingStatus, addToast]
+  );
+
+  const handleDismissPendingBooking = React.useCallback((bookingId: string) => {
+    setPendingBookings((prev) => prev.filter((b) => b.id !== bookingId));
+  }, []);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -229,8 +310,22 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         {/* Page Content */}
         <main className="p-4 sm:p-6">{children}</main>
       </div>
+
+      {/* Booking Approval Modal - show one at a time */}
+      {pendingBookings.length > 0 && (
+        <BookingApprovalModal
+          booking={pendingBookings[0]}
+          onApprove={handleApproveBooking}
+          onDeny={handleDenyBooking}
+          onClose={() => handleDismissPendingBooking(pendingBookings[0].id)}
+          isApproving={updateBookingStatus.isPending}
+          isDenying={updateBookingStatus.isPending}
+        />
+      )}
     </div>
   );
 };
 
 export default AdminLayout;
+
+export { AdminLayout };

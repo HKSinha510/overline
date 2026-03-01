@@ -77,7 +77,7 @@ export default function SettingsPage() {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('folder', 'shops');
-    const { data } = await api.post('/upload', fd, {
+    const { data } = await api.post('/upload/image', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     // Update shop with new cover URL
@@ -95,7 +95,7 @@ export default function SettingsPage() {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('folder', 'shops');
-      const { data } = await api.post('/upload', fd, {
+      const { data } = await api.post('/upload/image', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
