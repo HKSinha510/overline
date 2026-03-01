@@ -7,9 +7,10 @@ import {
   ArrayMinSize,
   IsEmail,
   Matches,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BookingSource } from '@prisma/client';
+import { BookingSource, PaymentType } from '@prisma/client';
 
 export class CreateBookingDto {
   @ApiProperty({ description: 'Shop ID' })
@@ -61,4 +62,14 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   offerCode?: string;
+
+  @ApiPropertyOptional({ enum: PaymentType, description: 'Payment type: PREPAID or PAY_LATER' })
+  @IsOptional()
+  @IsEnum(PaymentType)
+  paymentType?: PaymentType;
+
+  @ApiPropertyOptional({ description: 'Whether to use free cash from wallet' })
+  @IsOptional()
+  @IsBoolean()
+  useFreeCash?: boolean;
 }

@@ -132,6 +132,19 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Get remaining TTL for a key in seconds
+   * Returns -2 if key doesn't exist, -1 if no TTL set, otherwise TTL in seconds
+   */
+  async ttl(key: string): Promise<number> {
+    if (!this.client) return -2;
+    try {
+      return await this.client.ttl(key);
+    } catch {
+      return -2;
+    }
+  }
+
+  /**
    * Increment a key and set TTL (for rate limiting / fraud detection)
    * Returns the new count
    */

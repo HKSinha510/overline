@@ -28,7 +28,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   /**
    * Extract request context for fraud detection
@@ -76,10 +76,15 @@ export class AuthController {
 
   @Get('google/redirect')
   @ApiOperation({ summary: 'Redirect to Google for OAuth login' })
-  async googleRedirect(@Res() res: Response, @Query('from') from?: string) {
+  async googleRedirect(@Req() req: any, @Res() res: Response, @Query('from') from?: string) {
     const clientId = this.configService.get<string>('google.clientId');
-    const backendUrl = this.configService.get<string>('backendUrl') || 'http://localhost:3001';
-    const redirectUri = `${backendUrl}/api/v1/auth/google/callback`;
+    if (!clientId) {
+      return res.redirect('/auth/login?error=google_not_configured');
+    }
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const redirectUri = `${protocol}://${host}/api/v1/auth/google/callback`;
     const state = from || 'user';
 
     const params = new URLSearchParams({
@@ -118,20 +123,28 @@ export class AuthController {
     try {
       const clientId = this.configService.get<string>('google.clientId');
       const clientSecret = this.configService.get<string>('google.clientSecret');
-      const backendUrl = this.configService.get<string>('backendUrl') || 'http://localhost:3001';
-      const redirectUri = `${backendUrl}/api/v1/auth/google/callback`;
+
+      if (!clientId || !clientSecret) {
+        console.error('[GoogleCallback] Missing Google OAuth credentials in environment');
+        return res.redirect(`${frontendUrl}${loginPath}?error=google_not_configured`);
+      }
+
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const redirectUri = `${protocol}://${host}/api/v1/auth/google/callback`;
 
       // Exchange code for tokens
+      const tokenParams = new URLSearchParams();
+      tokenParams.append('code', code);
+      tokenParams.append('client_id', clientId);
+      tokenParams.append('client_secret', clientSecret);
+      tokenParams.append('redirect_uri', redirectUri);
+      tokenParams.append('grant_type', 'authorization_code');
+
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          code,
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: redirectUri,
-          grant_type: 'authorization_code',
-        }).toString(),
+        body: tokenParams.toString(),
       });
 
       const tokenData = (await tokenResponse.json()) as {
@@ -141,6 +154,7 @@ export class AuthController {
 
       if (!tokenResponse.ok) {
         console.error('[GoogleCallback] Token exchange failed:', JSON.stringify(tokenData));
+        console.error('[GoogleCallback] Status:', tokenResponse.status);
         return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
       }
 
@@ -158,6 +172,18 @@ export class AuthController {
         [key: string]: any;
       };
 
+      if (!userInfo.id || !userInfo.email) {
+        console.error('[GoogleCallback] Invalid user info:', JSON.stringify(userInfo));
+        return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
+      }
+
+      console.log('[GoogleCallback] User info retrieved:', {
+        id: userInfo.id,
+        email: userInfo.email,
+        name: userInfo.name,
+        verified: userInfo.verified_email
+      });
+
       const tokens = await this.authService.handleGoogleUser(
         userInfo.id,
         userInfo.email,
@@ -166,16 +192,18 @@ export class AuthController {
         userInfo.verified_email,
       );
 
-      const params = new URLSearchParams({
+      const redirectParams = new URLSearchParams({
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         expiresIn: String(tokens.expiresIn),
         user: JSON.stringify(tokens.user),
       });
 
-      return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
+      return res.redirect(`${frontendUrl}/auth/google/callback?${redirectParams.toString()}`);
     } catch (err: any) {
       console.error('[GoogleCallback] Error:', err.message);
+      console.error('[GoogleCallback] Stack:', err.stack);
+      console.error('[GoogleCallback] Full error:', JSON.stringify(err, null, 2));
       return res.redirect(`${frontendUrl}${loginPath}?error=google_auth_failed`);
     }
   }

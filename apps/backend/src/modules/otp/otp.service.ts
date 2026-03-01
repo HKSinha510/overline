@@ -1,0 +1,204 @@
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '@/common/prisma/prisma.service';
+import { RedisService } from '@/common/redis/redis.service';
+
+export const OTP_CONFIG = {
+  LENGTH: 6, // 6-digit OTP
+  EXPIRY_MINUTES: 10, // OTP expires in 10 minutes
+  MAX_ATTEMPTS: 3, // Max verification attempts
+  RESEND_COOLDOWN_SECONDS: 60, // Cooldown before resending OTP
+};
+
+export type OtpPurpose = 'LOGIN' | 'REGISTER' | 'VERIFY_PHONE';
+
+@Injectable()
+export class OtpService {
+  private readonly logger = new Logger(OtpService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+    private redis: RedisService,
+  ) {}
+
+  /**
+   * Generate a random OTP
+   */
+  private generateOtp(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  /**
+   * Send OTP to phone number
+   */
+  async sendOtp(phone: string, purpose: OtpPurpose): Promise<{ message: string; expiresAt: Date }> {
+    // Validate phone format (Indian format)
+    if (!this.isValidIndianPhone(phone)) {
+      throw new BadRequestException('Invalid phone number format. Use +91XXXXXXXXXX');
+    }
+
+    // Check cooldown
+    const cooldownKey = `otp:cooldown:${phone}`;
+    const isInCooldown = await this.redis.get(cooldownKey);
+    if (isInCooldown) {
+      const remainingSeconds = await this.redis.ttl(cooldownKey);
+      throw new BadRequestException(`Please wait ${remainingSeconds} seconds before requesting another OTP`);
+    }
+
+    // Generate OTP
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
+
+    // Invalidate previous OTPs for this phone
+    await this.prisma.otpVerification.updateMany({
+      where: {
+        phone,
+        isVerified: false,
+        expiresAt: { gt: new Date() },
+      },
+      data: { expiresAt: new Date() }, // Expire immediately
+    });
+
+    // Create new OTP record
+    await this.prisma.otpVerification.create({
+      data: {
+        phone,
+        otp,
+        purpose,
+        expiresAt,
+      },
+    });
+
+    // Set cooldown
+    await this.redis.set(cooldownKey, 'active', OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
+
+    // TODO: Send actual SMS using Twilio/MSG91/etc.
+    // For now, log the OTP (development mode)
+    this.logger.warn(`[DEV MODE] OTP for ${phone}: ${otp}`);
+
+    // In production, integrate with SMS provider:
+    // await this.sendSms(phone, `Your Overline verification code is: ${otp}`);
+
+    return {
+      message: `OTP sent to ${phone}`,
+      expiresAt,
+    };
+  }
+
+  /**
+   * Verify OTP
+   */
+  async verifyOtp(phone: string, otp: string, purpose: OtpPurpose): Promise<{ verified: boolean; userId?: string }> {
+    const verification = await this.prisma.otpVerification.findFirst({
+      where: {
+        phone,
+        purpose,
+        isVerified: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!verification) {
+      throw new BadRequestException('OTP expired or not found. Please request a new one.');
+    }
+
+    if (verification.attempts >= OTP_CONFIG.MAX_ATTEMPTS) {
+      throw new BadRequestException('Maximum verification attempts exceeded. Please request a new OTP.');
+    }
+
+    // Increment attempts
+    await this.prisma.otpVerification.update({
+      where: { id: verification.id },
+      data: { attempts: { increment: 1 } },
+    });
+
+    if (verification.otp !== otp) {
+      const remainingAttempts = OTP_CONFIG.MAX_ATTEMPTS - verification.attempts - 1;
+      throw new BadRequestException(`Invalid OTP. ${remainingAttempts} attempts remaining.`);
+    }
+
+    // Mark as verified
+    await this.prisma.otpVerification.update({
+      where: { id: verification.id },
+      data: { isVerified: true },
+    });
+
+    // Update user's phone verification status if user exists
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (user) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { isPhoneVerified: true },
+      });
+    }
+
+    this.logger.log(`OTP verified for phone ${phone}, purpose: ${purpose}`);
+
+    return {
+      verified: true,
+      userId: user?.id,
+    };
+  }
+
+  /**
+   * Login with OTP
+   */
+  async loginWithOtp(phone: string, otp: string): Promise<{ verified: boolean; user: any }> {
+    const result = await this.verifyOtp(phone, otp, 'LOGIN');
+
+    if (!result.verified) {
+      throw new BadRequestException('OTP verification failed');
+    }
+
+    // Find or create user
+    let user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (!user) {
+      // Auto-create user for OTP login
+      user = await this.prisma.user.create({
+        data: {
+          phone,
+          name: `User ${phone.slice(-4)}`,
+          email: `${phone.slice(3)}@phone.overline.app`, // Placeholder email
+          authProvider: 'phone',
+          isPhoneVerified: true,
+        },
+      });
+      this.logger.log(`Created new user via OTP login: ${user.id}`);
+    }
+
+    return { verified: true, user };
+  }
+
+  /**
+   * Validate Indian phone number format
+   */
+  private isValidIndianPhone(phone: string): boolean {
+    // Accept formats: +91XXXXXXXXXX, 91XXXXXXXXXX, XXXXXXXXXX
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 10) return true;
+    if (cleaned.length === 12 && cleaned.startsWith('91')) return true;
+    return false;
+  }
+
+  /**
+   * Normalize phone number to +91 format
+   */
+  normalizePhone(phone: string): string {
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 10) {
+      return `+91${cleaned}`;
+    }
+    if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      return `+${cleaned}`;
+    }
+    return phone;
+  }
+}

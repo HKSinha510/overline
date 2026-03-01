@@ -15,6 +15,7 @@ import { SlotEngineService } from '../queue/slot-engine.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TrustScoreService } from '../users/trust-score.service';
 import { FraudDetectionService, BookingContext } from '../fraud-detection/fraud-detection.service';
+import { WalletService, FREE_CASH_CONFIG } from '../wallet/wallet.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import {
@@ -22,8 +23,12 @@ import {
   BookingSource,
   NotificationChannel,
   NotificationType,
+  PaymentType,
+  ServiceStatus,
+  CancellationReason,
 } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class BookingsService {
@@ -37,7 +42,15 @@ export class BookingsService {
     private notificationsService: NotificationsService,
     private trustScoreService: TrustScoreService,
     private fraudDetection: FraudDetectionService,
+    private walletService: WalletService,
   ) {}
+
+  /**
+   * Generate a unique 4-digit verification code (like Rapido/Uber)
+   */
+  private generateVerificationCode(): string {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  }
 
   /**
    * Create a new booking with fraud detection
@@ -202,8 +215,21 @@ export class BookingsService {
         throw new ConflictException('Selected time slot is no longer available');
       }
 
-      // Generate booking number
+      // Generate booking number and verification code
       const bookingNumber = this.generateBookingNumber();
+      const verificationCode = this.generateVerificationCode();
+
+      // Calculate free cash amount (25-30 rupees)
+      const freeCashAmount = this.walletService.calculateFreeCashAmount();
+      
+      // Service amount is the actual amount owner set
+      const serviceAmount = totalAmount;
+      
+      // Display amount includes free cash (what user sees initially)
+      const displayAmount = totalAmount + freeCashAmount;
+
+      // Determine payment type from DTO (default to PAY_LATER)
+      const paymentType = dto.paymentType || PaymentType.PAY_LATER;
 
       // Determine initial status
       const status = shop.autoAcceptBookings ? BookingStatus.CONFIRMED : BookingStatus.PENDING;
@@ -211,7 +237,7 @@ export class BookingsService {
       // Get queue position
       const queuePosition = await this.queueService.getQueuePosition(shopId);
 
-      // Create booking
+      // Create booking with new fields
       const newBooking = await tx.booking.create({
         data: {
           bookingNumber,
@@ -221,7 +247,13 @@ export class BookingsService {
           startTime: bookingStartTime,
           endTime: bookingEndTime,
           totalDurationMinutes: totalDuration,
-          totalAmount,
+          totalAmount: displayAmount, // Total shown includes free cash
+          serviceAmount: new Decimal(serviceAmount),
+          freeCashAmount: new Decimal(freeCashAmount),
+          displayAmount: new Decimal(displayAmount),
+          paymentType,
+          verificationCode,
+          serviceStatus: ServiceStatus.AWAITING_CODE,
           currency,
           status,
           source,
@@ -648,5 +680,283 @@ export class BookingsService {
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = uuidv4().slice(0, 4).toUpperCase();
     return `OL-${timestamp}-${random}`;
+  }
+
+  /**
+   * Verify service code (entered by staff to start service)
+   */
+  async verifyServiceCode(bookingId: string, code: string, staffId?: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { shop: true },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.verificationCode !== code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    if (booking.serviceStatus !== ServiceStatus.AWAITING_CODE) {
+      throw new BadRequestException('Service code already verified or service completed');
+    }
+
+    const updatedBooking = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        serviceStatus: ServiceStatus.IN_SERVICE,
+        status: BookingStatus.IN_PROGRESS,
+        codeVerifiedAt: new Date(),
+        codeVerifiedBy: staffId,
+        arrivedAt: new Date(),
+        startedAt: new Date(),
+      },
+    });
+
+    // Emit real-time update
+    this.queueGateway.emitBookingUpdate(bookingId, {
+      serviceStatus: 'IN_SERVICE',
+      status: 'IN_PROGRESS',
+    });
+
+    return { verified: true, booking: updatedBooking };
+  }
+
+  /**
+   * Complete service and credit free cash to user's wallet
+   */
+  async completeService(bookingId: string, staffId?: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { user: true },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.status === BookingStatus.COMPLETED) {
+      throw new BadRequestException('Service already completed');
+    }
+
+    // Update booking status
+    await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: BookingStatus.COMPLETED,
+        serviceStatus: ServiceStatus.COMPLETED,
+        completedAt: new Date(),
+      },
+    });
+
+    // Credit free cash to user's wallet for next booking
+    if (booking.userId) {
+      const freeCashAmount = booking.freeCashAmount?.toNumber() || 0;
+      if (freeCashAmount > 0) {
+        await this.walletService.creditFreeCash(
+          booking.userId,
+          freeCashAmount,
+          bookingId,
+          `Free cash for completing service at booking #${booking.bookingNumber}`,
+        );
+      }
+
+      // Update user's trust score
+      this.trustScoreService.recalculateTrustScore(booking.userId).catch(console.error);
+    }
+
+    // Update queue
+    this.queueService.updateQueueStats(booking.shopId).catch(console.error);
+    this.queueGateway.emitQueueUpdate(booking.shopId).catch(console.error);
+
+    return { success: true, message: 'Service completed successfully' };
+  }
+
+  /**
+   * Enhanced cancellation with reason and free cash handling
+   */
+  async cancelWithReason(
+    bookingId: string,
+    reason: CancellationReason,
+    reasonDetails?: string,
+    userId?: string,
+  ) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { shop: true, user: true },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Verify ownership if userId provided
+    if (userId && booking.userId !== userId) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('Booking already cancelled');
+    }
+
+    if (booking.status === BookingStatus.COMPLETED) {
+      throw new BadRequestException('Cannot cancel completed booking');
+    }
+
+    const now = new Date();
+    const gracePeriodMinutes = booking.shop.freeCancellationMinutes || FREE_CASH_CONFIG.GRACE_PERIOD_MINUTES;
+    const gracePeriodEnd = new Date(booking.startTime.getTime() - gracePeriodMinutes * 60 * 1000);
+    const isWithinGracePeriod = now < gracePeriodEnd;
+
+    // Check if reason is valid for free cash return
+    const isValidReason = this.walletService.isValidCancellationReason(reason);
+    const isUserSpammer = booking.userId ? await this.walletService.isUserSpammer(booking.userId) : false;
+
+    // Update booking
+    const updatedBooking = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: BookingStatus.CANCELLED,
+        cancelledAt: now,
+        cancellationReason: reason,
+        cancellationDetails: reasonDetails,
+      },
+    });
+
+    // Create cancellation request record
+    await this.prisma.cancellationRequest.create({
+      data: {
+        bookingId,
+        userId: booking.userId || '',
+        reason,
+        reasonDetails,
+        isWithinGracePeriod,
+        isValidReason: isValidReason && !isUserSpammer,
+      },
+    });
+
+    // Handle free cash return logic
+    if (booking.userId && booking.freeCashAmount) {
+      const freeCashAmount = booking.freeCashAmount.toNumber();
+
+      // If within grace period (1hr before) AND valid reason AND not spammer
+      if (isWithinGracePeriod && isValidReason && !isUserSpammer) {
+        await this.walletService.returnFreeCash(
+          booking.userId,
+          freeCashAmount,
+          bookingId,
+          true,
+          `Free cash returned: ${reason}`,
+        );
+
+        await this.prisma.booking.update({
+          where: { id: bookingId },
+          data: { freeCashReturned: true },
+        });
+      } else if (!isWithinGracePeriod && booking.shop.requireOwnerApproval) {
+        // Late cancellation - needs owner approval
+        // Owner will be notified to approve/reject
+        await this.notificationsService.send({
+          userId: null,
+          bookingId,
+          type: NotificationType.BOOKING_CANCELLED,
+          title: 'Cancellation Request',
+          body: `User requested cancellation for booking #${booking.bookingNumber}. Reason: ${reason}. Requires approval.`,
+          data: { bookingId, reason, reasonDetails, requiresApproval: true },
+          channels: [NotificationChannel.EMAIL],
+        });
+      }
+    }
+
+    // Handle prepaid refund
+    if (booking.paymentType === PaymentType.PREPAID && booking.userId) {
+      const refundAmount = booking.serviceAmount?.toNumber() || 0;
+      if (refundAmount > 0) {
+        await this.walletService.processRefund(
+          booking.userId,
+          refundAmount,
+          bookingId,
+          `Refund for cancelled prepaid booking #${booking.bookingNumber}`,
+        );
+      }
+    }
+
+    // Update user's trust score (cancellation counts)
+    if (booking.userId) {
+      this.trustScoreService.recalculateTrustScore(booking.userId).catch(console.error);
+    }
+
+    // Update queue
+    this.queueService.updateQueueStats(booking.shopId).catch(console.error);
+    this.queueService.invalidateSlotCache(booking.shopId, booking.startTime).catch(console.error);
+    this.queueGateway.emitQueueUpdate(booking.shopId).catch(console.error);
+
+    return {
+      booking: updatedBooking,
+      isWithinGracePeriod,
+      freeCashReturned: isWithinGracePeriod && isValidReason && !isUserSpammer,
+      message: isWithinGracePeriod && isValidReason && !isUserSpammer
+        ? 'Booking cancelled. Free cash returned to your wallet.'
+        : isWithinGracePeriod
+        ? 'Booking cancelled. Reason not eligible for free cash return.'
+        : 'Booking cancelled. Late cancellation - owner approval required for refund.',
+    };
+  }
+
+  /**
+   * Owner approves/rejects late cancellation refund
+   */
+  async processOwnerCancellationDecision(
+    bookingId: string,
+    approved: boolean,
+    ownerNote?: string,
+    ownerId?: string,
+  ) {
+    const cancellationRequest = await this.prisma.cancellationRequest.findUnique({
+      where: { bookingId },
+    });
+
+    if (!cancellationRequest) {
+      throw new NotFoundException('Cancellation request not found');
+    }
+
+    if (cancellationRequest.ownerApproved !== null) {
+      throw new BadRequestException('Cancellation already processed');
+    }
+
+    await this.prisma.cancellationRequest.update({
+      where: { bookingId },
+      data: {
+        ownerApproved: approved,
+        ownerResponseAt: new Date(),
+        ownerNote,
+        processedAt: new Date(),
+      },
+    });
+
+    if (approved) {
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+      });
+
+      if (booking?.userId && booking.freeCashAmount) {
+        await this.walletService.returnFreeCash(
+          booking.userId,
+          booking.freeCashAmount.toNumber(),
+          bookingId,
+          true,
+          `Free cash approved by owner: ${ownerNote || 'Approved'}`,
+        );
+
+        await this.prisma.booking.update({
+          where: { id: bookingId },
+          data: { freeCashReturned: true },
+        });
+      }
+    }
+
+    return { success: true, approved };
   }
 }

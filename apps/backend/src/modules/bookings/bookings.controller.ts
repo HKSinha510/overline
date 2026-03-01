@@ -25,7 +25,31 @@ import { RescheduleBookingDto } from './dto/reschedule-booking.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, CancellationReason } from '@prisma/client';
+import { IsString, IsEnum, IsOptional } from 'class-validator';
+
+// DTOs for new endpoints
+class VerifyServiceCodeDto {
+  @IsString()
+  code: string;
+}
+
+class CancelWithReasonDto {
+  @IsEnum(CancellationReason)
+  reason: CancellationReason;
+
+  @IsOptional()
+  @IsString()
+  reasonDetails?: string;
+}
+
+class OwnerCancellationDecisionDto {
+  approved: boolean;
+
+  @IsOptional()
+  @IsString()
+  ownerNote?: string;
+}
 
 @ApiTags('bookings')
 @Controller('bookings')
@@ -126,5 +150,60 @@ export class BookingsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.bookingsService.reschedule(id, new Date(dto.newStartTime), userId);
+  }
+
+  @Post(':id/verify-code')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Verify service code (staff enters code to start service)' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({ status: 200, description: 'Code verified, service started' })
+  @ApiResponse({ status: 400, description: 'Invalid code' })
+  async verifyServiceCode(
+    @Param('id') id: string,
+    @Body() dto: VerifyServiceCodeDto,
+    @CurrentUser('id') staffId: string,
+  ) {
+    return this.bookingsService.verifyServiceCode(id, dto.code, staffId);
+  }
+
+  @Post(':id/complete')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Complete service and credit free cash to user' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({ status: 200, description: 'Service completed, free cash credited' })
+  async completeService(
+    @Param('id') id: string,
+    @CurrentUser('id') staffId: string,
+  ) {
+    return this.bookingsService.completeService(id, staffId);
+  }
+
+  @Patch(':id/cancel-with-reason')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Cancel with reason for free cash handling' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({ status: 200, description: 'Booking cancelled with reason processed' })
+  async cancelWithReason(
+    @Param('id') id: string,
+    @Body() dto: CancelWithReasonDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.bookingsService.cancelWithReason(id, dto.reason, dto.reasonDetails, userId);
+  }
+
+  @Post(':id/owner-cancellation-decision')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Owner approves/rejects late cancellation refund' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  async ownerCancellationDecision(
+    @Param('id') id: string,
+    @Body() dto: OwnerCancellationDecisionDto,
+    @CurrentUser('id') ownerId: string,
+  ) {
+    return this.bookingsService.processOwnerCancellationDecision(id, dto.approved, dto.ownerNote, ownerId);
   }
 }

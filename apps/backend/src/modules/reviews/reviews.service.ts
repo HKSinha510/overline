@@ -194,4 +194,141 @@ export class ReviewsService {
       },
     });
   }
+
+  /**
+   * Create user feedback from owner/staff (bidirectional rating like Uber)
+   */
+  async createUserFeedback(
+    dto: {
+      bookingId: string;
+      userId: string;
+      rating: number;
+      behavior?: string;
+      note?: string;
+      wasOnTime?: boolean;
+      wasPolite?: boolean;
+      wouldServeAgain?: boolean;
+    },
+    staffId: string,
+    shopId: string,
+  ) {
+    // Verify booking exists and belongs to this shop
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: dto.bookingId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.shopId !== shopId) {
+      throw new ForbiddenException('Booking does not belong to your shop');
+    }
+
+    if (booking.status !== BookingStatus.COMPLETED) {
+      throw new BadRequestException('Can only give feedback for completed bookings');
+    }
+
+    // Check if feedback already exists
+    const existingFeedback = await this.prisma.userFeedback.findUnique({
+      where: { bookingId: dto.bookingId },
+    });
+
+    if (existingFeedback) {
+      throw new BadRequestException('Feedback already submitted for this booking');
+    }
+
+    // Create feedback
+    const feedback = await this.prisma.userFeedback.create({
+      data: {
+        bookingId: dto.bookingId,
+        userId: dto.userId,
+        shopId,
+        staffId,
+        rating: dto.rating,
+        behavior: dto.behavior,
+        note: dto.note,
+        wasOnTime: dto.wasOnTime ?? true,
+        wasPolite: dto.wasPolite ?? true,
+        wouldServeAgain: dto.wouldServeAgain ?? true,
+      },
+    });
+
+    // Update user's trust score based on feedback
+    await this.updateUserTrustFromFeedback(dto.userId, dto.rating, dto.wasOnTime, dto.wasPolite);
+
+    return feedback;
+  }
+
+  /**
+   * Update user trust score based on owner/staff feedback
+   */
+  private async updateUserTrustFromFeedback(
+    userId: string,
+    rating: number,
+    wasOnTime?: boolean,
+    wasPolite?: boolean,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) return;
+
+    // Calculate trust impact
+    let trustAdjustment = 0;
+    
+    // Rating impact: 5 stars = +2, 4 stars = +1, 3 stars = 0, 2 stars = -1, 1 star = -3
+    trustAdjustment += (rating - 3) * 1.5;
+    
+    // On-time bonus/penalty
+    if (wasOnTime === false) {
+      trustAdjustment -= 2;
+    } else if (wasOnTime === true) {
+      trustAdjustment += 0.5;
+    }
+    
+    // Politeness bonus/penalty
+    if (wasPolite === false) {
+      trustAdjustment -= 3;
+    } else if (wasPolite === true) {
+      trustAdjustment += 0.5;
+    }
+
+    const newTrustScore = Math.max(0, Math.min(100, user.trustScore + trustAdjustment));
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { trustScore: newTrustScore },
+    });
+  }
+
+  /**
+   * Get user's feedback history (for shops to see customer rating)
+   */
+  async getUserFeedbackHistory(userId: string) {
+    const feedbacks = await this.prisma.userFeedback.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    const totalFeedbacks = feedbacks.length;
+    const averageRating = totalFeedbacks > 0
+      ? feedbacks.reduce((sum, f) => sum + f.rating, 0) / totalFeedbacks
+      : 5;
+    const onTimeRate = totalFeedbacks > 0
+      ? feedbacks.filter(f => f.wasOnTime).length / totalFeedbacks
+      : 1;
+    const politeRate = totalFeedbacks > 0
+      ? feedbacks.filter(f => f.wasPolite).length / totalFeedbacks
+      : 1;
+
+    return {
+      averageRating: Math.round(averageRating * 10) / 10,
+      totalFeedbacks,
+      onTimeRate: Math.round(onTimeRate * 100),
+      politeRate: Math.round(politeRate * 100),
+    };
+  }
 }

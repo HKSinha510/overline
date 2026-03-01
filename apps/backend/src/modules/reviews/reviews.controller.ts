@@ -8,7 +8,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
-import { CreateReviewDto, ReplyReviewDto } from './dto/create-review.dto';
+import { CreateReviewDto, ReplyReviewDto, CreateUserFeedbackDto } from './dto/create-review.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -69,5 +69,27 @@ export class ReviewsController {
   @ApiResponse({ status: 200, description: 'Reply added' })
   async reply(@Param('id') id: string, @Body() dto: ReplyReviewDto, @CurrentUser() user: any) {
     return this.reviewsService.replyToReview(id, dto, user.id, user.tenantId);
+  }
+
+  @Post('user-feedback')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Give feedback about a customer (owner/staff only, like Uber)' })
+  @ApiResponse({ status: 201, description: 'Feedback submitted' })
+  @ApiResponse({ status: 400, description: 'Already submitted or invalid' })
+  async createUserFeedback(@Body() dto: CreateUserFeedbackDto, @CurrentUser() user: any) {
+    // user.tenantId is the shop's tenant, get shop from it
+    const shopId = user.shopId || user.tenantId; // Staff/owner should have shopId in token
+    return this.reviewsService.createUserFeedback(dto, user.id, shopId);
+  }
+
+  @Get('user-feedback/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get customer feedback history (shop can view customer rating)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User feedback statistics' })
+  async getUserFeedback(@Param('userId') userId: string) {
+    return this.reviewsService.getUserFeedbackHistory(userId);
   }
 }

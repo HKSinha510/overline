@@ -7,9 +7,10 @@ import { QueueModule } from '../queue/queue.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
-  imports: [PrismaModule, QueueModule, NotificationsModule, UsersModule, FraudDetectionModule],
+  imports: [PrismaModule, QueueModule, NotificationsModule, UsersModule, FraudDetectionModule, WalletModule],
   controllers: [BookingsController],
   providers: [BookingsService, NoShowCron],
   exports: [BookingsService],

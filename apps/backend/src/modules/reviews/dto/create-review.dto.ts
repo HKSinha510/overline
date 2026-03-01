@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsInt, Min, Max, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsInt, Min, Max, IsOptional, IsString, MaxLength, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateReviewDto {
@@ -33,4 +33,49 @@ export class ReplyReviewDto {
   @IsString()
   @MaxLength(500)
   reply: string;
+}
+
+// User feedback from owner/staff after service
+export class CreateUserFeedbackDto {
+  @ApiProperty({ description: 'Booking ID' })
+  @IsNotEmpty()
+  @IsString()
+  bookingId: string;
+
+  @ApiProperty({ description: 'User ID being rated' })
+  @IsNotEmpty()
+  @IsString()
+  userId: string;
+
+  @ApiProperty({ description: 'Rating 1-5 stars', minimum: 1, maximum: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating: number;
+
+  @ApiPropertyOptional({ description: 'Behavior: excellent, good, fair, poor' })
+  @IsOptional()
+  @IsString()
+  behavior?: string;
+
+  @ApiPropertyOptional({ description: 'Private note about customer' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+
+  @ApiPropertyOptional({ description: 'Was the customer on time?' })
+  @IsOptional()
+  @IsBoolean()
+  wasOnTime?: boolean;
+
+  @ApiPropertyOptional({ description: 'Was the customer polite?' })
+  @IsOptional()
+  @IsBoolean()
+  wasPolite?: boolean;
+
+  @ApiPropertyOptional({ description: 'Would serve this customer again?' })
+  @IsOptional()
+  @IsBoolean()
+  wouldServeAgain?: boolean;
 }

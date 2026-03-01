@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { FraudDetectionService, LoginContext, ShopRegistrationContext } from '../fraud-detection/fraud-detection.service';
+import { GooglePlacesService } from '../google/google-places.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -57,6 +58,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private fraudDetection: FraudDetectionService,
+    private googlePlaces: GooglePlacesService,
   ) {
     this.googleClient = new OAuth2Client(this.configService.get<string>('google.clientId'));
   }
@@ -71,11 +73,11 @@ export class AuthService {
         userAgent: requestContext.userAgent,
         timestamp: new Date(),
       };
-      
+
       // Check rapid signup attempts from same IP
       const signupVelocity = await this.fraudDetection['checkLoginVelocity'](dto.email, requestContext.ip);
       const ipReputation = await this.fraudDetection['checkIPReputation'](requestContext.ip);
-      
+
       // Only block if BOTH velocity is high AND IP is suspicious
       if (signupVelocity > 50 || ipReputation > 50) {
         console.log(`[FRAUD] Signup blocked - velocity: ${signupVelocity}, IP reputation: ${ipReputation}`, {
@@ -190,7 +192,41 @@ export class AuthService {
     const slug =
       dto.shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-') +
       '-' +
-      Math.floor(1000 + Math.random() * 9000);
+      Math.floor(1000 + Math.random() + 9000);
+
+    // --- GOOGLE PLACES VERIFICATION ---
+    // Check if shop exists on Google to provide verified badge
+    let googleVerification: {
+      isVerified: boolean;
+      placeId?: string;
+      rating?: number;
+      reviewsCount?: number;
+      verifiedLocation?: { lat: number; lng: number };
+    } = { isVerified: false };
+
+    if (this.googlePlaces.isConfigured()) {
+      console.log(`[ShopRegistration] Checking Google Places for: ${dto.shopName}`);
+      const googleResult = await this.googlePlaces.searchShop(
+        dto.shopName,
+        dto.address,
+        dto.city,
+        dto.phone,
+      );
+
+      if (googleResult.found) {
+        googleVerification = {
+          isVerified: true,
+          placeId: googleResult.placeId,
+          rating: googleResult.rating,
+          reviewsCount: googleResult.reviewsCount,
+          verifiedLocation: googleResult.location,
+        };
+        console.log(`[ShopRegistration] ✓ Google verified: ${dto.shopName} (${googleResult.placeId})`);
+        console.log(`[ShopRegistration] Rating: ${googleResult.rating}/5 (${googleResult.reviewsCount} reviews)`);
+      } else {
+        console.log(`[ShopRegistration] ✗ Not found on Google: ${dto.shopName}`);
+      }
+    }
 
     // Create Tenant, Shop, Owner, QueueStats, and WorkingHours in a transaction
     const user = await this.prisma.$transaction(async (tx) => {
@@ -226,10 +262,17 @@ export class AuthService {
           postalCode: dto.postalCode,
           phone: dto.phone,
           email: dto.email,
-          latitude: dto.latitude,
-          longitude: dto.longitude,
+          latitude: googleVerification.verifiedLocation?.lat || dto.latitude,
+          longitude: googleVerification.verifiedLocation?.lng || dto.longitude,
           autoAcceptBookings: true,
           maxConcurrentBookings: 1,
+          // Google Verification fields
+          isGoogleVerified: googleVerification.isVerified,
+          googlePlaceId: googleVerification.placeId,
+          googleRating: googleVerification.rating,
+          googleReviewsCount: googleVerification.reviewsCount || 0,
+          verificationStatus: googleVerification.isVerified ? 'GOOGLE_VERIFIED' : 'PENDING',
+          verifiedAt: googleVerification.isVerified ? new Date() : null,
         },
       });
 
@@ -415,52 +458,63 @@ export class AuthService {
     picture?: string,
     emailVerified?: boolean,
   ): Promise<TokenResponse> {
-    // Check if user already exists by googleId or email
-    let user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ googleId }, { email }],
-      },
-    });
+    try {
+      console.log('[handleGoogleUser] Processing:', { googleId, email, name, emailVerified });
 
-    if (user) {
-      // Existing user — link Google account if not already linked
-      if (!user.googleId) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            googleId,
-            authProvider: user.hashedPassword ? 'local' : 'google',
-            isEmailVerified: emailVerified || user.isEmailVerified,
-            avatarUrl: user.avatarUrl || picture,
-          },
-        });
-      }
-
-      if (!user.isActive) {
-        throw new UnauthorizedException('Account is deactivated');
-      }
-
-      // Update last login
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      });
-    } else {
-      // New user — create account via Google
-      user = await this.prisma.user.create({
-        data: {
-          email,
-          name: name || email.split('@')[0],
-          googleId,
-          authProvider: 'google',
-          avatarUrl: picture,
-          isEmailVerified: emailVerified || false,
-          role: UserRole.USER,
+      // Check if user already exists by googleId or email
+      let user = await this.prisma.user.findFirst({
+        where: {
+          OR: [{ googleId }, { email }],
         },
       });
-    }
 
-    return this.generateTokens(user);
+      if (user) {
+        console.log('[handleGoogleUser] Existing user found:', user.id);
+        // Existing user — link Google account if not already linked
+        if (!user.googleId) {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: {
+              googleId,
+              authProvider: user.hashedPassword ? 'local' : 'google',
+              isEmailVerified: emailVerified || user.isEmailVerified,
+              avatarUrl: user.avatarUrl || picture,
+            },
+          });
+        }
+
+        if (!user.isActive) {
+          throw new UnauthorizedException('Account is deactivated');
+        }
+
+        // Update last login
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
+      } else {
+        console.log('[handleGoogleUser] Creating new user');
+        // New user — create account via Google
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            name: name || email.split('@')[0],
+            googleId,
+            authProvider: 'google',
+            avatarUrl: picture,
+            isEmailVerified: emailVerified || false,
+            role: UserRole.USER,
+          },
+        });
+        console.log('[handleGoogleUser] New user created:', user.id);
+      }
+
+      return this.generateTokens(user);
+    } catch (error) {
+      console.error('[handleGoogleUser] Error:', error);
+      console.error('[handleGoogleUser] Error details:', JSON.stringify(error, null, 2));
+      throw error;
+    }
   }
 
   async refreshToken(dto: RefreshTokenDto): Promise<TokenResponse> {

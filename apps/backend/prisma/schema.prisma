@@ -102,6 +102,38 @@ enum DayOfWeek {
   SUNDAY
 }
 
+enum PaymentType {
+  PREPAID      // Pay before service
+  PAY_LATER    // Pay at shop after service
+}
+
+enum WalletTransactionType {
+  FREE_CASH_CREDIT      // Initial free cash added for booking
+  FREE_CASH_DEBIT       // Free cash used for booking
+  FREE_CASH_RETURN      // Free cash returned on valid cancellation
+  REFUND                // Prepaid amount refunded
+  REWARD                // Reward for completing service
+  ADMIN_CREDIT          // Manual credit by admin
+  ADMIN_DEBIT           // Manual debit by admin
+}
+
+enum CancellationReason {
+  SHOP_CLOSED           // Shop was closed/unavailable
+  EMERGENCY             // Personal emergency
+  WRONG_BOOKING         // Booked by mistake
+  FOUND_BETTER          // Found better option
+  PRICE_ISSUE           // Price was different
+  SCHEDULE_CONFLICT     // Timing conflict
+  OTHER                 // Other reason
+}
+
+enum ServiceStatus {
+  AWAITING_CODE        // Waiting for service to start
+  IN_SERVICE           // Service is ongoing
+  COMPLETED            // Service completed
+  DISPUTED             // User disputed the service
+}
+
 // ============================================================================
 // USER & AUTHENTICATION
 // ============================================================================
@@ -145,6 +177,7 @@ model User {
   auditLogs     AuditLog[]      @relation("AuditActor")
   staffProfile  Staff?
   reviews       Review[]
+  wallet        Wallet?
 
   @@index([email])
   @@index([phone])
@@ -221,6 +254,23 @@ model Shop {
   // Auto-accept bookings or require manual approval
   autoAcceptBookings Boolean @default(true) @map("auto_accept_bookings")
 
+  // Cancellation & Reschedule Policies
+  allowCancellation         Boolean @default(true) @map("allow_cancellation")
+  freeCancellationMinutes   Int     @default(60) @map("free_cancellation_minutes") // Minutes before booking for free cancellation
+  allowReschedule           Boolean @default(true) @map("allow_reschedule")
+  freeRescheduleMinutes     Int     @default(60) @map("free_reschedule_minutes") // Minutes before booking for free reschedule
+  requireOwnerApproval      Boolean @default(false) @map("require_owner_approval") // Require owner approval for late cancellations
+
+  // Verification & Trust
+  isGoogleVerified      Boolean   @default(false) @map("is_google_verified")
+  isCustomerVerified    Boolean   @default(false) @map("is_customer_verified")
+  googlePlaceId         String?   @map("google_place_id")
+  googleRating          Decimal?  @db.Decimal(3, 2) @map("google_rating")
+  googleReviewsCount    Int       @default(0) @map("google_reviews_count")
+  verificationStatus    String    @default("PENDING") @map("verification_status") // PENDING, GOOGLE_VERIFIED, CUSTOMER_VERIFIED, FULLY_VERIFIED
+  verificationNotes     String?   @map("verification_notes")
+  verifiedAt            DateTime? @map("verified_at")
+
   // Status
   isActive  Boolean   @default(true) @map("is_active")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -239,6 +289,8 @@ model Shop {
   @@index([slug])
   @@index([city])
   @@index([latitude, longitude])
+  @@index([googlePlaceId])
+  @@index([verificationStatus])
   @@map("shops")
 }
 
@@ -364,6 +416,20 @@ model Booking {
   totalAmount          Decimal @db.Decimal(10, 2) @map("total_amount")
   currency             String  @default("INR")
 
+  // Payment & Free Cash System
+  paymentType       PaymentType   @default(PAY_LATER) @map("payment_type")
+  serviceAmount     Decimal       @db.Decimal(10, 2) @default(0) @map("service_amount") // Actual service price
+  freeCashAmount    Decimal       @db.Decimal(10, 2) @default(0) @map("free_cash_amount") // Free cash added (25-30)
+  displayAmount     Decimal       @db.Decimal(10, 2) @default(0) @map("display_amount") // serviceAmount + freeCashAmount (shown to user)
+  freeCashUsed      Boolean       @default(false) @map("free_cash_used") // Was free cash used from wallet
+  freeCashReturned  Boolean       @default(false) @map("free_cash_returned") // Was free cash returned after cancellation
+
+  // Service Verification Code (like Rapido/Uber)
+  verificationCode  String?   @map("verification_code") // 4-digit code for service start
+  serviceStatus     ServiceStatus @default(AWAITING_CODE) @map("service_status")
+  codeVerifiedAt    DateTime? @map("code_verified_at")
+  codeVerifiedBy    String?   @map("code_verified_by") // Staff ID who verified
+
   // Status
   status BookingStatus @default(PENDING)
   source BookingSource @default(WEB)
@@ -379,6 +445,10 @@ model Booking {
   // Notes
   notes      String?
   adminNotes String? @map("admin_notes")
+
+  // Cancellation details
+  cancellationReason  CancellationReason? @map("cancellation_reason")
+  cancellationDetails String?             @map("cancellation_details")
 
   // Timestamps
   arrivedAt   DateTime? @map("arrived_at")
@@ -401,6 +471,7 @@ model Booking {
   @@index([startTime])
   @@index([status])
   @@index([bookingNumber])
+  @@index([verificationCode])
   @@map("bookings")
 }
 
@@ -569,4 +640,141 @@ model ChatMessage {
   @@index([bookingId])
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+// ============================================================================
+// WALLET & FREE CASH SYSTEM
+// ============================================================================
+
+model Wallet {
+  id              String    @id @default(uuid())
+  userId          String    @unique @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance         Decimal   @default(0) @db.Decimal(10, 2) // Total wallet balance
+  freeCashBalance Decimal   @default(0) @db.Decimal(10, 2) @map("free_cash_balance") // Free cash (25-30 rupees per booking)
+  lockedAmount    Decimal   @default(0) @db.Decimal(10, 2) @map("locked_amount") // Amount locked for pending bookings
+  totalEarned     Decimal   @default(0) @db.Decimal(10, 2) @map("total_earned") // Lifetime earnings
+  totalSpent      Decimal   @default(0) @db.Decimal(10, 2) @map("total_spent") // Lifetime spent
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  transactions    WalletTransaction[]
+
+  @@index([userId])
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id                String                @id @default(uuid())
+  walletId          String                @map("wallet_id")
+  wallet            Wallet                @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  bookingId         String?               @map("booking_id")
+  type              WalletTransactionType
+  amount            Decimal               @db.Decimal(10, 2)
+  previousBalance   Decimal               @db.Decimal(10, 2) @map("previous_balance")
+  newBalance        Decimal               @db.Decimal(10, 2) @map("new_balance")
+  description       String?
+  metadata          Json                  @default("{}")
+  createdAt         DateTime              @default(now()) @map("created_at")
+
+  @@index([walletId])
+  @@index([bookingId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("wallet_transactions")
+}
+
+// ============================================================================
+// CANCELLATION & RESCHEDULE REQUESTS
+// ============================================================================
+
+model CancellationRequest {
+  id                String              @id @default(uuid())
+  bookingId         String              @unique @map("booking_id")
+  userId            String              @map("user_id")
+  reason            CancellationReason
+  reasonDetails     String?             @map("reason_details")
+  requestedAt       DateTime            @default(now()) @map("requested_at")
+  isWithinGracePeriod Boolean           @default(false) @map("is_within_grace_period") // Within 1hr = true
+  freeCashRefunded  Boolean             @default(false) @map("free_cash_refunded")
+  refundAmount      Decimal?            @db.Decimal(10, 2) @map("refund_amount")
+  ownerApproved     Boolean?            @map("owner_approved") // null = pending, true = approved, false = rejected
+  ownerResponseAt   DateTime?           @map("owner_response_at")
+  ownerNote         String?             @map("owner_note")
+  isValidReason     Boolean             @default(true) @map("is_valid_reason") // System/admin flag for spammer detection
+  processedAt       DateTime?           @map("processed_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+
+  @@index([bookingId])
+  @@index([userId])
+  @@map("cancellation_requests")
+}
+
+model RescheduleRequest {
+  id                String    @id @default(uuid())
+  bookingId         String    @map("booking_id")
+  userId            String    @map("user_id")
+  originalStartTime DateTime  @map("original_start_time")
+  originalEndTime   DateTime  @map("original_end_time")
+  newStartTime      DateTime  @map("new_start_time")
+  newEndTime        DateTime  @map("new_end_time")
+  reason            String?
+  requestedAt       DateTime  @default(now()) @map("requested_at")
+  ownerApproved     Boolean?  @map("owner_approved") // null = pending, true = approved, false = rejected
+  ownerResponseAt   DateTime? @map("owner_response_at")
+  ownerNote         String?   @map("owner_note")
+  suggestedTime     DateTime? @map("suggested_time") // Owner can suggest alternative time
+  processedAt       DateTime? @map("processed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([bookingId])
+  @@index([userId])
+  @@map("reschedule_requests")
+}
+
+// ============================================================================
+// OTP VERIFICATION
+// ============================================================================
+
+model OtpVerification {
+  id          String    @id @default(uuid())
+  phone       String
+  otp         String
+  purpose     String    // "LOGIN" | "REGISTER" | "VERIFY_PHONE"
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3) @map("max_attempts")
+  isVerified  Boolean   @default(false) @map("is_verified")
+  expiresAt   DateTime  @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([phone])
+  @@index([otp])
+  @@index([expiresAt])
+  @@map("otp_verifications")
+}
+
+// ============================================================================
+// USER FEEDBACK (Bidirectional - Owner/Staff rates User)
+// ============================================================================
+
+model UserFeedback {
+  id          String   @id @default(uuid())
+  bookingId   String   @unique @map("booking_id")
+  userId      String   @map("user_id") // The user being rated
+  shopId      String   @map("shop_id")
+  staffId     String?  @map("staff_id") // Staff who gave feedback
+  rating      Int      // 1-5 stars
+  behavior    String?  // e.g., "excellent", "good", "fair", "poor"
+  note        String?  // Private notes about the customer
+  wasOnTime   Boolean  @default(true) @map("was_on_time")
+  wasPolite   Boolean  @default(true) @map("was_polite")
+  wouldServeAgain Boolean @default(true) @map("would_serve_again")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([shopId])
+  @@index([bookingId])
+  @@map("user_feedback")
 }
