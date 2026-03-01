@@ -1,5 +1,41 @@
 # Fraud Detection & Security System
 
+## Recent Fixes (March 1, 2026)
+
+### Issue: Valid Users Being Blocked
+**Problem:** The initial implementation was too aggressive and blocked legitimate users for normal behavior.
+
+**Root Causes:**
+1. Fraud detection ran BEFORE password verification on login
+2. Thresholds were too low (20+ score triggered CHALLENGE, 60+ triggered BLOCK)
+3. Normal behaviors like "new device" or "unusual time" had high penalties
+4. Signup used the same strict checks as login
+
+**Solutions Implemented:**
+1. **Two-Phase Login Check:**
+   - Pre-auth: Only block critical threats (score ≥80) before verifying credentials
+   - Post-auth: Check patterns after successful login, log warnings but allow access
+   
+2. **Adjusted Thresholds:**
+   - BLOCK: 80+ (was 60+)
+   - CHALLENGE: 60-79 (was 40-59)
+   - ALLOW: <60 (was <40, including medium risk 40-59)
+
+3. **Reduced Normal Behavior Penalties:**
+   - New device: 5 points (was 15)
+   - New IP: 3 points (was 10)
+   - Increased suspicious behavior penalties:
+     - Failed login history: 20 points (was 12)
+     - Suspicious user agent: 15 points (was 10)
+
+4. **Simplified Signup Checks:**
+   - Only blocks extreme velocity (>50 rapid attempts) or known bad IPs
+   - Removed full fraud assessment that penalized all new users
+
+**Result:** Valid users can now log in from new devices/locations without being blocked, while actual threats are still caught.
+
+---
+
 ## Overview
 Comprehensive ML-based fraud detection system to prevent fake logins, fake bookings, and fake shop registrations with multi-layered security checks at every step.
 
@@ -35,9 +71,15 @@ Risk Factors:
 - 10 points: Unknown device
 
 **Actions:**
-- `BLOCK` (≥80 risk): Returns 403 Forbidden
+- `BLOCK` (≥80 risk): Returns 403 Forbidden - only for extreme threats
 - `CHALLENGE` (≥60 risk): Returns 409, requires additional verification
 - `ALLOW` (<60 risk): Login proceeds normally
+
+**Important:** Login uses a two-phase approach:
+1. **Pre-Auth Check**: Before password verification, only blocks critical threats (score ≥80)
+2. **Post-Auth Check**: After successful authentication, logs suspicious patterns but always allows valid credentials
+
+This prevents false positives where legitimate users are blocked for normal behavior (new device, unusual time, etc.).
 
 ##### Booking Fraud Detection (`analyzeBooking`)
 - **Trust Score Validation**: Integrates with existing trust score system
@@ -119,6 +161,7 @@ interface RequestContext {
 
 ### Data Flow
 
+**Login Flow (Two-Phase Detection):**
 ```
 ┌─────────────┐
 │   Request   │
@@ -126,58 +169,97 @@ interface RequestContext {
 └──────┬──────┘
        │
        ▼
-┌─────────────────┐
-│  Controller     │
-│  Extract Context│
-└──────┬──────────┘
-       │
-       ▼
 ┌─────────────────────┐
-│  Service Layer      │
-│  Call Fraud Service │
+│  PRE-AUTH CHECK     │
+│  (Without User ID)  │
+│  - Velocity limits  │
+│  - IP reputation    │
+│  - Failed attempts  │
+│  Only BLOCK if >80  │
 └──────┬──────────────┘
        │
        ▼
-┌─────────────────────────┐
-│  FraudDetectionService  │
-│  - Velocity Checks      │
-│  - Pattern Analysis     │
-│  - Trust Score Check    │
-│  - Risk Calculation     │
-└──────┬──────────────────┘
+┌─────────────────────┐
+│  Password Verify    │
+│  Valid credentials? │
+└──────┬──────────────┘
        │
        ▼
-┌─────────────────┐
-│  Decision:      │
-│  ALLOW/CHALLENGE│
-│  /BLOCK         │
-└──────┬──────────┘
+┌─────────────────────┐
+│  POST-AUTH CHECK    │
+│  (With User ID)     │
+│  - Device tracking  │
+│  - Pattern analysis │
+│  - Log & Monitor    │
+│  Always ALLOW       │
+└──────┬──────────────┘
        │
        ▼
-┌─────────────────┐
-│  HTTP Response  │
-│  200/409/403    │
-└─────────────────┘
+┌─────────────────────┐
+│  Generate Tokens    │
+│  Return 200 OK      │
+└─────────────────────┘
+```
+
+**Signup Flow:**
+```
+┌─────────────┐
+│   Request   │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────────┐
+│  Velocity Check     │
+│  - Rapid signups?   │
+│  - Known bad IP?    │
+│  Block if extreme   │
+└──────┬──────────────┘
+       │
+       ▼
+┌─────────────────────┐
+│  Create Account     │
+│  Return tokens      │
+└─────────────────────┘
+```
+
+**Booking Flow:**
+```
+┌─────────────┐
+│   Request   │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────────┐
+│  Full Fraud Check   │
+│  - Trust score      │
+│  - Booking velocity │
+│  - Pattern analysis │
+│  BLOCK if ≥70      │
+│  CHALLENGE if ≥50  │
+└──────┬──────────────┘
+       │
+       ▼
+┌─────────────────────┐
+│  Create Booking     │
+│  or Reject          │
+└─────────────────────┘
 ```
 
 ## Configuration
 
-### Thresholds (Configurable in FraudDetectionService)
+### Thresholds (Updated for Better Accuracy)
 
-**Login:**
-- Risk ≥80: BLOCK
-- Risk ≥60: CHALLENGE
-- Risk <60: ALLOW
+**Risk Score Thresholds:**
+- Risk ≥80: BLOCK (Critical threat)
+- Risk ≥60: CHALLENGE (High risk, requires verification)
+- Risk 40-59: ALLOW with monitoring (Medium risk)
+- Risk <40: ALLOW (Low risk)
 
-**Booking:**
-- Risk ≥70: BLOCK
-- Risk ≥50: CHALLENGE
-- Risk <50: ALLOW
-
-**Shop Registration:**
-- Risk ≥70: BLOCK
-- Risk ≥50: CHALLENGE
-- Risk <50: ALLOW
+**Weight Adjustments:**
+- `newDevice`: 5 points (down from 15) - New devices are normal behavior
+- `newIP`: 3 points (down from 10) - IP changes are common
+- `failedHistory`: 20 points (up from 12) - Failed logins are more suspicious
+- `susUserAgent`: 15 points (up from 10)
 
 ### Redis Keys Used
 

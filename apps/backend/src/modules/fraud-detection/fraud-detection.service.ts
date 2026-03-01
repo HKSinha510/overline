@@ -69,13 +69,13 @@ export class FraudDetectionService {
 
   // ML Model Weights (would be trained in production)
   private readonly LOGIN_WEIGHTS = {
-    newDevice: 15,
-    newIP: 10,
-    unusualTime: 8,
+    newDevice: 5,       // Reduced - new devices are normal
+    newIP: 3,           // Reduced - IP changes are common
+    unusualTime: 5,
     rapidAttempts: 25,
-    geoAnomaly: 20,
-    failedHistory: 12,
-    susUserAgent: 10,
+    geoAnomaly: 15,
+    failedHistory: 20,  // Increased - this is more suspicious
+    susUserAgent: 15,
   };
 
   private readonly BOOKING_WEIGHTS = {
@@ -799,17 +799,17 @@ export class FraudDetectionService {
     let action: 'ALLOW' | 'CHALLENGE' | 'BLOCK';
     let requiresVerification = false;
 
-    if (totalScore >= 60) {
+    // More lenient thresholds - only block truly suspicious activity
+    if (totalScore >= 80) {
       riskLevel = 'CRITICAL';
       action = 'BLOCK';
-    } else if (totalScore >= 40) {
+    } else if (totalScore >= 60) {
       riskLevel = 'HIGH';
       action = 'CHALLENGE';
       requiresVerification = true;
-    } else if (totalScore >= 20) {
+    } else if (totalScore >= 40) {
       riskLevel = 'MEDIUM';
-      action = 'CHALLENGE';
-      requiresVerification = true;
+      action = 'ALLOW';  // Changed from CHALLENGE - let them through
     } else {
       riskLevel = 'LOW';
       action = 'ALLOW';

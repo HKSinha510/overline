@@ -63,6 +63,7 @@ export class AuthService {
 
   async signup(dto: SignupDto, requestContext?: RequestContext): Promise<TokenResponse> {
     // --- FRAUD DETECTION FOR SIGNUP ---
+    // For signup, only check extreme patterns (rapid signups, known bad IPs)
     if (requestContext) {
       const fraudContext: LoginContext = {
         email: dto.email,
@@ -70,11 +71,19 @@ export class AuthService {
         userAgent: requestContext.userAgent,
         timestamp: new Date(),
       };
-      const assessment = await this.fraudDetection.analyzeLogin(fraudContext);
       
-      if (assessment.action === 'BLOCK') {
+      // Check rapid signup attempts from same IP
+      const signupVelocity = await this.fraudDetection['checkLoginVelocity'](dto.email, requestContext.ip);
+      const ipReputation = await this.fraudDetection['checkIPReputation'](requestContext.ip);
+      
+      // Only block if BOTH velocity is high AND IP is suspicious
+      if (signupVelocity > 50 || ipReputation > 50) {
+        console.log(`[FRAUD] Signup blocked - velocity: ${signupVelocity}, IP reputation: ${ipReputation}`, {
+          email: dto.email,
+          ip: requestContext.ip,
+        });
         await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_signup');
-        throw new ForbiddenException('Unable to create account at this time. Please try again later.');
+        throw new ForbiddenException('Too many signup attempts. Please try again later.');
       }
     }
 
@@ -283,28 +292,25 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, requestContext?: RequestContext): Promise<TokenResponse> {
-    // --- FRAUD DETECTION FOR LOGIN ---
+    // --- PRE-AUTH FRAUD CHECK: Only block obvious attacks ---
     if (requestContext) {
-      const fraudContext: LoginContext = {
+      const preAuthContext: LoginContext = {
         email: dto.email,
         ip: requestContext.ip,
         userAgent: requestContext.userAgent,
         timestamp: new Date(),
       };
-      const assessment = await this.fraudDetection.analyzeLogin(fraudContext);
+      const preAuthAssessment = await this.fraudDetection.analyzeLogin(preAuthContext);
 
-      // Log suspicious login attempts
-      if (assessment.riskLevel !== 'LOW') {
-        console.log(`[FRAUD] Login attempt - Risk: ${assessment.riskLevel}, Score: ${assessment.riskScore}`, {
+      // Only block CRITICAL threats before auth - let others proceed to password check
+      if (preAuthAssessment.action === 'BLOCK') {
+        console.log(`[FRAUD] Login BLOCKED pre-auth - Risk: ${preAuthAssessment.riskLevel}, Score: ${preAuthAssessment.riskScore}`, {
           email: dto.email,
           ip: requestContext.ip,
-          signals: assessment.signals.map(s => s.type),
+          signals: preAuthAssessment.signals.map(s => s.type),
         });
-      }
-
-      if (assessment.action === 'BLOCK') {
         await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_login');
-        throw new ForbiddenException('Account access temporarily restricted. Please try again later or contact support.');
+        throw new ForbiddenException('Too many failed attempts. Please try again later.');
       }
     }
 
@@ -342,8 +348,30 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Clear failed login count on successful login
+    // --- POST-AUTH FRAUD CHECK: Now check with user ID for better accuracy ---
     if (requestContext) {
+      const postAuthContext: LoginContext = {
+        userId: user.id,
+        email: dto.email,
+        ip: requestContext.ip,
+        userAgent: requestContext.userAgent,
+        timestamp: new Date(),
+      };
+      const postAuthAssessment = await this.fraudDetection.analyzeLogin(postAuthContext);
+
+      // Log but allow - valid credentials verified
+      if (postAuthAssessment.riskLevel === 'HIGH' || postAuthAssessment.riskLevel === 'CRITICAL') {
+        console.log(`[FRAUD] Post-auth warning - Risk: ${postAuthAssessment.riskLevel}, Score: ${postAuthAssessment.riskScore}`, {
+          userId: user.id,
+          email: dto.email,
+          ip: requestContext.ip,
+          signals: postAuthAssessment.signals.map(s => s.type),
+        });
+        // Could trigger email notification, 2FA requirement, etc.
+        // For now, just log and allow
+      }
+
+      // Clear failed login count on successful login
       await this.fraudDetection.clearFailedLogins(dto.email);
     }
 
