@@ -28,7 +28,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   /**
    * Extract request context for fraud detection
@@ -181,7 +181,7 @@ export class AuthController {
         id: userInfo.id,
         email: userInfo.email,
         name: userInfo.name,
-        verified: userInfo.verified_email
+        verified: userInfo.verified_email,
       });
 
       const tokens = await this.authService.handleGoogleUser(

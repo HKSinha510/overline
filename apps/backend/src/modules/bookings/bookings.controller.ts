@@ -1,15 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -18,14 +7,14 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-import { Throttle, SkipThrottle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { RescheduleBookingDto } from './dto/reschedule-booking.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { BookingStatus, CancellationReason } from '@prisma/client';
+import { CancellationReason } from '@prisma/client';
 import { IsString, IsEnum, IsOptional } from 'class-validator';
 
 // DTOs for new endpoints
@@ -64,11 +53,7 @@ export class BookingsController {
   @ApiResponse({ status: 201, description: 'Booking created successfully' })
   @ApiResponse({ status: 409, description: 'Time slot not available' })
   @ApiResponse({ status: 429, description: 'Too many booking attempts. Try again later.' })
-  async create(
-    @Body() dto: CreateBookingDto,
-    @CurrentUser('id') userId: string,
-    @Req() req: any,
-  ) {
+  async create(@Body() dto: CreateBookingDto, @CurrentUser('id') userId: string, @Req() req: any) {
     const requestContext = {
       ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
       userAgent: req.headers['user-agent'] || 'unknown',
@@ -173,10 +158,7 @@ export class BookingsController {
   @ApiOperation({ summary: 'Complete service and credit free cash to user' })
   @ApiParam({ name: 'id', description: 'Booking ID' })
   @ApiResponse({ status: 200, description: 'Service completed, free cash credited' })
-  async completeService(
-    @Param('id') id: string,
-    @CurrentUser('id') staffId: string,
-  ) {
+  async completeService(@Param('id') id: string, @CurrentUser('id') staffId: string) {
     return this.bookingsService.completeService(id, staffId);
   }
 
@@ -204,6 +186,11 @@ export class BookingsController {
     @Body() dto: OwnerCancellationDecisionDto,
     @CurrentUser('id') ownerId: string,
   ) {
-    return this.bookingsService.processOwnerCancellationDecision(id, dto.approved, dto.ownerNote, ownerId);
+    return this.bookingsService.processOwnerCancellationDecision(
+      id,
+      dto.approved,
+      dto.ownerNote,
+      ownerId,
+    );
   }
 }

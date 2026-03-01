@@ -17,7 +17,7 @@ import { TrustScoreService } from '../users/trust-score.service';
 import { FraudDetectionService, BookingContext } from '../fraud-detection/fraud-detection.service';
 import { WalletService, FREE_CASH_CONFIG } from '../wallet/wallet.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { UpdateBookingDto } from './dto/update-booking.dto';
+// UpdateBookingDto imported for potential future use
 import {
   BookingStatus,
   BookingSource,
@@ -55,7 +55,11 @@ export class BookingsService {
   /**
    * Create a new booking with fraud detection
    */
-  async create(dto: CreateBookingDto, userId?: string, requestContext?: { ip: string; userAgent: string }) {
+  async create(
+    dto: CreateBookingDto,
+    userId?: string,
+    requestContext?: { ip: string; userAgent: string },
+  ) {
     const {
       shopId,
       serviceIds,
@@ -168,12 +172,15 @@ export class BookingsService {
 
       // Log fraud assessment for monitoring
       if (fraudAssessment.riskLevel !== 'LOW') {
-        console.log(`[FRAUD] Booking attempt - Risk: ${fraudAssessment.riskLevel}, Score: ${fraudAssessment.riskScore}`, {
-          userId,
-          customerPhone,
-          ip: requestContext.ip,
-          signals: fraudAssessment.signals.map(s => s.type),
-        });
+        console.log(
+          `[FRAUD] Booking attempt - Risk: ${fraudAssessment.riskLevel}, Score: ${fraudAssessment.riskScore}`,
+          {
+            userId,
+            customerPhone,
+            ip: requestContext.ip,
+            signals: fraudAssessment.signals.map((s) => s.type),
+          },
+        );
       }
 
       // Block high-risk bookings
@@ -221,10 +228,10 @@ export class BookingsService {
 
       // Calculate free cash amount (25-30 rupees)
       const freeCashAmount = this.walletService.calculateFreeCashAmount();
-      
+
       // Service amount is the actual amount owner set
       const serviceAmount = totalAmount;
-      
+
       // Display amount includes free cash (what user sees initially)
       const displayAmount = totalAmount + freeCashAmount;
 
@@ -727,7 +734,7 @@ export class BookingsService {
   /**
    * Complete service and credit free cash to user's wallet
    */
-  async completeService(bookingId: string, staffId?: string) {
+  async completeService(bookingId: string, _staffId?: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { user: true },
@@ -806,13 +813,16 @@ export class BookingsService {
     }
 
     const now = new Date();
-    const gracePeriodMinutes = booking.shop.freeCancellationMinutes || FREE_CASH_CONFIG.GRACE_PERIOD_MINUTES;
+    const gracePeriodMinutes =
+      booking.shop.freeCancellationMinutes || FREE_CASH_CONFIG.GRACE_PERIOD_MINUTES;
     const gracePeriodEnd = new Date(booking.startTime.getTime() - gracePeriodMinutes * 60 * 1000);
     const isWithinGracePeriod = now < gracePeriodEnd;
 
     // Check if reason is valid for free cash return
     const isValidReason = this.walletService.isValidCancellationReason(reason);
-    const isUserSpammer = booking.userId ? await this.walletService.isUserSpammer(booking.userId) : false;
+    const isUserSpammer = booking.userId
+      ? await this.walletService.isUserSpammer(booking.userId)
+      : false;
 
     // Update booking
     const updatedBooking = await this.prisma.booking.update({
@@ -897,11 +907,12 @@ export class BookingsService {
       booking: updatedBooking,
       isWithinGracePeriod,
       freeCashReturned: isWithinGracePeriod && isValidReason && !isUserSpammer,
-      message: isWithinGracePeriod && isValidReason && !isUserSpammer
-        ? 'Booking cancelled. Free cash returned to your wallet.'
-        : isWithinGracePeriod
-        ? 'Booking cancelled. Reason not eligible for free cash return.'
-        : 'Booking cancelled. Late cancellation - owner approval required for refund.',
+      message:
+        isWithinGracePeriod && isValidReason && !isUserSpammer
+          ? 'Booking cancelled. Free cash returned to your wallet.'
+          : isWithinGracePeriod
+            ? 'Booking cancelled. Reason not eligible for free cash return.'
+            : 'Booking cancelled. Late cancellation - owner approval required for refund.',
     };
   }
 
@@ -912,7 +923,7 @@ export class BookingsService {
     bookingId: string,
     approved: boolean,
     ownerNote?: string,
-    ownerId?: string,
+    _ownerId?: string,
   ) {
     const cancellationRequest = await this.prisma.cancellationRequest.findUnique({
       where: { bookingId },

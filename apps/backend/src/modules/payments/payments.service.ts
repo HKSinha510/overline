@@ -246,7 +246,7 @@ export class PaymentsService {
   /**
    * Refund a payment
    */
-  async refundPayment(paymentId: string, reason?: string) {
+  async refundPayment(paymentId: string, _reason?: string) {
     if (!this.stripe) {
       throw new BadRequestException('Stripe not configured');
     }

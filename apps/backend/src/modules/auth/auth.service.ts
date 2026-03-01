@@ -11,14 +11,18 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '@/common/prisma/prisma.service';
-import { FraudDetectionService, LoginContext, ShopRegistrationContext } from '../fraud-detection/fraud-detection.service';
+import {
+  FraudDetectionService,
+  LoginContext,
+  ShopRegistrationContext,
+} from '../fraud-detection/fraud-detection.service';
 import { GooglePlacesService } from '../google/google-places.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { RegisterShopDto } from './dto/register-shop.dto';
-import { UserRole, DayOfWeek, TenantType } from '@prisma/client';
+import { UserRole, DayOfWeek } from '@prisma/client';
 
 export interface JwtPayload {
   sub: string;
@@ -67,23 +71,30 @@ export class AuthService {
     // --- FRAUD DETECTION FOR SIGNUP ---
     // For signup, only check extreme patterns (rapid signups, known bad IPs)
     if (requestContext) {
-      const fraudContext: LoginContext = {
-        email: dto.email,
-        ip: requestContext.ip,
-        userAgent: requestContext.userAgent,
-        timestamp: new Date(),
-      };
+      // LoginContext for potential future fraud detection
+      // const fraudContext: LoginContext = {
+      //   email: dto.email,
+      //   ip: requestContext.ip,
+      //   userAgent: requestContext.userAgent,
+      //   timestamp: new Date(),
+      // };
 
       // Check rapid signup attempts from same IP
-      const signupVelocity = await this.fraudDetection['checkLoginVelocity'](dto.email, requestContext.ip);
+      const signupVelocity = await this.fraudDetection['checkLoginVelocity'](
+        dto.email,
+        requestContext.ip,
+      );
       const ipReputation = await this.fraudDetection['checkIPReputation'](requestContext.ip);
 
       // Only block if BOTH velocity is high AND IP is suspicious
       if (signupVelocity > 50 || ipReputation > 50) {
-        console.log(`[FRAUD] Signup blocked - velocity: ${signupVelocity}, IP reputation: ${ipReputation}`, {
-          email: dto.email,
-          ip: requestContext.ip,
-        });
+        console.log(
+          `[FRAUD] Signup blocked - velocity: ${signupVelocity}, IP reputation: ${ipReputation}`,
+          {
+            email: dto.email,
+            ip: requestContext.ip,
+          },
+        );
         await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_signup');
         throw new ForbiddenException('Too many signup attempts. Please try again later.');
       }
@@ -140,7 +151,10 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  async registerShop(dto: RegisterShopDto, requestContext?: RequestContext): Promise<TokenResponse> {
+  async registerShop(
+    dto: RegisterShopDto,
+    requestContext?: RequestContext,
+  ): Promise<TokenResponse> {
     // --- FRAUD DETECTION FOR SHOP REGISTRATION ---
     if (requestContext) {
       const fraudContext: ShopRegistrationContext = {
@@ -155,17 +169,25 @@ export class AuthService {
 
       // Log suspicious attempts
       if (assessment.riskLevel !== 'LOW') {
-        console.log(`[FRAUD] Shop registration attempt - Risk: ${assessment.riskLevel}, Score: ${assessment.riskScore}`, {
-          email: dto.email,
-          shopName: dto.shopName,
-          ip: requestContext.ip,
-          signals: assessment.signals.map(s => s.type),
-        });
+        console.log(
+          `[FRAUD] Shop registration attempt - Risk: ${assessment.riskLevel}, Score: ${assessment.riskScore}`,
+          {
+            email: dto.email,
+            shopName: dto.shopName,
+            ip: requestContext.ip,
+            signals: assessment.signals.map((s) => s.type),
+          },
+        );
       }
 
       if (assessment.action === 'BLOCK') {
-        await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_shop_registration');
-        throw new ForbiddenException('Unable to register shop at this time. Please contact support.');
+        await this.fraudDetection.recordSuspiciousIP(
+          requestContext.ip,
+          'blocked_shop_registration',
+        );
+        throw new ForbiddenException(
+          'Unable to register shop at this time. Please contact support.',
+        );
       }
 
       if (assessment.action === 'CHALLENGE') {
@@ -221,8 +243,12 @@ export class AuthService {
           reviewsCount: googleResult.reviewsCount,
           verifiedLocation: googleResult.location,
         };
-        console.log(`[ShopRegistration] ✓ Google verified: ${dto.shopName} (${googleResult.placeId})`);
-        console.log(`[ShopRegistration] Rating: ${googleResult.rating}/5 (${googleResult.reviewsCount} reviews)`);
+        console.log(
+          `[ShopRegistration] ✓ Google verified: ${dto.shopName} (${googleResult.placeId})`,
+        );
+        console.log(
+          `[ShopRegistration] Rating: ${googleResult.rating}/5 (${googleResult.reviewsCount} reviews)`,
+        );
       } else {
         console.log(`[ShopRegistration] ✗ Not found on Google: ${dto.shopName}`);
       }
@@ -347,11 +373,14 @@ export class AuthService {
 
       // Only block CRITICAL threats before auth - let others proceed to password check
       if (preAuthAssessment.action === 'BLOCK') {
-        console.log(`[FRAUD] Login BLOCKED pre-auth - Risk: ${preAuthAssessment.riskLevel}, Score: ${preAuthAssessment.riskScore}`, {
-          email: dto.email,
-          ip: requestContext.ip,
-          signals: preAuthAssessment.signals.map(s => s.type),
-        });
+        console.log(
+          `[FRAUD] Login BLOCKED pre-auth - Risk: ${preAuthAssessment.riskLevel}, Score: ${preAuthAssessment.riskScore}`,
+          {
+            email: dto.email,
+            ip: requestContext.ip,
+            signals: preAuthAssessment.signals.map((s) => s.type),
+          },
+        );
         await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_login');
         throw new ForbiddenException('Too many failed attempts. Please try again later.');
       }
@@ -404,12 +433,15 @@ export class AuthService {
 
       // Log but allow - valid credentials verified
       if (postAuthAssessment.riskLevel === 'HIGH' || postAuthAssessment.riskLevel === 'CRITICAL') {
-        console.log(`[FRAUD] Post-auth warning - Risk: ${postAuthAssessment.riskLevel}, Score: ${postAuthAssessment.riskScore}`, {
-          userId: user.id,
-          email: dto.email,
-          ip: requestContext.ip,
-          signals: postAuthAssessment.signals.map(s => s.type),
-        });
+        console.log(
+          `[FRAUD] Post-auth warning - Risk: ${postAuthAssessment.riskLevel}, Score: ${postAuthAssessment.riskScore}`,
+          {
+            userId: user.id,
+            email: dto.email,
+            ip: requestContext.ip,
+            signals: postAuthAssessment.signals.map((s) => s.type),
+          },
+        );
         // Could trigger email notification, 2FA requirement, etc.
         // For now, just log and allow
       }

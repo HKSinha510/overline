@@ -43,7 +43,9 @@ export class OtpService {
     const isInCooldown = await this.redis.get(cooldownKey);
     if (isInCooldown) {
       const remainingSeconds = await this.redis.ttl(cooldownKey);
-      throw new BadRequestException(`Please wait ${remainingSeconds} seconds before requesting another OTP`);
+      throw new BadRequestException(
+        `Please wait ${remainingSeconds} seconds before requesting another OTP`,
+      );
     }
 
     // Generate OTP
@@ -89,7 +91,11 @@ export class OtpService {
   /**
    * Verify OTP
    */
-  async verifyOtp(phone: string, otp: string, purpose: OtpPurpose): Promise<{ verified: boolean; userId?: string }> {
+  async verifyOtp(
+    phone: string,
+    otp: string,
+    purpose: OtpPurpose,
+  ): Promise<{ verified: boolean; userId?: string }> {
     const verification = await this.prisma.otpVerification.findFirst({
       where: {
         phone,
@@ -105,7 +111,9 @@ export class OtpService {
     }
 
     if (verification.attempts >= OTP_CONFIG.MAX_ATTEMPTS) {
-      throw new BadRequestException('Maximum verification attempts exceeded. Please request a new OTP.');
+      throw new BadRequestException(
+        'Maximum verification attempts exceeded. Please request a new OTP.',
+      );
     }
 
     // Increment attempts

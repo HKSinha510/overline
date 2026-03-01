@@ -32,6 +32,13 @@ export default function SettingsPage() {
   const [galleryUploading, setGalleryUploading] = React.useState(false);
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Profile form state
+  const [profileForm, setProfileForm] = React.useState({
+    name: '',
+    phone: '',
+    avatarUrl: '',
+  });
+
   // Sync shop data to form when loaded
   React.useEffect(() => {
     if (shopData) {
@@ -126,12 +133,6 @@ export default function SettingsPage() {
   if (Array.isArray(workingHoursData)) {
     workingHoursData.forEach((wh: any) => { hoursMap[wh.dayOfWeek] = wh; });
   }
-
-  const [profileForm, setProfileForm] = React.useState({
-    name: '',
-    phone: '',
-    avatarUrl: '',
-  });
 
   async function handleSaveProfile(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();

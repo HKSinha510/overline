@@ -10,7 +10,14 @@ import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module'
 import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
-  imports: [PrismaModule, QueueModule, NotificationsModule, UsersModule, FraudDetectionModule, WalletModule],
+  imports: [
+    PrismaModule,
+    QueueModule,
+    NotificationsModule,
+    UsersModule,
+    FraudDetectionModule,
+    WalletModule,
+  ],
   controllers: [BookingsController],
   providers: [BookingsService, NoShowCron],
   exports: [BookingsService],

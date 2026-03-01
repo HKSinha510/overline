@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { OtpService, OtpPurpose } from './otp.service';
 import { IsString, IsIn, IsNotEmpty, Matches } from 'class-validator';
 

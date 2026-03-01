@@ -4,13 +4,13 @@ import { RedisService } from '@/common/redis/redis.service';
 
 /**
  * ML-Based Fraud Detection Service
- * 
+ *
  * This service implements various algorithms to detect:
  * - Fake login attempts (anomaly detection)
  * - Fake booking patterns (bot detection, spam)
  * - Fake shop registrations (scam detection)
  * - Suspicious user behavior
- * 
+ *
  * Algorithms Used:
  * - Statistical Anomaly Detection (Z-Score, IQR)
  * - Velocity Checks (rate-based detection)
@@ -27,7 +27,7 @@ export interface FraudSignal {
 }
 
 export interface FraudAssessment {
-  riskScore: number;         // 0-100, higher = more risky
+  riskScore: number; // 0-100, higher = more risky
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   signals: FraudSignal[];
   action: 'ALLOW' | 'CHALLENGE' | 'BLOCK';
@@ -69,12 +69,12 @@ export class FraudDetectionService {
 
   // ML Model Weights (would be trained in production)
   private readonly LOGIN_WEIGHTS = {
-    newDevice: 5,       // Reduced - new devices are normal
-    newIP: 3,           // Reduced - IP changes are common
+    newDevice: 5, // Reduced - new devices are normal
+    newIP: 3, // Reduced - IP changes are common
     unusualTime: 5,
     rapidAttempts: 25,
     geoAnomaly: 15,
-    failedHistory: 20,  // Increased - this is more suspicious
+    failedHistory: 20, // Increased - this is more suspicious
     susUserAgent: 15,
   };
 
@@ -91,7 +91,7 @@ export class FraudDetectionService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-  ) { }
+  ) {}
 
   // ============================================================================
   // LOGIN FRAUD DETECTION
@@ -447,10 +447,23 @@ export class FraudDetectionService {
 
     // Bot patterns
     const botPatterns = [
-      'bot', 'crawler', 'spider', 'headless', 'phantom',
-      'selenium', 'puppeteer', 'playwright', 'webdriver',
-      'curl', 'wget', 'python-requests', 'axios', 'fetch',
-      'go-http-client', 'java', 'scrapy',
+      'bot',
+      'crawler',
+      'spider',
+      'headless',
+      'phantom',
+      'selenium',
+      'puppeteer',
+      'playwright',
+      'webdriver',
+      'curl',
+      'wget',
+      'python-requests',
+      'axios',
+      'fetch',
+      'go-http-client',
+      'java',
+      'scrapy',
     ];
 
     for (const pattern of botPatterns) {
@@ -519,7 +532,7 @@ export class FraudDetectionService {
   /**
    * Record suspicious activity from IP
    */
-  async recordSuspiciousIP(ip: string, reason: string): Promise<void> {
+  async recordSuspiciousIP(ip: string, _reason: string): Promise<void> {
     const activityKey = `fraud:ip:activity:${ip}`;
     await this.redis.increment(activityKey, 86400); // 24 hour window
 
@@ -569,7 +582,11 @@ export class FraudDetectionService {
   /**
    * Booking Velocity Check
    */
-  private async checkBookingVelocity(userId: string | null, phone: string | null, ip: string): Promise<number> {
+  private async checkBookingVelocity(
+    userId: string | null,
+    phone: string | null,
+    ip: string,
+  ): Promise<number> {
     const keys: string[] = [];
 
     if (userId) keys.push(`fraud:booking:user:${userId}`);
@@ -690,9 +707,7 @@ export class FraudDetectionService {
     // Check for similar shops
     const existingShops = await this.prisma.shop.findMany({
       where: {
-        OR: [
-          { address: { contains: address, mode: 'insensitive' } },
-        ],
+        OR: [{ address: { contains: address, mode: 'insensitive' } }],
       },
       select: { name: true, address: true },
       take: 10,
@@ -718,9 +733,18 @@ export class FraudDetectionService {
     if (!domain) return 20;
 
     const disposableDomains = [
-      'tempmail.com', 'throwaway.com', 'mailinator.com', 'guerrillamail.com',
-      'temp-mail.org', '10minutemail.com', 'fakeinbox.com', 'trashmail.com',
-      'yopmail.com', 'getnada.com', 'discard.email', 'sharklasers.com',
+      'tempmail.com',
+      'throwaway.com',
+      'mailinator.com',
+      'guerrillamail.com',
+      'temp-mail.org',
+      '10minutemail.com',
+      'fakeinbox.com',
+      'trashmail.com',
+      'yopmail.com',
+      'getnada.com',
+      'discard.email',
+      'sharklasers.com',
     ];
 
     if (disposableDomains.includes(domain)) {
@@ -809,7 +833,7 @@ export class FraudDetectionService {
       requiresVerification = true;
     } else if (totalScore >= 40) {
       riskLevel = 'MEDIUM';
-      action = 'ALLOW';  // Changed from CHALLENGE - let them through
+      action = 'ALLOW'; // Changed from CHALLENGE - let them through
     } else {
       riskLevel = 'LOW';
       action = 'ALLOW';
@@ -831,7 +855,7 @@ export class FraudDetectionService {
     const set1 = new Set(str1.split(''));
     const set2 = new Set(str2.split(''));
 
-    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const intersection = new Set([...set1].filter((x) => set2.has(x)));
     const union = new Set([...set1, ...set2]);
 
     return intersection.size / union.size;
@@ -846,7 +870,7 @@ export class FraudDetectionService {
     let hash = 0;
     for (let i = 0; i < data.length; i++) {
       const char = data.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return hash.toString(36);

@@ -277,17 +277,17 @@ export class ReviewsService {
 
     // Calculate trust impact
     let trustAdjustment = 0;
-    
+
     // Rating impact: 5 stars = +2, 4 stars = +1, 3 stars = 0, 2 stars = -1, 1 star = -3
     trustAdjustment += (rating - 3) * 1.5;
-    
+
     // On-time bonus/penalty
     if (wasOnTime === false) {
       trustAdjustment -= 2;
     } else if (wasOnTime === true) {
       trustAdjustment += 0.5;
     }
-    
+
     // Politeness bonus/penalty
     if (wasPolite === false) {
       trustAdjustment -= 3;
@@ -314,15 +314,12 @@ export class ReviewsService {
     });
 
     const totalFeedbacks = feedbacks.length;
-    const averageRating = totalFeedbacks > 0
-      ? feedbacks.reduce((sum, f) => sum + f.rating, 0) / totalFeedbacks
-      : 5;
-    const onTimeRate = totalFeedbacks > 0
-      ? feedbacks.filter(f => f.wasOnTime).length / totalFeedbacks
-      : 1;
-    const politeRate = totalFeedbacks > 0
-      ? feedbacks.filter(f => f.wasPolite).length / totalFeedbacks
-      : 1;
+    const averageRating =
+      totalFeedbacks > 0 ? feedbacks.reduce((sum, f) => sum + f.rating, 0) / totalFeedbacks : 5;
+    const onTimeRate =
+      totalFeedbacks > 0 ? feedbacks.filter((f) => f.wasOnTime).length / totalFeedbacks : 1;
+    const politeRate =
+      totalFeedbacks > 0 ? feedbacks.filter((f) => f.wasPolite).length / totalFeedbacks : 1;
 
     return {
       averageRating: Math.round(averageRating * 10) / 10,

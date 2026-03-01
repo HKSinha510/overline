@@ -6,10 +6,11 @@ import { QueueService } from '../queue/queue.service';
 import { QueueGateway } from '../queue/queue.gateway';
 import { SlotEngineService } from '../queue/slot-engine.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { BookingStatus, BookingSource } from '@prisma/client';
+import { BookingStatus } from '@prisma/client';
 
 describe('BookingsService', () => {
   let service: BookingsService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let prismaService: PrismaService;
 
   const mockPrismaService = {

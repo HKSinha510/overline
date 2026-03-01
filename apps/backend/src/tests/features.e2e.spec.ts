@@ -5,7 +5,6 @@ import { BookingsService } from '../modules/bookings/bookings.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RedisService } from '../common/redis/redis.service';
 import { FREE_CASH_CONFIG } from '../modules/wallet/wallet.service';
-import { OTP_CONFIG } from '../modules/otp/otp.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentType, ServiceStatus, CancellationReason, BookingStatus } from '@prisma/client';
 
@@ -19,19 +18,16 @@ import { PaymentType, ServiceStatus, CancellationReason, BookingStatus } from '@
 describe('Overline Features - Integration Tests', () => {
   let walletService: WalletService;
   let otpService: OtpService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let bookingsService: BookingsService;
   let prismaService: PrismaService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let redisService: RedisService;
   let module: TestingModule;
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
-      providers: [
-        WalletService,
-        OtpService,
-        PrismaService,
-        RedisService,
-      ],
+      providers: [WalletService, OtpService, PrismaService, RedisService],
     }).compile();
 
     walletService = module.get<WalletService>(WalletService);
@@ -108,11 +104,7 @@ describe('Overline Features - Integration Tests', () => {
       const bookingId = 'test-booking-' + Date.now();
 
       // First credit
-      await walletService.creditFreeCash(
-        testUserId,
-        creditAmount,
-        bookingId + '-credit',
-      );
+      await walletService.creditFreeCash(testUserId, creditAmount, bookingId + '-credit');
 
       // Then debit
       const result = await walletService.debitFreeCash(
@@ -203,22 +195,20 @@ describe('Overline Features - Integration Tests', () => {
     });
 
     it('should reject invalid phone format', async () => {
-      await expect(
-        otpService.sendOtp('invalid-phone', 'LOGIN'),
-      ).rejects.toThrow('Invalid phone number format');
+      await expect(otpService.sendOtp('invalid-phone', 'LOGIN')).rejects.toThrow(
+        'Invalid phone number format',
+      );
     });
 
     it('should enforce cooldown between OTP requests', async () => {
       await otpService.sendOtp(testPhone, 'LOGIN');
 
       // Try to send again immediately
-      await expect(
-        otpService.sendOtp(testPhone, 'LOGIN'),
-      ).rejects.toThrow('Please wait');
+      await expect(otpService.sendOtp(testPhone, 'LOGIN')).rejects.toThrow('Please wait');
     });
 
     it('should verify valid OTP', async () => {
-      const sendResult = await otpService.sendOtp(testPhone, 'LOGIN');
+      await otpService.sendOtp(testPhone, 'LOGIN');
 
       // Get the OTP from database
       const otpRecord = await prismaService.otpVerification.findFirst({
@@ -235,9 +225,9 @@ describe('Overline Features - Integration Tests', () => {
     it('should reject invalid OTP', async () => {
       await otpService.sendOtp(testPhone, 'LOGIN');
 
-      await expect(
-        otpService.verifyOtp(testPhone, '000000', 'LOGIN'),
-      ).rejects.toThrow('Invalid OTP');
+      await expect(otpService.verifyOtp(testPhone, '000000', 'LOGIN')).rejects.toThrow(
+        'Invalid OTP',
+      );
     });
 
     it('should limit OTP verification attempts', async () => {
@@ -245,15 +235,13 @@ describe('Overline Features - Integration Tests', () => {
 
       // Attempt verification 3 times with wrong OTP
       for (let i = 0; i < 3; i++) {
-        await expect(
-          otpService.verifyOtp(testPhone, '000000', 'LOGIN'),
-        ).rejects.toThrow();
+        await expect(otpService.verifyOtp(testPhone, '000000', 'LOGIN')).rejects.toThrow();
       }
 
       // 4th attempt should fail with max attempts exceeded
-      await expect(
-        otpService.verifyOtp(testPhone, '000000', 'LOGIN'),
-      ).rejects.toThrow('Maximum verification attempts exceeded');
+      await expect(otpService.verifyOtp(testPhone, '000000', 'LOGIN')).rejects.toThrow(
+        'Maximum verification attempts exceeded',
+      );
     });
 
     it('should normalize phone numbers correctly', async () => {
@@ -553,11 +541,7 @@ describe('Overline Features - Integration Tests', () => {
       const numBookings = 3;
 
       for (let i = 0; i < numBookings; i++) {
-        await walletService.creditFreeCash(
-          testUserId,
-          freeCashPerBooking,
-          `booking-${i}`,
-        );
+        await walletService.creditFreeCash(testUserId, freeCashPerBooking, `booking-${i}`);
       }
 
       const balance = await walletService.getWalletBalance(testUserId);
@@ -572,7 +556,13 @@ describe('Overline Features - Integration Tests', () => {
       await walletService.debitFreeCash(testUserId, 25, 'booking-2', 'Used for booking');
 
       // 3. Return free cash
-      await walletService.returnFreeCash(testUserId, 25, 'booking-2', true, 'Returned on cancellation');
+      await walletService.returnFreeCash(
+        testUserId,
+        25,
+        'booking-2',
+        true,
+        'Returned on cancellation',
+      );
 
       const balance = await walletService.getWalletBalance(testUserId);
       expect(balance.freeCashBalance.toNumber()).toBe(25);
@@ -582,9 +572,9 @@ describe('Overline Features - Integration Tests', () => {
 
 /**
  * Manual Test Checklist
- * 
+ *
  * Run with: npm test
- * 
+ *
  * ✓ Wallet Service Tests
  *   ✓ Create/get wallet for user
  *   ✓ Calculate free cash (₹25-30)
@@ -594,7 +584,7 @@ describe('Overline Features - Integration Tests', () => {
  *   ✓ Return free cash on valid cancellation
  *   ✓ Process refunds
  *   ✓ Validate cancellation reasons
- * 
+ *
  * ✓ OTP Service Tests
  *   ✓ Send OTP to phone
  *   ✓ Validate phone format
@@ -603,22 +593,22 @@ describe('Overline Features - Integration Tests', () => {
  *   ✓ Reject invalid OTP
  *   ✓ Limit verification attempts (max 3)
  *   ✓ Normalize phone numbers (+91 format)
- * 
+ *
  * ✓ Booking Feature Tests
  *   ✓ Generate 4-digit verification code
  *   ✓ Display correct free cash amount
  *   ✓ Track cancellation reasons
  *   ✓ Support PREPAID and PAY_LATER payment types
- * 
+ *
  * ✓ Cancellation & Grace Period
  *   ✓ Handle 1-hour grace period
  *   ✓ Free cash only returned within grace period
  *   ✓ Owner approval needed for late cancellations
- * 
+ *
  * ✓ Free Cash Lifecycle
  *   ✓ Accumulate over bookings
  *   ✓ Credit → Debit → Return flow
- * 
+ *
  * Database Changes Verified:
  *   ✓ wallets table created
  *   ✓ wallet_transactions table created

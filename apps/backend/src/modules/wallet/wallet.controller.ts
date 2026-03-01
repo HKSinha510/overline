@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { WalletTransactionType } from '@prisma/client';

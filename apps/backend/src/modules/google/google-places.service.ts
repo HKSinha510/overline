@@ -45,7 +45,7 @@ export class GooglePlacesService {
     try {
       // Build search query
       const query = `${shopName} ${address}, ${city}`;
-      
+
       // Use Find Place API first for more accurate results
       const findPlaceUrl = `${this.baseUrl}/findplacefromtext/json?input=${encodeURIComponent(query)}&inputtype=textquery&fields=place_id,name,formatted_address,geometry,rating,user_ratings_total,types,photos&key=${this.apiKey}`;
 
@@ -66,12 +66,18 @@ export class GooglePlacesService {
         const detailsData: any = await detailsResponse.json();
 
         if (detailsData.status === 'OK' && detailsData.result) {
-          const googlePhone = detailsData.result.formatted_phone_number || detailsData.result.international_phone_number;
+          const googlePhone =
+            detailsData.result.formatted_phone_number ||
+            detailsData.result.international_phone_number;
           const normalizedPhone = this.normalizePhone(phone);
           const normalizedGooglePhone = this.normalizePhone(googlePhone);
 
           // If phones don't match, it might be a different business
-          if (normalizedPhone && normalizedGooglePhone && normalizedPhone !== normalizedGooglePhone) {
+          if (
+            normalizedPhone &&
+            normalizedGooglePhone &&
+            normalizedPhone !== normalizedGooglePhone
+          ) {
             this.logger.warn(`Phone mismatch for ${shopName}: ${phone} vs ${googlePhone}`);
             // Still return the result but caller should check
           }
@@ -91,9 +97,12 @@ export class GooglePlacesService {
             }
           : undefined,
         types: place.types,
-        photos: place.photos?.slice(0, 5).map((photo: any) => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photo.photo_reference}&key=${this.apiKey}`
-        ),
+        photos: place.photos
+          ?.slice(0, 5)
+          .map(
+            (photo: any) =>
+              `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photo.photo_reference}&key=${this.apiKey}`,
+          ),
       };
 
       this.logger.log(`Shop found on Google: ${shopName} (${result.placeId})`);

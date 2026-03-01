@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { WalletTransactionType, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -60,7 +60,11 @@ export class WalletService {
       balance: wallet.balance,
       freeCashBalance: wallet.freeCashBalance,
       lockedAmount: wallet.lockedAmount,
-      totalAvailable: new Decimal(wallet.balance.toNumber() + wallet.freeCashBalance.toNumber() - wallet.lockedAmount.toNumber()),
+      totalAvailable: new Decimal(
+        wallet.balance.toNumber() +
+          wallet.freeCashBalance.toNumber() -
+          wallet.lockedAmount.toNumber(),
+      ),
       totalEarned: wallet.totalEarned,
       totalSpent: wallet.totalSpent,
     };
@@ -77,12 +81,7 @@ export class WalletService {
   /**
    * Credit free cash to user's wallet (when they complete a service)
    */
-  async creditFreeCash(
-    userId: string,
-    amount: number,
-    bookingId: string,
-    description?: string,
-  ) {
+  async creditFreeCash(userId: string, amount: number, bookingId: string, description?: string) {
     const wallet = await this.getOrCreateWallet(userId);
     const previousBalance = wallet.freeCashBalance;
     const newBalance = new Decimal(previousBalance.toNumber() + amount);
@@ -115,14 +114,9 @@ export class WalletService {
   /**
    * Debit free cash from wallet (when booking is made)
    */
-  async debitFreeCash(
-    userId: string,
-    amount: number,
-    bookingId: string,
-    description?: string,
-  ) {
+  async debitFreeCash(userId: string, amount: number, bookingId: string, description?: string) {
     const wallet = await this.getOrCreateWallet(userId);
-    
+
     if (wallet.freeCashBalance.toNumber() < amount) {
       throw new BadRequestException('Insufficient free cash balance');
     }
@@ -201,12 +195,7 @@ export class WalletService {
   /**
    * Process refund for prepaid bookings
    */
-  async processRefund(
-    userId: string,
-    amount: number,
-    bookingId: string,
-    description?: string,
-  ) {
+  async processRefund(userId: string, amount: number, bookingId: string, description?: string) {
     const wallet = await this.getOrCreateWallet(userId);
     const previousBalance = wallet.balance;
     const newBalance = new Decimal(previousBalance.toNumber() + amount);
@@ -238,12 +227,7 @@ export class WalletService {
   /**
    * Credit reward for completing a service
    */
-  async creditReward(
-    userId: string,
-    amount: number,
-    bookingId: string,
-    description?: string,
-  ) {
+  async creditReward(userId: string, amount: number, bookingId: string, description?: string) {
     const wallet = await this.getOrCreateWallet(userId);
     const previousBalance = wallet.freeCashBalance;
     const newBalance = new Decimal(previousBalance.toNumber() + amount);
@@ -325,17 +309,13 @@ export class WalletService {
     // - Trust score below 50
     // - Cancellation rate > 50% with at least 3 bookings
     // - No-show rate > 30%
-    const cancellationRate = user.totalBookings > 0 
-      ? (user.cancelledBookings / user.totalBookings) * 100 
-      : 0;
-    const noShowRate = user.totalBookings > 0 
-      ? (user.noShowBookings / user.totalBookings) * 100 
-      : 0;
+    const cancellationRate =
+      user.totalBookings > 0 ? (user.cancelledBookings / user.totalBookings) * 100 : 0;
+    const noShowRate =
+      user.totalBookings > 0 ? (user.noShowBookings / user.totalBookings) * 100 : 0;
 
     return (
-      user.trustScore < 50 ||
-      (cancellationRate > 50 && user.totalBookings >= 3) ||
-      noShowRate > 30
+      user.trustScore < 50 || (cancellationRate > 50 && user.totalBookings >= 3) || noShowRate > 30
     );
   }
 
