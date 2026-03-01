@@ -40,8 +40,16 @@ export class BookingsController {
   @ApiResponse({ status: 201, description: 'Booking created successfully' })
   @ApiResponse({ status: 409, description: 'Time slot not available' })
   @ApiResponse({ status: 429, description: 'Too many booking attempts. Try again later.' })
-  async create(@Body() dto: CreateBookingDto, @CurrentUser('id') userId: string) {
-    return this.bookingsService.create(dto, userId);
+  async create(
+    @Body() dto: CreateBookingDto,
+    @CurrentUser('id') userId: string,
+    @Req() req: any,
+  ) {
+    const requestContext = {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+    };
+    return this.bookingsService.create(dto, userId, requestContext);
   }
 
   @Post('guest')
@@ -50,11 +58,15 @@ export class BookingsController {
   @ApiOperation({ summary: 'Create a booking as guest (no account required)' })
   @ApiResponse({ status: 201, description: 'Booking created successfully' })
   @ApiResponse({ status: 429, description: 'Too many booking attempts. Try again later.' })
-  async createGuestBooking(@Body() dto: CreateBookingDto) {
+  async createGuestBooking(@Body() dto: CreateBookingDto, @Req() req: any) {
     if (!dto.customerName || !dto.customerPhone) {
       throw new Error('Guest bookings require customer name and phone');
     }
-    return this.bookingsService.create(dto);
+    const requestContext = {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+    };
+    return this.bookingsService.create(dto, undefined, requestContext);
   }
 
   @Get('my')

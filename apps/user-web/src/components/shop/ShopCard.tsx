@@ -31,15 +31,17 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, queueInfo, userLocation }) =>
       <Card
         variant="bordered"
         padding="none"
-        className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group"
+        className="relative overflow-hidden cursor-pointer group rounded-[2rem] border-0 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_30px_80px_rgba(0,0,0,0.12)] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-3 transform perspective-[2000px] hover:[transform:rotateX(4deg)_rotateY(-4deg)_scale(1.02)]"
       >
+        {/* Decorative glass shine over the entire card on hover */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-1000 ease-out z-20 pointer-events-none -skew-x-12 w-[150%]" />
         {/* Shop Image */}
         <div className="relative h-44 bg-gray-100 overflow-hidden">
           {heroImage ? (
             <img
               src={heroImage}
               alt={shop.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-400 to-primary-600">

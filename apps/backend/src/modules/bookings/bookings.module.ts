@@ -6,9 +6,10 @@ import { NoShowCron } from './no-show.cron';
 import { QueueModule } from '../queue/queue.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
+import { FraudDetectionModule } from '../fraud-detection/fraud-detection.module';
 
 @Module({
-  imports: [PrismaModule, QueueModule, NotificationsModule, UsersModule],
+  imports: [PrismaModule, QueueModule, NotificationsModule, UsersModule, FraudDetectionModule],
   controllers: [BookingsController],
   providers: [BookingsService, NoShowCron],
   exports: [BookingsService],

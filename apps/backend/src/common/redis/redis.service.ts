@@ -4,9 +4,17 @@ import Redis from 'ioredis';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
-  private client: Redis | null = null;
+  private _client: Redis | null = null;
   private readonly logger = new Logger(RedisService.name);
   private isConnected = false;
+
+  /**
+   * Get the raw Redis client for advanced operations
+   * Use with caution - prefer using service methods when available
+   */
+  get client(): Redis | null {
+    return this._client;
+  }
 
   constructor(private configService: ConfigService) {}
 
@@ -29,10 +37,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       if (redisUrl) {
         this.logger.log('Connecting to Redis via URL...');
-        this.client = new Redis(redisUrl, redisOptions);
+        this._client = new Redis(redisUrl, redisOptions);
       } else {
         this.logger.log('Connecting to Redis via host/port...');
-        this.client = new Redis({
+        this._client = new Redis({
           ...redisOptions,
           host: this.configService.get('redis.host'),
           port: this.configService.get('redis.port'),
@@ -40,18 +48,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      this.client.on('connect', () => {
+      this._client.on('connect', () => {
         this.isConnected = true;
         this.logger.log('✅ Redis connected');
       });
 
-      this.client.on('error', (error) => {
+      this._client.on('error', (error) => {
         this.isConnected = false;
         this.logger.warn(`Redis error: ${error.message}`);
       });
 
       // Try to connect but don't block startup
-      await this.client.connect().catch((err) => {
+      await this._client.connect().catch((err) => {
         this.logger.warn(
           `Redis initial connection failed: ${err.message} - app will continue without Redis`,
         );
@@ -62,17 +70,17 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    if (this.client) {
-      await this.client.quit().catch(() => {});
+    if (this._client) {
+      await this._client.quit().catch(() => {});
     }
   }
 
   getClient(): Redis | null {
-    return this.client;
+    return this._client;
   }
 
   isReady(): boolean {
-    return this.isConnected && this.client !== null;
+    return this.isConnected && this._client !== null;
   }
 
   // ============================================================================
@@ -121,6 +129,24 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.client.expire(key, ttlSeconds);
     } catch {}
+  }
+
+  /**
+   * Increment a key and set TTL (for rate limiting / fraud detection)
+   * Returns the new count
+   */
+  async increment(key: string, ttlSeconds: number): Promise<number> {
+    if (!this.client) return 0;
+    try {
+      const count = await this.client.incr(key);
+      // Only set TTL on first increment
+      if (count === 1) {
+        await this.client.expire(key, ttlSeconds);
+      }
+      return count;
+    } catch {
+      return 0;
+    }
   }
 
   // ============================================================================

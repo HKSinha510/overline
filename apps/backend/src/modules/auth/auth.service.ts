@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -10,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { FraudDetectionService, LoginContext, ShopRegistrationContext } from '../fraud-detection/fraud-detection.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -41,6 +43,11 @@ export interface TokenResponse {
   };
 }
 
+export interface RequestContext {
+  ip: string;
+  userAgent: string;
+}
+
 @Injectable()
 export class AuthService {
   private googleClient: OAuth2Client;
@@ -49,11 +56,28 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private fraudDetection: FraudDetectionService,
   ) {
     this.googleClient = new OAuth2Client(this.configService.get<string>('google.clientId'));
   }
 
-  async signup(dto: SignupDto): Promise<TokenResponse> {
+  async signup(dto: SignupDto, requestContext?: RequestContext): Promise<TokenResponse> {
+    // --- FRAUD DETECTION FOR SIGNUP ---
+    if (requestContext) {
+      const fraudContext: LoginContext = {
+        email: dto.email,
+        ip: requestContext.ip,
+        userAgent: requestContext.userAgent,
+        timestamp: new Date(),
+      };
+      const assessment = await this.fraudDetection.analyzeLogin(fraudContext);
+      
+      if (assessment.action === 'BLOCK') {
+        await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_signup');
+        throw new ForbiddenException('Unable to create account at this time. Please try again later.');
+      }
+    }
+
     // Check if email already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -105,7 +129,42 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  async registerShop(dto: RegisterShopDto): Promise<TokenResponse> {
+  async registerShop(dto: RegisterShopDto, requestContext?: RequestContext): Promise<TokenResponse> {
+    // --- FRAUD DETECTION FOR SHOP REGISTRATION ---
+    if (requestContext) {
+      const fraudContext: ShopRegistrationContext = {
+        ownerEmail: dto.email,
+        shopName: dto.shopName,
+        address: dto.address,
+        phone: dto.phone,
+        ip: requestContext.ip,
+        userAgent: requestContext.userAgent,
+      };
+      const assessment = await this.fraudDetection.analyzeShopRegistration(fraudContext);
+
+      // Log suspicious attempts
+      if (assessment.riskLevel !== 'LOW') {
+        console.log(`[FRAUD] Shop registration attempt - Risk: ${assessment.riskLevel}, Score: ${assessment.riskScore}`, {
+          email: dto.email,
+          shopName: dto.shopName,
+          ip: requestContext.ip,
+          signals: assessment.signals.map(s => s.type),
+        });
+      }
+
+      if (assessment.action === 'BLOCK') {
+        await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_shop_registration');
+        throw new ForbiddenException('Unable to register shop at this time. Please contact support.');
+      }
+
+      if (assessment.action === 'CHALLENGE') {
+        // For suspicious shop registrations, require manual verification
+        throw new BadRequestException(
+          'Your registration requires additional verification. Please contact support with your business documents.',
+        );
+      }
+    }
+
     // Check if email already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -223,13 +282,42 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  async login(dto: LoginDto): Promise<TokenResponse> {
+  async login(dto: LoginDto, requestContext?: RequestContext): Promise<TokenResponse> {
+    // --- FRAUD DETECTION FOR LOGIN ---
+    if (requestContext) {
+      const fraudContext: LoginContext = {
+        email: dto.email,
+        ip: requestContext.ip,
+        userAgent: requestContext.userAgent,
+        timestamp: new Date(),
+      };
+      const assessment = await this.fraudDetection.analyzeLogin(fraudContext);
+
+      // Log suspicious login attempts
+      if (assessment.riskLevel !== 'LOW') {
+        console.log(`[FRAUD] Login attempt - Risk: ${assessment.riskLevel}, Score: ${assessment.riskScore}`, {
+          email: dto.email,
+          ip: requestContext.ip,
+          signals: assessment.signals.map(s => s.type),
+        });
+      }
+
+      if (assessment.action === 'BLOCK') {
+        await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_login');
+        throw new ForbiddenException('Account access temporarily restricted. Please try again later or contact support.');
+      }
+    }
+
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
     if (!user) {
+      // Record failed attempt for fraud tracking
+      if (requestContext) {
+        await this.fraudDetection.recordFailedLogin(dto.email);
+      }
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -247,7 +335,16 @@ export class AuthService {
     // Verify password
     const isPasswordValid = await bcrypt.compare(dto.password, user.hashedPassword);
     if (!isPasswordValid) {
+      // Record failed attempt for fraud tracking
+      if (requestContext) {
+        await this.fraudDetection.recordFailedLogin(dto.email);
+      }
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Clear failed login count on successful login
+    if (requestContext) {
+      await this.fraudDetection.clearFailedLogins(dto.email);
     }
 
     // Update last login

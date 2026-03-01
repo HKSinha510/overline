@@ -21,6 +21,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HealthModule } from './modules/health/health.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { FraudDetectionModule } from './modules/fraud-detection/fraud-detection.module';
 
 // Configuration
 import configuration from './config/configuration';
@@ -62,6 +63,7 @@ import configuration from './config/configuration';
     HealthModule,
     ReviewsModule,
     UploadModule,
+    FraudDetectionModule,
   ],
 })
 export class AppModule {}

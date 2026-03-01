@@ -226,7 +226,20 @@ export default function ShopDetailPage() {
         </div>
       )}
 
-      <div className={`min-h-screen pb-32 transition-colors duration-500 ${themeBgColor}`}>
+      <div className={`relative min-h-screen pb-32 transition-colors duration-500 ${themeBgColor} overflow-hidden`}>
+        {/* Abstract 3D Gradients blending with Theme */}
+        {isSalon ? (
+          <>
+            <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-purple-900/40 via-blue-900/20 to-transparent blur-[120px] rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none z-0" />
+            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-rose-900/20 to-transparent blur-[100px] rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none z-0" />
+          </>
+        ) : (
+          <>
+            <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-primary-400/20 via-purple-400/10 to-transparent blur-[120px] rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none z-0" />
+            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-accent-400/10 to-transparent blur-[100px] rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none z-0" />
+          </>
+        )}
+
         {/* Sleek Breadcrumb/Top Nav */}
         <div className={`${themeNavBgColor} backdrop-blur-md border-b sticky top-0 z-40 transition-all`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
@@ -285,9 +298,9 @@ export default function ShopDetailPage() {
                     {shop.name}
                   </h1>
 
-                  {/* Cover Image / Gallery */}
+                  {/* Cover Image / Gallery (3D Transform) */}
                   <div
-                    className="relative h-64 md:h-96 w-full rounded-[2.5rem] overflow-hidden cursor-pointer group shadow-2xl z-0 -mt-8 md:-mt-12 ml-0 md:ml-12"
+                    className="relative h-64 md:h-96 w-full rounded-[2.5rem] overflow-hidden cursor-pointer group shadow-[0_20px_60px_rgba(0,0,0,0.15)] z-0 -mt-8 md:-mt-12 ml-0 md:ml-12 transform perspective-[2000px] hover:[transform:rotateX(2deg)_rotateY(-2deg)_scale(1.02)] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"
                     onClick={() => {
                       if (allPhotos.length > 0) {
                         setGalleryIndex(0);
@@ -295,6 +308,8 @@ export default function ShopDetailPage() {
                       }
                     }}
                   >
+                    {/* Decorative glass shine over the image on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-1000 ease-out z-20 pointer-events-none -skew-x-12 w-[150%]" />
                     {heroImage ? (
                       <img
                         src={heroImage}
@@ -567,10 +582,9 @@ export default function ShopDetailPage() {
 
             </div>
 
-            {/* Sticky Sidebar - Booking Summary */}
             <div className="hidden lg:block lg:col-span-5 xl:col-span-4 relative">
-              <div className="sticky top-24 pt-6">
-                <div className="transform transition-all duration-500 hover:-translate-y-2">
+              <div className="sticky top-24 pt-6 perspective-[1500px]">
+                <div className="transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-2 hover:[transform:rotateX(2deg)_rotateY(-1deg)_scale(1.02)] shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:shadow-[0_30px_70px_rgba(0,0,0,0.15)] rounded-[2.5rem] bg-white/40 backdrop-blur-xl border border-white/40">
                   <BookingSummary />
                 </div>
               </div>

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { QueueGateway } from '../queue/queue.gateway';
 import { SlotEngineService } from '../queue/slot-engine.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TrustScoreService } from '../users/trust-score.service';
+import { FraudDetectionService, BookingContext } from '../fraud-detection/fraud-detection.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import {
@@ -34,12 +36,13 @@ export class BookingsService {
     private slotEngine: SlotEngineService,
     private notificationsService: NotificationsService,
     private trustScoreService: TrustScoreService,
+    private fraudDetection: FraudDetectionService,
   ) {}
 
   /**
-   * Create a new booking
+   * Create a new booking with fraud detection
    */
-  async create(dto: CreateBookingDto, userId?: string) {
+  async create(dto: CreateBookingDto, userId?: string, requestContext?: { ip: string; userAgent: string }) {
     const {
       shopId,
       serviceIds,
@@ -135,6 +138,55 @@ export class BookingsService {
       }
     }
     // --- END SPAM PREVENTION ---
+
+    // --- ML-BASED FRAUD DETECTION ---
+    if (requestContext) {
+      const fraudContext: BookingContext = {
+        userId: userId || undefined,
+        customerPhone: customerPhone || undefined,
+        ip: requestContext.ip,
+        userAgent: requestContext.userAgent,
+        shopId,
+        startTime: bookingStartTime,
+        totalAmount,
+      };
+
+      const fraudAssessment = await this.fraudDetection.analyzeBooking(fraudContext);
+
+      // Log fraud assessment for monitoring
+      if (fraudAssessment.riskLevel !== 'LOW') {
+        console.log(`[FRAUD] Booking attempt - Risk: ${fraudAssessment.riskLevel}, Score: ${fraudAssessment.riskScore}`, {
+          userId,
+          customerPhone,
+          ip: requestContext.ip,
+          signals: fraudAssessment.signals.map(s => s.type),
+        });
+      }
+
+      // Block high-risk bookings
+      if (fraudAssessment.action === 'BLOCK') {
+        await this.fraudDetection.recordSuspiciousIP(requestContext.ip, 'blocked_booking');
+        throw new ForbiddenException(
+          'Unable to process your booking at this time. Please contact support if you believe this is an error.',
+        );
+      }
+
+      // Challenge medium-risk bookings - require verified phone
+      if (fraudAssessment.action === 'CHALLENGE') {
+        if (!userId) {
+          throw new BadRequestException(
+            'For security purposes, please create an account and verify your phone number to book.',
+          );
+        }
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user?.isPhoneVerified) {
+          throw new BadRequestException(
+            'Please verify your phone number before booking. This helps us prevent spam.',
+          );
+        }
+      }
+    }
+    // --- END FRAUD DETECTION ---
 
     // Check slot availability using transaction for consistency
     const booking = await this.prisma.$transaction(async (tx) => {

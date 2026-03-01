@@ -30,20 +30,30 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Extract request context for fraud detection
+   */
+  private getRequestContext(req: any) {
+    return {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+    };
+  }
+
   @Post('signup')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'Email already registered' })
-  async signup(@Body() dto: SignupDto): Promise<TokenResponse> {
-    return this.authService.signup(dto);
+  async signup(@Body() dto: SignupDto, @Req() req: any): Promise<TokenResponse> {
+    return this.authService.signup(dto, this.getRequestContext(req));
   }
 
   @Post('register-shop')
   @ApiOperation({ summary: 'Register a new shop owner and provision their shop' })
   @ApiResponse({ status: 201, description: 'Shop and owner registered successfully' })
   @ApiResponse({ status: 409, description: 'Email already registered' })
-  async registerShop(@Body() dto: RegisterShopDto): Promise<TokenResponse> {
-    return this.authService.registerShop(dto);
+  async registerShop(@Body() dto: RegisterShopDto, @Req() req: any): Promise<TokenResponse> {
+    return this.authService.registerShop(dto, this.getRequestContext(req));
   }
 
   @Post('login')
@@ -51,8 +61,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() dto: LoginDto): Promise<TokenResponse> {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Req() req: any): Promise<TokenResponse> {
+    return this.authService.login(dto, this.getRequestContext(req));
   }
 
   @Post('google')
