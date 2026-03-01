@@ -535,7 +535,7 @@ export default function SettingsPage() {
                       const formData = new FormData();
                       formData.append('file', file);
                       const { data } = await api.patch(
-                        '/v1/upload/user/avatar',
+                        '/upload/user/avatar',
                         formData,
                         { headers: { 'Content-Type': 'multipart/form-data' } },
                       );
