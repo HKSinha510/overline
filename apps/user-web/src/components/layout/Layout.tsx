@@ -80,16 +80,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Desktop User Menu */}
             <div className="hidden md:flex items-center gap-3">
-              {/* Partner Link */}
-              <a
-                href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://overline-admin-web.vercel.app"}
-                className="text-sm font-bold text-lexo-gray hover:text-lexo-black px-4 transition-colors hidden lg:block"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Partner Login
-              </a>
-
               <div className="w-px h-5 bg-gray-200 hidden lg:block mx-1" />
 
               {isAuthenticated && user ? (
@@ -175,22 +165,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </motion.div>
               )}
 
-              {/* Mobile Partner Link */}
-              <motion.div
-                className="mt-4 pt-4 border-t border-gray-100 flex flex-col"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
-                <a
-                  href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://overline-admin-web.vercel.app"}
-                  className="text-center font-bold text-lexo-gray hover:text-lexo-black py-4 transition-colors"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Partner / Admin Login
-                </a>
-              </motion.div>
+              {/* Mobile Partner Link Removed */}
             </nav>
           </motion.div>
         )}
@@ -219,20 +194,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <p className="text-lexo-gray text-lg md:text-xl max-w-md mb-10 leading-relaxed font-medium">
                 Skip the line and experience premium grooming. Secure your appointment in seconds.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/explore">
-                  <Button className="bg-white text-lexo-black hover:bg-gray-100 rounded-full py-6 px-10 text-lg font-bold group shadow-[0_0_40px_rgba(255,255,255,0.15)] flex items-center gap-3">
-                    Find a Shop
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                <Link href="/explore">
-                  <Button variant="secondary" className="bg-lexo-black text-white hover:bg-lexo-dark rounded-full py-6 px-10 text-lg font-bold flex items-center gap-3 border border-white/20">
-                    Book next slot
-                    <Clock className="w-5 h-5" />
-                  </Button>
-                </Link>
-              </div>
+              {/* Footer action buttons removed per request */}
             </div>
 
             <div className="flex flex-col sm:flex-row justify-between lg:justify-end gap-12 lg:gap-24">
@@ -249,7 +211,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div className="flex flex-col gap-3">
                   <Link href="#" className="font-semibold hover:text-indigo-400 transition-colors">Privacy Policy</Link>
                   <Link href="#" className="font-semibold hover:text-indigo-400 transition-colors">Terms of Service</Link>
-                  <Link href="https://overline-admin-web.vercel.app" className="font-semibold hover:text-indigo-400 transition-colors text-white/50">Partner Login</Link>
+                  <a href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://overline-admin-web.vercel.app"} target="_blank" rel="noreferrer" className="font-semibold hover:text-indigo-400 transition-colors text-white/50">Partner Login</a>
                 </div>
               </div>
             </div>

@@ -16,7 +16,7 @@ const ShopMapInner = dynamic(
     {
         ssr: false,
         loading: () => (
-            <div className="w-full bg-lexo-charcoal rounded-[2.5rem] flex items-center justify-center p-8">
+            <div className="w-full h-full bg-lexo-charcoal rounded-[2.5rem] flex items-center justify-center p-8">
                 <p className="text-white font-medium animate-pulse">Initializing Map Engine...</p>
             </div>
         )

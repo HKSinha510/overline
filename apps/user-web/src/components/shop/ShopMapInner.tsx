@@ -109,7 +109,15 @@ export const ShopMapInner: React.FC<ShopMapProps> = ({
                                     />
 
                                     <h3 className="font-bold text-lexo-black text-lg leading-tight mb-1">{shop.name}</h3>
-                                    <p className="text-lexo-gray text-xs mb-3 truncate">{shop.address}, {shop.city}</p>
+                                    <a
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.address}, ${shop.city}`)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary-600 hover:underline block text-xs mb-3 truncate transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {shop.address}, {shop.city}
+                                    </a>
 
                                     <div className="flex justify-between items-center mb-3">
                                         <span className="flex items-center gap-1 text-amber-500 text-sm font-bold bg-amber-50 px-2 py-0.5 rounded-md">
