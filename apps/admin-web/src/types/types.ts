@@ -15,6 +15,12 @@ export interface User {
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
   createdAt: string;
+  // Trust Score fields for queue integrity
+  trustScore?: number;
+  totalBookings?: number;
+  completedBookings?: number;
+  noShowBookings?: number;
+  cancelledBookings?: number;
 }
 
 export interface AuthTokens {
@@ -141,7 +147,7 @@ export interface Booking {
   id: string;
   bookingNumber: string;
   userId?: string;
-  user?: Pick<User, 'id' | 'name' | 'email' | 'phone'>;
+  user?: Pick<User, 'id' | 'name' | 'email' | 'phone' | 'trustScore' | 'totalBookings' | 'noShowBookings'>;
   shopId: string;
   shop?: Pick<Shop, 'id' | 'name' | 'slug' | 'address' | 'phone' | 'logoUrl'>;
   staffId?: string;

@@ -9,7 +9,8 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
-import { UserRole } from '@prisma/client';
+import { RegisterShopDto } from './dto/register-shop.dto';
+import { UserRole, DayOfWeek, TenantType } from '@prisma/client';
 
 export interface JwtPayload {
   sub: string;
@@ -74,7 +75,7 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(dto.password, saltRounds);
 
     // Create user
-    const user = await this.prisma.user.create({
+    let user = await this.prisma.user.create({
       data: {
         email: dto.email,
         name: dto.name,
@@ -84,7 +85,133 @@ export class AuthService {
       },
     });
 
+    // Generate OTP if phone is provided
+    if (user.phone) {
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { otpCode, otpExpiresAt }
+      });
+      console.log(`\n\n=== [OTP SIMULATION] ===\nSent OTP ${otpCode} to ${user.phone}\n========================\n\n`);
+    }
+
     // Generate tokens
+    return this.generateTokens(user);
+  }
+
+  async registerShop(dto: RegisterShopDto): Promise<TokenResponse> {
+    // Check if email already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+
+    // Hash password
+    const saltRounds = this.configService.get<number>('bcrypt.saltRounds') || 12;
+    const hashedPassword = await bcrypt.hash(dto.password, saltRounds);
+
+    const slug = dto.shopName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(1000 + Math.random() * 9000);
+
+    // Create Tenant, Shop, Owner, QueueStats, and WorkingHours in a transaction
+    const user = await this.prisma.$transaction(async (tx) => {
+      // 1. Create Tenant
+      const tenant = await tx.tenant.create({
+        data: {
+          name: dto.shopName + ' Tenant',
+          type: dto.shopType,
+        },
+      });
+
+      // 2. Create Shop Owner (User)
+      const owner = await tx.user.create({
+        data: {
+          email: dto.email,
+          name: dto.ownerName,
+          phone: dto.phone,
+          hashedPassword,
+          role: UserRole.OWNER,
+          tenantId: tenant.id,
+        },
+      });
+
+      // 3. Create Shop
+      const shop = await tx.shop.create({
+        data: {
+          tenantId: tenant.id,
+          name: dto.shopName,
+          slug,
+          address: dto.address,
+          city: dto.city,
+          state: dto.state,
+          postalCode: dto.postalCode,
+          phone: dto.phone,
+          email: dto.email,
+          latitude: dto.latitude,
+          longitude: dto.longitude,
+          autoAcceptBookings: true,
+          maxConcurrentBookings: 1,
+        },
+      });
+
+      // 4. Create Queue Stats
+      await tx.queueStats.create({
+        data: {
+          shopId: shop.id,
+          currentWaitingCount: 0,
+          estimatedWaitMinutes: 0,
+        },
+      });
+
+      // 5. Create Default Working Hours (Mon-Fri 09:00 to 18:00)
+      const weekdays = [
+        DayOfWeek.MONDAY,
+        DayOfWeek.TUESDAY,
+        DayOfWeek.WEDNESDAY,
+        DayOfWeek.THURSDAY,
+        DayOfWeek.FRIDAY,
+      ];
+
+      for (const day of weekdays) {
+        await tx.workingHours.create({
+          data: {
+            shopId: shop.id,
+            dayOfWeek: day,
+            openTime: '09:00',
+            closeTime: '18:00',
+            breakWindows: [],
+          },
+        });
+      }
+
+      await tx.workingHours.create({
+        data: {
+          shopId: shop.id,
+          dayOfWeek: DayOfWeek.SATURDAY,
+          openTime: '10:00',
+          closeTime: '15:00',
+          breakWindows: [],
+        },
+      });
+
+      await tx.workingHours.create({
+        data: {
+          shopId: shop.id,
+          dayOfWeek: DayOfWeek.SUNDAY,
+          openTime: '09:00',
+          closeTime: '18:00',
+          isClosed: true,
+          breakWindows: [],
+        },
+      });
+
+      return owner;
+    });
+
+    // Generate tokens for the new owner
     return this.generateTokens(user);
   }
 

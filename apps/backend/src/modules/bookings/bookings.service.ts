@@ -5,6 +5,7 @@ import { QueueService } from '../queue/queue.service';
 import { QueueGateway } from '../queue/queue.gateway';
 import { SlotEngineService } from '../queue/slot-engine.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrustScoreService } from '../users/trust-score.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { BookingStatus, BookingSource, NotificationChannel, NotificationType } from '@prisma/client';
@@ -20,6 +21,7 @@ export class BookingsService {
     private queueGateway: QueueGateway,
     private slotEngine: SlotEngineService,
     private notificationsService: NotificationsService,
+    private trustScoreService: TrustScoreService,
   ) { }
 
   /**
@@ -72,6 +74,36 @@ export class BookingsService {
     if (bookingStartTime <= new Date()) {
       throw new BadRequestException('Cannot book a slot in the past');
     }
+
+    // --- SPAM PREVENTION & CONCURRENCY RULE ---
+    if (userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundException('User not found');
+      if (!user.phone || !user.isPhoneVerified) {
+        throw new BadRequestException('A verified phone number is required to book an appointment.');
+      }
+    }
+
+    // A single user (by userId or phone) can only hold ONE active booking across the platform
+    const activeBookingConditions: any[] = [{ status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS] } }];
+    if (userId) {
+      activeBookingConditions.push({ userId });
+    } else if (customerPhone) {
+      activeBookingConditions.push({ customerPhone });
+    }
+
+    if (activeBookingConditions.length > 1) {
+      const existingActiveBooking = await this.prisma.booking.findFirst({
+        where: {
+          AND: activeBookingConditions,
+        },
+      });
+
+      if (existingActiveBooking) {
+        throw new ConflictException('You already have an active appointment. Please complete or cancel it before booking another.');
+      }
+    }
+    // --- END SPAM PREVENTION ---
 
     // Check slot availability using transaction for consistency
     const booking = await this.prisma.$transaction(async (tx) => {
@@ -415,6 +447,12 @@ export class BookingsService {
       status,
       updatedAt: new Date().toISOString(),
     });
+
+    // --- TRUST SCORE CALCULATION ---
+    const scoreTriggerStatuses: BookingStatus[] = [BookingStatus.COMPLETED, BookingStatus.CANCELLED, BookingStatus.NO_SHOW];
+    if (updatedBooking.userId && scoreTriggerStatuses.includes(status)) {
+      this.trustScoreService.recalculateTrustScore(updatedBooking.userId).catch(console.error);
+    }
 
     return updatedBooking;
   }

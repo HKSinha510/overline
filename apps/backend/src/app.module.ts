@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 // Core Modules
 import { PrismaModule } from './common/prisma/prisma.module';
@@ -40,6 +41,9 @@ import configuration from './config/configuration';
       },
     ]),
 
+    // Cron Jobs
+    ScheduleModule.forRoot(),
+
     // Core Modules
     PrismaModule,
     RedisModule,
@@ -60,4 +64,4 @@ import configuration from './config/configuration';
     UploadModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

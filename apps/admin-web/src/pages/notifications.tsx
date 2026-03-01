@@ -1,8 +1,8 @@
 import React from 'react';
 import Head from 'next/head';
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks';
-import { Bell, CheckCircle, Clock, Search, ExternalLink } from 'lucide-react';
-import { Card, Badge, Button, Loading, Alert } from '@/components/ui';
+import { Bell, CheckCircle, Clock, Search, ExternalLink, AlertCircle } from 'lucide-react';
+import { Card, Badge, Button, Loading } from '@/components/ui';
 import { AdminLayout } from '@/components/layout';
 import { format } from 'date-fns';
 import { Notification } from '@/types';
@@ -81,13 +81,14 @@ export default function NotificationsPage() {
                 </div>
 
                 {error && (
-                    <Alert variant="error">
-                        Failed to load notifications. Please try again.
-                    </Alert>
+                    <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        <span>Failed to load notifications. Please try again.</span>
+                    </div>
                 )}
 
                 {/* List */}
-                <Card variant="default" padding="none">
+                <Card className="p-0">
                     {isLoading ? (
                         <div className="p-8 pb-12">
                             <Loading text="Loading notifications..." />

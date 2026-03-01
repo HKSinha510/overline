@@ -115,6 +115,10 @@ export class QueueService {
             id: true,
             name: true,
             phone: true,
+            // Trust Score fields for admin dashboard warnings
+            trustScore: true,
+            noShowBookings: true,
+            totalBookings: true,
           },
         },
         services: {

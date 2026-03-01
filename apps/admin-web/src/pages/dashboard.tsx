@@ -11,6 +11,7 @@ import {
   Play,
   Check,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, Badge, Button, StatCard, Loading } from '@/components/ui';
 import { useDashboard, useAdminBookings, useStartService, useMarkComplete } from '@/hooks';
@@ -18,6 +19,21 @@ import { useAuthStore } from '@/stores/auth';
 import { LiveTracking } from '@/components/dashboard/LiveTracking';
 import { formatTime, formatPrice, cn } from '@/lib/utils';
 import { BookingStatus } from '@/types';
+
+/**
+ * Trust Score level indicator
+ * - Danger: < 10% with > 5 bookings (blacklisted)
+ * - Warning: < 40% (high risk - frequent no-shows)
+ */
+function getTrustLevel(user: any): 'normal' | 'warning' | 'danger' | null {
+  if (!user) return null;
+  const score = user.trustScore ?? 100;
+  const totalBookings = user.totalBookings ?? 0;
+  
+  if (score < 10 && totalBookings > 5) return 'danger';
+  if (score < 40) return 'warning';
+  return 'normal';
+}
 
 export default function DashboardPage() {
   const { data: dashboard, isLoading: loadingDashboard } = useDashboard();
@@ -113,6 +129,7 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                   {todayBookings?.data.slice(0, 8).map((booking) => {
                     const config = statusConfig[booking.status] || statusConfig.PENDING;
+                    const trustLevel = getTrustLevel(booking.user);
 
                     return (
                       <div
@@ -131,9 +148,28 @@ export default function DashboardPage() {
                             </p>
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">
-                              {booking.user?.name || 'Walk-in'}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900">
+                                {booking.user?.name || 'Walk-in'}
+                              </p>
+                              {/* Trust Score Warning */}
+                              {trustLevel === 'danger' && (
+                                <span 
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-xs font-medium"
+                                  title={`Trust Score: ${booking.user?.trustScore?.toFixed(0)}%`}
+                                >
+                                  <AlertTriangle className="w-3 h-3" />
+                                </span>
+                              )}
+                              {trustLevel === 'warning' && (
+                                <span 
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium"
+                                  title={`Trust Score: ${booking.user?.trustScore?.toFixed(0)}% - High Risk`}
+                                >
+                                  <AlertTriangle className="w-3 h-3" />
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-500">
                               {booking.services?.map((s) => s.serviceName).join(', ')}
                             </p>

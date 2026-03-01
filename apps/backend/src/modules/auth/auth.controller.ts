@@ -8,6 +8,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { RegisterShopDto } from './dto/register-shop.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
@@ -16,7 +17,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   @Post('signup')
   @ApiOperation({ summary: 'Register a new user' })
@@ -24,6 +25,14 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email already registered' })
   async signup(@Body() dto: SignupDto): Promise<TokenResponse> {
     return this.authService.signup(dto);
+  }
+
+  @Post('register-shop')
+  @ApiOperation({ summary: 'Register a new shop owner and provision their shop' })
+  @ApiResponse({ status: 201, description: 'Shop and owner registered successfully' })
+  @ApiResponse({ status: 409, description: 'Email already registered' })
+  async registerShop(@Body() dto: RegisterShopDto): Promise<TokenResponse> {
+    return this.authService.registerShop(dto);
   }
 
   @Post('login')

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -10,7 +10,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
@@ -44,5 +44,20 @@ export class UsersController {
     @Param('id') notificationId: string,
   ) {
     return this.usersService.markNotificationRead(userId, notificationId);
+  }
+
+  @Post('me/otp/send')
+  @ApiOperation({ summary: 'Send OTP to verified user phone' })
+  async sendOtp(@CurrentUser('id') userId: string) {
+    return this.usersService.sendOtp(userId);
+  }
+
+  @Post('me/otp/verify')
+  @ApiOperation({ summary: 'Verify user phone OTP' })
+  async verifyOtp(
+    @CurrentUser('id') userId: string,
+    @Body('code') code: string,
+  ) {
+    return this.usersService.verifyOtp(userId, code);
   }
 }

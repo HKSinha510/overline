@@ -335,10 +335,15 @@ export default function ShopDetailPage() {
 
                   {/* Minimal Info Row */}
                   <div className={`flex flex-wrap items-center gap-x-8 gap-y-4 mt-8 md:pl-12 ${themeTextColorPrimary}`}>
-                    <span className="flex items-center gap-2 font-medium text-lg">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.address}, ${shop.city}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 font-medium text-lg hover:text-primary-500 transition-colors"
+                    >
                       <MapPin className={`w-5 h-5 ${themeTextColorSecondary}`} />
                       {shop.address}, {shop.city}
-                    </span>
+                    </a>
                     {shop.phone && (
                       <a href={`tel:${shop.phone}`} className="flex items-center gap-2 font-medium text-lg hover:text-indigo-500 transition-colors">
                         <Phone className={`w-5 h-5 ${themeTextColorSecondary}`} />

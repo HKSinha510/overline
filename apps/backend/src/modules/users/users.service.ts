@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findById(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -45,6 +45,9 @@ export class UsersService {
         name: dto.name,
         phone: dto.phone,
         avatarUrl: dto.avatarUrl,
+        email: dto.email,
+        gender: dto.gender,
+        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
       },
       select: {
         id: true,
@@ -53,6 +56,8 @@ export class UsersService {
         phone: true,
         avatarUrl: true,
         role: true,
+        gender: true,
+        dateOfBirth: true,
       },
     });
   }
@@ -92,5 +97,56 @@ export class UsersService {
         readAt: new Date(),
       },
     });
+  }
+
+  async sendOtp(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.phone) {
+      throw new BadRequestException('User does not have a phone number set');
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { otpCode, otpExpiresAt },
+    });
+
+    console.log(`\n\n=== [OTP SIMULATION] ===\nResent OTP ${otpCode} to ${user.phone}\n========================\n\n`);
+
+    return { success: true, message: 'OTP sent successfully' };
+  }
+
+  async verifyOtp(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (user.isPhoneVerified) {
+      return { success: true, message: 'Phone already verified' };
+    }
+
+    if (!user.otpCode || !user.otpExpiresAt) {
+      throw new BadRequestException('No OTP was requested');
+    }
+
+    if (new Date() > user.otpExpiresAt) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    if (user.otpCode !== code) {
+      throw new BadRequestException('Invalid OTP code');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isPhoneVerified: true,
+        otpCode: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    return { success: true, message: 'Phone verified successfully' };
   }
 }

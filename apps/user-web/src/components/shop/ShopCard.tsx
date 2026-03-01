@@ -97,9 +97,17 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, queueInfo, userLocation }) =>
             <p className="text-sm text-gray-500 mb-2 line-clamp-1">{shop.description}</p>
           )}
 
-          <div className="flex items-center text-gray-500 text-sm mb-2">
-            <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
-            <span className="truncate">{shop.address}, {shop.city}</span>
+          <div className="flex items-center text-gray-500 text-sm mb-2 group/address">
+            <MapPin className="w-4 h-4 mr-1 flex-shrink-0 group-hover/address:text-primary-500 transition-colors" />
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.address}, ${shop.city}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="truncate hover:text-primary-600 hover:underline transition-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {shop.address}, {shop.city}
+            </a>
           </div>
 
           {/* Distance & Travel time */}
@@ -118,11 +126,19 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, queueInfo, userLocation }) =>
           )}
 
           {/* Rating */}
-          <div className="flex items-center gap-4 mb-3">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center text-amber-500">
               <Star className="w-4 h-4 fill-current mr-1" />
               <span className="font-medium text-gray-900">4.8</span>
               <span className="text-gray-400 text-sm ml-1">(120)</span>
+            </div>
+
+            {/* Quick Action Button (Visible on hover of parent card) */}
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="bg-lexo-black text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
+                Book next slot
+                <Clock className="w-3 h-3" />
+              </div>
             </div>
           </div>
 

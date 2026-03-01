@@ -54,6 +54,35 @@ export function useLogin() {
   });
 }
 
+export function useRegisterShop() {
+  const queryClient = useQueryClient();
+  const { login, setShopId } = useAuthStore();
+
+  return useMutation<AuthResponse, Error, any>({
+    mutationFn: async (payload) => {
+      const { data } = await api.post('/auth/register-shop', payload);
+      if (data.user.role !== 'OWNER' && data.user.role !== 'STAFF' && data.user.role !== 'SUPER_ADMIN') {
+        throw new Error('Access denied. Admin access only.');
+      }
+      return data;
+    },
+    onSuccess: async (data) => {
+      login(data.user, data.accessToken, data.refreshToken);
+      queryClient.setQueryData(['admin', 'user', 'me'], data.user);
+
+      try {
+        const { data: shops } = await api.get('/admin/my-shops');
+        if (shops && shops.length > 0) {
+          setShopId(shops[0].id);
+          queryClient.setQueryData(['admin', 'my-shops'], shops);
+        }
+      } catch (err) {
+        console.error('Failed to fetch shops:', err);
+      }
+    },
+  });
+}
+
 export function useMyShops() {
   const { isAuthenticated } = useAuthStore();
 

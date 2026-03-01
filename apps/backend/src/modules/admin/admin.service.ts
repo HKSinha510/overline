@@ -113,6 +113,12 @@ export class AdminService {
               name: true,
               phone: true,
               email: true,
+              // Trust Score fields for admin dashboard
+              trustScore: true,
+              totalBookings: true,
+              completedBookings: true,
+              noShowBookings: true,
+              cancelledBookings: true,
             },
           },
           services: true,

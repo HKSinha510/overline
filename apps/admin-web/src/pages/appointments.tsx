@@ -1,12 +1,27 @@
 import React from 'react';
 import Head from 'next/head';
 import { format, addDays, subDays } from 'date-fns';
-import { ChevronLeft, ChevronRight, Filter, Plus, Search, Wifi, WifiOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, Plus, Search, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
 import { Card, Button, Input, Badge, Loading } from '@/components/ui';
 import { useAdminBookings, useUpdateBookingStatus, useQueueSocket } from '@/hooks';
 import { useAuthStore } from '@/stores/auth';
 import { formatTime, cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
+
+/**
+ * Helper to determine trust level from score
+ * - High Risk: score < 40% - Show warning
+ * - Blacklisted: score < 10% with > 5 bookings - Show danger
+ */
+function getTrustLevel(user: any): 'normal' | 'warning' | 'danger' | null {
+  if (!user) return null;
+  const score = user.trustScore ?? 100;
+  const totalBookings = user.totalBookings ?? 0;
+  
+  if (score < 10 && totalBookings > 5) return 'danger';
+  if (score < 40) return 'warning';
+  return 'normal';
+}
 
 export default function AppointmentsPage() {
   const [selectedDate, setSelectedDate] = React.useState(new Date());
@@ -181,6 +196,7 @@ export default function AppointmentsPage() {
               <tbody className="divide-y divide-gray-200">
                 {filteredBookings?.map((booking) => {
                   const config = statusConfig[booking.status] || statusConfig.PENDING;
+                  const trustLevel = getTrustLevel(booking.user);
 
                   return (
                     <tr key={booking.id} className="hover:bg-gray-50">
@@ -190,11 +206,32 @@ export default function AppointmentsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {booking.user?.name || 'Walk-in'}
-                          </p>
-                          <p className="text-sm text-gray-500">{booking.user?.phone}</p>
+                        <div className="flex items-start gap-2">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {booking.user?.name || 'Walk-in'}
+                            </p>
+                            <p className="text-sm text-gray-500">{booking.user?.phone}</p>
+                          </div>
+                          {/* Trust Score Warning Indicators */}
+                          {trustLevel === 'danger' && (
+                            <span 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-xs font-medium"
+                              title={`Trust Score: ${booking.user?.trustScore?.toFixed(0)}% - ${booking.user?.noShowBookings} no-shows out of ${booking.user?.totalBookings} bookings`}
+                            >
+                              <AlertTriangle className="w-3 h-3" />
+                              Blacklisted
+                            </span>
+                          )}
+                          {trustLevel === 'warning' && (
+                            <span 
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium"
+                              title={`Trust Score: ${booking.user?.trustScore?.toFixed(0)}% - Frequent no-shows`}
+                            >
+                              <AlertTriangle className="w-3 h-3" />
+                              High Risk
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">

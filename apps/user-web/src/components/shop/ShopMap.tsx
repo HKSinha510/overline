@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { Star, Clock } from 'lucide-react';
-import { Shop } from '@/types/models';
+import type { Shop } from '@/types';
 
 // Dynamically import Leaflet so it doesn't break Next.js SSR
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });

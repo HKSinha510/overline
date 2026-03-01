@@ -172,13 +172,13 @@ export default function HomePage() {
       {/* ========================================================================= */}
       {/* 2. Category Tag Marquee                                                   */}
       {/* ========================================================================= */}
-      <section className="py-12 border-y border-gray-100 bg-white overflow-hidden flex whitespace-nowrap">
-        <div className="animate-marquee flex gap-4 pr-4">
-          {[...categories, ...categories, ...categories].map((cat, i) => (
+      <section className="py-12 border-y border-gray-100 bg-white overflow-hidden flex whitespace-nowrap group">
+        <div className="animate-marquee flex gap-4 pr-4 group-hover:[animation-play-state:paused]">
+          {[...categories, ...categories].map((cat, i) => (
             <Link key={i} href={cat.href}>
-              <div className="inline-flex items-center gap-3 px-8 py-4 rounded-full border border-gray-200 hover:border-lexo-black hover:bg-lexo-black hover:text-white transition-all duration-300 group cursor-pointer shadow-sm">
-                <cat.icon className="w-5 h-5 text-lexo-gray group-hover:text-white transition-colors" />
-                <span className="text-lg font-bold text-lexo-charcoal group-hover:text-white transition-colors">{cat.name}</span>
+              <div className="inline-flex items-center gap-3 px-8 py-4 rounded-full border border-gray-200 hover:border-lexo-black hover:bg-lexo-black hover:text-white transition-all duration-300 group/item cursor-pointer shadow-sm">
+                <cat.icon className="w-5 h-5 text-lexo-gray group-hover/item:text-white transition-colors" />
+                <span className="text-lg font-bold text-lexo-charcoal group-hover/item:text-white transition-colors">{cat.name}</span>
               </div>
             </Link>
           ))}

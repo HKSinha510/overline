@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { RescheduleBookingDto } from './dto/reschedule-booking.dto';
@@ -16,17 +17,21 @@ export class BookingsController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
+  @Throttle({ default: { limit: 5, ttl: 3600000 } }) // 5 booking attempts per hour per user
   @ApiOperation({ summary: 'Create a new booking' })
   @ApiResponse({ status: 201, description: 'Booking created successfully' })
   @ApiResponse({ status: 409, description: 'Time slot not available' })
+  @ApiResponse({ status: 429, description: 'Too many booking attempts. Try again later.' })
   async create(@Body() dto: CreateBookingDto, @CurrentUser('id') userId: string) {
     return this.bookingsService.create(dto, userId);
   }
 
   @Post('guest')
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 3600000 } }) // 3 guest booking attempts per IP per hour
   @ApiOperation({ summary: 'Create a booking as guest (no account required)' })
   @ApiResponse({ status: 201, description: 'Booking created successfully' })
+  @ApiResponse({ status: 429, description: 'Too many booking attempts. Try again later.' })
   async createGuestBooking(@Body() dto: CreateBookingDto) {
     if (!dto.customerName || !dto.customerPhone) {
       throw new Error('Guest bookings require customer name and phone');

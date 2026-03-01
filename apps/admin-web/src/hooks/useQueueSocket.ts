@@ -27,6 +27,7 @@ function getWsUrl(): string {
 export function useQueueSocket({
   shopId,
   onQueueUpdate,
+  onBookingUpdate,
   enabled = true,
 }: UseQueueSocketOptions) {
   const socketRef = useRef<Socket | null>(null);

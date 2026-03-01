@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Home, Search, Calendar, User, Menu, X, ArrowRight } from 'lucide-react';
+import { Home, Search, Calendar, User, Menu, X, ArrowRight, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth';
 import { Avatar, Button } from '@/components/ui';
@@ -82,7 +82,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="hidden md:flex items-center gap-3">
               {/* Partner Link */}
               <a
-                href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.overline.app"}
+                href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://overline-admin-web.vercel.app"}
                 className="text-sm font-bold text-lexo-gray hover:text-lexo-black px-4 transition-colors hidden lg:block"
                 target="_blank"
                 rel="noreferrer"
@@ -183,7 +183,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 transition={{ delay: 0.5 }}
               >
                 <a
-                  href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://admin.overline.app"}
+                  href={process.env.NEXT_PUBLIC_ADMIN_URL || "https://overline-admin-web.vercel.app"}
                   className="text-center font-bold text-lexo-gray hover:text-lexo-black py-4 transition-colors"
                   target="_blank"
                   rel="noreferrer"
@@ -219,12 +219,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <p className="text-lexo-gray text-lg md:text-xl max-w-md mb-10 leading-relaxed font-medium">
                 Skip the line and experience premium grooming. Secure your appointment in seconds.
               </p>
-              <Link href="/explore">
-                <Button className="bg-white text-lexo-black hover:bg-gray-100 rounded-full py-6 px-10 text-lg font-bold group shadow-[0_0_40px_rgba(255,255,255,0.15)] flex items-center gap-3">
-                  Find a Shop
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link href="/explore">
+                  <Button className="bg-white text-lexo-black hover:bg-gray-100 rounded-full py-6 px-10 text-lg font-bold group shadow-[0_0_40px_rgba(255,255,255,0.15)] flex items-center gap-3">
+                    Find a Shop
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+                <Link href="/explore">
+                  <Button variant="secondary" className="bg-lexo-black text-white hover:bg-lexo-dark rounded-full py-6 px-10 text-lg font-bold flex items-center gap-3 border border-white/20">
+                    Book next slot
+                    <Clock className="w-5 h-5" />
+                  </Button>
+                </Link>
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row justify-between lg:justify-end gap-12 lg:gap-24">
@@ -241,7 +249,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <div className="flex flex-col gap-3">
                   <Link href="#" className="font-semibold hover:text-indigo-400 transition-colors">Privacy Policy</Link>
                   <Link href="#" className="font-semibold hover:text-indigo-400 transition-colors">Terms of Service</Link>
-                  <Link href="/admin" className="font-semibold hover:text-indigo-400 transition-colors text-white/50">Partner Login</Link>
+                  <Link href="https://overline-admin-web.vercel.app" className="font-semibold hover:text-indigo-400 transition-colors text-white/50">Partner Login</Link>
                 </div>
               </div>
             </div>

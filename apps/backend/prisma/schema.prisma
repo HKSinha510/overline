@@ -125,6 +125,17 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
+  // Verification OTP
+  otpCode         String?   @map("otp_code")
+  otpExpiresAt    DateTime? @map("otp_expires_at")
+
+  // Trust Scoring & Statistics
+  trustScore        Float     @default(100.0) @map("trust_score")
+  totalBookings     Int       @default(0) @map("total_bookings")
+  completedBookings Int       @default(0) @map("completed_bookings")
+  noShowBookings    Int       @default(0) @map("no_show_bookings")
+  cancelledBookings Int       @default(0) @map("cancelled_bookings")
+
   // Relations
   tenantId      String?         @map("tenant_id")
   tenant        Tenant?         @relation(fields: [tenantId], references: [id])
