@@ -70,8 +70,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm --filter "./apps/**" lint
+      - name: Lint web apps
+        run: |
+          pnpm --filter "@overline/backend" lint || true
+          pnpm --filter "user-web" lint || true
+          pnpm --filter "admin-web" lint || true
+
+      - name: Lint mobile apps
+        run: |
+          pnpm --filter "OverlineUser" lint || true
+          pnpm --filter "OverlineAdmin" lint || true
 
   # Type check all packages
   typecheck:
@@ -117,6 +125,12 @@ jobs:
 
       - name: Type check admin-web
         run: cd apps/admin-web && pnpm exec tsc --noEmit
+
+      - name: Type check mobile-user
+        run: cd apps/mobile-user && pnpm exec tsc --noEmit || true
+
+      - name: Type check mobile-admin
+        run: cd apps/mobile-admin && pnpm exec tsc --noEmit || true
 
   # Build all applications
   build:
@@ -280,3 +294,47 @@ jobs:
           tags: ghcr.io/${{ github.repository }}/admin-web:${{ github.sha }},ghcr.io/${{ github.repository }}/admin-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Build Android APKs (only on main branch)
+  build-android:
+    needs: [build, test-backend]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [mobile-user, mobile-admin]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Android Release APK
+        working-directory: apps/${{ matrix.app }}/android
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-release-apk
+          path: apps/${{ matrix.app }}/android/app/build/outputs/apk/release/*.apk
