@@ -40,7 +40,9 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
       set({isLoading: true, error: null});
       const {data} = await authApi.login(email, password);
       await AsyncStorage.setItem('accessToken', data.accessToken);
-      await AsyncStorage.setItem('refreshToken', data.refreshToken);
+      if (data.refreshToken) {
+        await AsyncStorage.setItem('refreshToken', data.refreshToken);
+      }
       set({user: data.user, isAuthenticated: true, isLoading: false});
     } catch (error: any) {
       const message =
@@ -55,7 +57,9 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
       set({isLoading: true, error: null});
       const {data: response} = await authApi.signup(data);
       await AsyncStorage.setItem('accessToken', response.accessToken);
-      await AsyncStorage.setItem('refreshToken', response.refreshToken);
+      if (response.refreshToken) {
+        await AsyncStorage.setItem('refreshToken', response.refreshToken);
+      }
       set({user: response.user, isAuthenticated: true, isLoading: false});
     } catch (error: any) {
       const message =

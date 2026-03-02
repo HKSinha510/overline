@@ -1,19 +1,36 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import { Platform } from 'react-native';
+import {Platform} from 'react-native';
 
 // Configure API base URL
 const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const API_BASE_URL = __DEV__
-  ? `http://${DEV_HOST}:3001/api/v1` // Local dev server
-  : 'https://overline-backend.up.railway.app/api/v1'; // Production
+  ? `http://${DEV_HOST}:3001/api/v1`
+  : 'https://overline-backend.up.railway.app/api/v1';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {'Content-Type': 'application/json'},
 });
+
+// Track if we're currently refreshing the token
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token!);
+    }
+  });
+  failedQueue = [];
+};
 
 // Add auth token to requests
 api.interceptors.request.use(async config => {
@@ -28,10 +45,50 @@ api.interceptors.request.use(async config => {
 api.interceptors.response.use(
   response => response,
   async error => {
-    if (error.response?.status === 401) {
-      await AsyncStorage.removeItem('accessToken');
-      await AsyncStorage.removeItem('refreshToken');
-      // Navigation to login will be handled by auth state
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({resolve, reject});
+        })
+          .then(token => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await AsyncStorage.getItem('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token');
+        }
+
+        const {data} = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          refreshToken,
+        });
+
+        const newAccessToken = data.accessToken;
+        await AsyncStorage.setItem('accessToken', newAccessToken);
+        if (data.refreshToken) {
+          await AsyncStorage.setItem('refreshToken', data.refreshToken);
+        }
+
+        processQueue(null, newAccessToken);
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        await AsyncStorage.removeItem('accessToken');
+        await AsyncStorage.removeItem('refreshToken');
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
     return Promise.reject(error);
   },
@@ -40,31 +97,52 @@ api.interceptors.response.use(
 // Auth API
 export const authApi = {
   login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
+    api.post('/auth/login', {email, password}),
   signup: (data: {
     name: string;
     email: string;
     password: string;
     phone: string;
   }) => api.post('/auth/signup', data),
-  me: () => api.get('/auth/me'),
+  me: () => api.get('/users/me'),
   logout: () => api.post('/auth/logout'),
+  refresh: (refreshToken: string) =>
+    api.post('/auth/refresh', {refreshToken}),
+  changePassword: (data: {currentPassword: string; newPassword: string}) =>
+    api.post('/auth/change-password', data),
 };
 
 // Shops API
 export const shopsApi = {
-  list: (params?: { city?: string; lat?: number; lng?: number; search?: string }) =>
-    api.get('/shops', { params }),
-  getById: (id: string) => api.get(`/shops/${id}`),
+  list: (params?: {
+    city?: string;
+    lat?: number;
+    lng?: number;
+    search?: string;
+  }) => api.get('/shops', {params}),
+  getBySlug: (slug: string) => api.get(`/shops/${slug}`),
   getServices: (shopId: string) => api.get(`/shops/${shopId}/services`),
-  getAvailability: (shopId: string, date: string) =>
-    api.get(`/shops/${shopId}/availability`, { params: { date } }),
-  getReviews: (shopId: string) => api.get(`/shops/${shopId}/reviews`),
+  getQueue: (shopId: string) => api.get(`/shops/${shopId}/queue`),
+  getCities: () => api.get('/shops/cities'),
+  getNearby: (params: {lat: number; long: number; radiusKm?: number}) =>
+    api.get('/shops/nearby', {params}),
+};
+
+// Queue API - for available time slots
+export const queueApi = {
+  getSlots: (
+    shopId: string,
+    params: {date: string; serviceIds?: string[]; duration?: number},
+  ) => api.get(`/queue/slots/${shopId}`, {params}),
+  getNextSlot: (shopId: string, params?: {serviceIds?: string[]}) =>
+    api.get(`/queue/next-slot/${shopId}`, {params}),
+  getPosition: (bookingId: string) =>
+    api.get(`/queue/position/${bookingId}`),
 };
 
 // Bookings API
 export const bookingsApi = {
-  create: (data: { shopId: string; serviceIds: string[]; startTime: string }) =>
+  create: (data: {shopId: string; serviceIds: string[]; startTime: string}) =>
     api.post('/bookings', data),
   createGuest: (data: {
     shopId: string;
@@ -74,10 +152,14 @@ export const bookingsApi = {
     customerPhone: string;
     customerEmail?: string;
   }) => api.post('/bookings/guest', data),
-  getMy: (params?: { status?: string; page?: number; limit?: number }) =>
-    api.get('/bookings/my', { params }),
+  getMy: (params?: {status?: string; page?: number; limit?: number}) =>
+    api.get('/bookings/my', {params}),
   getById: (id: string) => api.get(`/bookings/${id}`),
   cancel: (id: string) => api.patch(`/bookings/${id}/cancel`),
+  cancelWithReason: (id: string, data: {reason: string}) =>
+    api.patch(`/bookings/${id}/cancel-with-reason`, data),
+  reschedule: (id: string, data: {startTime: string}) =>
+    api.patch(`/bookings/${id}/reschedule`, data),
   lookup: (bookingNumber: string) =>
     api.get(`/bookings/lookup/${bookingNumber}`),
 };
@@ -86,15 +168,44 @@ export const bookingsApi = {
 export const walletApi = {
   get: () => api.get('/wallet'),
   getBalance: () => api.get('/wallet/balance'),
-  getHistory: (params?: { page?: number; limit?: number }) =>
-    api.get('/wallet/history', { params }),
+  getTransactions: (params?: {
+    take?: number;
+    skip?: number;
+    type?: string;
+  }) => api.get('/wallet/transactions', {params}),
 };
 
 // User API
 export const userApi = {
-  getProfile: () => api.get('/users/profile'),
-  updateProfile: (data: { name?: string; phone?: string }) =>
-    api.patch('/users/profile', data),
-  updatePushToken: (token: string, platform: string) =>
-    api.post('/users/push-token', { token, platform }),
+  getProfile: () => api.get('/users/me'),
+  updateProfile: (data: {name?: string; phone?: string}) =>
+    api.patch('/users/me', data),
+  sendOtp: () => api.post('/users/me/otp/send'),
+  verifyOtp: (data: {otp: string}) => api.post('/users/me/otp/verify', data),
+};
+
+// Reviews API
+export const reviewsApi = {
+  getByShop: (shopId: string, params?: {page?: number; limit?: number}) =>
+    api.get(`/reviews/shop/${shopId}`, {params}),
+  getStats: (shopId: string) => api.get(`/reviews/shop/${shopId}/stats`),
+  create: (data: {bookingId: string; rating: number; comment?: string}) =>
+    api.post('/reviews', data),
+  getMy: () => api.get('/reviews/my'),
+};
+
+// Notifications API
+export const notificationsApi = {
+  get: (params?: {page?: number; limit?: number; unreadOnly?: boolean}) =>
+    api.get('/notifications', {params}),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  markRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/read-all'),
+};
+
+// Payments API
+export const paymentsApi = {
+  createIntent: (data: {bookingId: string; amount: number}) =>
+    api.post('/payments/create-intent', data),
+  getStatus: (id: string) => api.get(`/payments/${id}`),
 };

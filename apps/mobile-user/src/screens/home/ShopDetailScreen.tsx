@@ -29,7 +29,7 @@ export default function ShopDetailScreen() {
 
   const { data: shop, isLoading } = useQuery({
     queryKey: ['shop', shopId],
-    queryFn: () => shopsApi.getById(shopId).then(res => res.data),
+    queryFn: () => shopsApi.getBySlug(shopId).then(res => res.data),
   });
 
   const toggleService = (serviceId: string) => {

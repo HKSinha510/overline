@@ -1,19 +1,39 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Platform} from 'react-native';
 
-// Base URL - update this for production
+// Base URL configuration
+const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const BASE_URL = __DEV__
-  ? 'http://10.0.2.2:3001/api/v1' // Android emulator
-  : 'https://your-production-url.com/api/v1';
+  ? `http://${DEV_HOST}:3001/api/v1`
+  : 'https://overline-backend.up.railway.app/api/v1';
 
 // Create axios instance
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Track if we're currently refreshing the token
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token!);
+    }
+  });
+  failedQueue = [];
+};
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
@@ -29,76 +49,126 @@ apiClient.interceptors.request.use(
   },
 );
 
-// Response interceptor for error handling
+// Response interceptor with token refresh
 apiClient.interceptors.response.use(
   response => response,
   async error => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      await AsyncStorage.removeItem('admin_token');
-      // Navigate to login will be handled by auth store
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({resolve, reject});
+        })
+          .then(token => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await AsyncStorage.getItem('admin_refresh_token');
+        if (!refreshToken) {
+          throw new Error('No refresh token');
+        }
+
+        const {data} = await axios.post(`${BASE_URL}/auth/refresh`, {
+          refreshToken,
+        });
+
+        const newAccessToken = data.accessToken;
+        await AsyncStorage.setItem('admin_token', newAccessToken);
+        if (data.refreshToken) {
+          await AsyncStorage.setItem('admin_refresh_token', data.refreshToken);
+        }
+
+        processQueue(null, newAccessToken);
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        await AsyncStorage.removeItem('admin_token');
+        await AsyncStorage.removeItem('admin_refresh_token');
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
     return Promise.reject(error);
   },
 );
 
-// Auth APIs
+// Auth APIs - uses the same auth endpoints as user app
 export const authApi = {
   login: (email: string, password: string) =>
-    apiClient.post('/admin/auth/login', {email, password}),
-  verifyOtp: (email: string, otp: string) =>
-    apiClient.post('/admin/auth/verify-otp', {email, otp}),
-  getProfile: () => apiClient.get('/admin/profile'),
-  logout: () => apiClient.post('/admin/auth/logout'),
+    apiClient.post('/auth/login', {email, password}),
+  getProfile: () => apiClient.get('/users/me'),
+  logout: () => apiClient.post('/auth/logout'),
+  refresh: (refreshToken: string) =>
+    apiClient.post('/auth/refresh', {refreshToken}),
 };
 
-// Dashboard APIs
+// OTP APIs
+export const otpApi = {
+  send: (phone: string) => apiClient.post('/otp/send', {phone}),
+  verify: (phone: string, otp: string) =>
+    apiClient.post('/otp/verify', {phone, otp}),
+};
+
+// Admin Dashboard APIs
 export const dashboardApi = {
-  getStats: (shopId?: string) =>
-    apiClient.get('/admin/dashboard/stats', {params: {shopId}}),
-  getRecentBookings: (shopId?: string, limit = 10) =>
-    apiClient.get('/admin/dashboard/recent-bookings', {
-      params: {shopId, limit},
-    }),
-  getTodayBookings: (shopId?: string) =>
-    apiClient.get('/admin/dashboard/today-bookings', {params: {shopId}}),
+  getStats: (shopId: string) =>
+    apiClient.get(`/admin/shops/${shopId}/dashboard`),
+  getBookings: (
+    shopId: string,
+    params?: {date?: string; status?: string; page?: number; limit?: number},
+  ) => apiClient.get(`/admin/shops/${shopId}/bookings`, {params}),
 };
 
-// Bookings APIs
+// Admin Bookings APIs
 export const bookingsApi = {
-  getAll: (params?: {
-    shopId?: string;
-    status?: string;
-    date?: string;
-    page?: number;
-    limit?: number;
-  }) => apiClient.get('/admin/bookings', {params}),
-  getById: (id: string) => apiClient.get(`/admin/bookings/${id}`),
-  updateStatus: (id: string, status: string) =>
-    apiClient.patch(`/admin/bookings/${id}/status`, {status}),
-  verifyCode: (shopId: string, code: string) =>
-    apiClient.post('/admin/bookings/verify', {shopId, code}),
-  startService: (bookingId: string) =>
-    apiClient.post(`/admin/bookings/${bookingId}/start`),
+  getAll: (
+    shopId: string,
+    params?: {status?: string; date?: string; page?: number; limit?: number},
+  ) => apiClient.get(`/admin/shops/${shopId}/bookings`, {params}),
+  getById: (id: string) => apiClient.get(`/bookings/${id}`),
+  updateStatus: (bookingId: string, status: string) =>
+    apiClient.patch(`/admin/bookings/${bookingId}/status`, {status}),
+  verifyCode: (bookingId: string, code: string) =>
+    apiClient.post(`/bookings/${bookingId}/verify-code`, {code}),
   completeService: (bookingId: string) =>
-    apiClient.post(`/admin/bookings/${bookingId}/complete`),
+    apiClient.post(`/bookings/${bookingId}/complete`),
   cancelBooking: (bookingId: string, reason?: string) =>
-    apiClient.post(`/admin/bookings/${bookingId}/cancel`, {reason}),
+    apiClient.patch(`/bookings/${bookingId}/cancel`, {reason}),
   markNoShow: (bookingId: string) =>
-    apiClient.post(`/admin/bookings/${bookingId}/no-show`),
+    apiClient.patch(`/admin/bookings/${bookingId}/status`, {
+      status: 'NO_SHOW',
+    }),
+  createWalkIn: (
+    shopId: string,
+    data: {serviceIds: string[]; customerName: string; customerPhone: string},
+  ) => apiClient.post(`/admin/shops/${shopId}/walk-in`, data),
 };
 
-// Services APIs
+// Services APIs - uses /services/shop/:shopId
 export const servicesApi = {
   getAll: (shopId: string) =>
-    apiClient.get('/admin/services', {params: {shopId}}),
-  create: (data: {
-    shopId: string;
-    name: string;
-    price: number;
-    durationMinutes: number;
-    description?: string;
-  }) => apiClient.post('/admin/services', data),
+    apiClient.get(`/services/shop/${shopId}`),
+  getById: (id: string) => apiClient.get(`/services/${id}`),
+  create: (
+    shopId: string,
+    data: {
+      name: string;
+      price: number;
+      durationMinutes: number;
+      description?: string;
+      category?: string;
+    },
+  ) => apiClient.post(`/services/shop/${shopId}`, data),
   update: (
     id: string,
     data: {
@@ -107,51 +177,64 @@ export const servicesApi = {
       durationMinutes?: number;
       description?: string;
       isActive?: boolean;
+      category?: string;
     },
-  ) => apiClient.patch(`/admin/services/${id}`, data),
-  delete: (id: string) => apiClient.delete(`/admin/services/${id}`),
-  toggleActive: (id: string) =>
-    apiClient.post(`/admin/services/${id}/toggle-active`),
+  ) => apiClient.patch(`/services/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/services/${id}`),
 };
 
 // Shop APIs
 export const shopApi = {
-  getMyShops: () => apiClient.get('/admin/shops/mine'),
-  getById: (id: string) => apiClient.get(`/admin/shops/${id}`),
-  update: (id: string, data: any) => apiClient.patch(`/admin/shops/${id}`, data),
-  updateWorkingHours: (id: string, workingHours: any) =>
-    apiClient.patch(`/admin/shops/${id}/working-hours`, {workingHours}),
-  uploadPhoto: (id: string, formData: FormData) =>
-    apiClient.post(`/admin/shops/${id}/photos`, formData, {
-      headers: {'Content-Type': 'multipart/form-data'},
-    }),
-  deletePhoto: (shopId: string, photoId: string) =>
-    apiClient.delete(`/admin/shops/${shopId}/photos/${photoId}`),
+  getMyShops: () => apiClient.get('/admin/my-shops'),
+  getById: (id: string) => apiClient.get(`/shops/${id}`),
+  getSettings: (shopId: string) =>
+    apiClient.get(`/admin/shops/${shopId}/settings`),
+  updateSettings: (shopId: string, data: any) =>
+    apiClient.patch(`/admin/shops/${shopId}/settings`, data),
+  getWorkingHours: (shopId: string) =>
+    apiClient.get(`/admin/shops/${shopId}/working-hours`),
+  updateWorkingHours: (shopId: string, dayOfWeek: string, data: any) =>
+    apiClient.patch(
+      `/admin/shops/${shopId}/working-hours/${dayOfWeek}`,
+      data,
+    ),
 };
 
 // Staff APIs
 export const staffApi = {
-  getAll: (shopId: string) => apiClient.get('/admin/staff', {params: {shopId}}),
-  create: (data: {
-    shopId: string;
-    name: string;
-    email: string;
-    role: string;
-  }) => apiClient.post('/admin/staff', data),
-  update: (id: string, data: any) => apiClient.patch(`/admin/staff/${id}`, data),
-  delete: (id: string) => apiClient.delete(`/admin/staff/${id}`),
+  getAll: (shopId: string) =>
+    apiClient.get(`/admin/shops/${shopId}/staff`),
+  create: (
+    shopId: string,
+    data: {name: string; email: string; role?: string; phone?: string},
+  ) => apiClient.post(`/admin/shops/${shopId}/staff`, data),
+  update: (shopId: string, staffId: string, data: any) =>
+    apiClient.patch(`/admin/shops/${shopId}/staff/${staffId}`, data),
+  delete: (shopId: string, staffId: string) =>
+    apiClient.delete(`/admin/shops/${shopId}/staff/${staffId}`),
 };
 
 // Analytics APIs
 export const analyticsApi = {
-  getRevenue: (shopId: string, period: 'day' | 'week' | 'month' | 'year') =>
-    apiClient.get('/admin/analytics/revenue', {params: {shopId, period}}),
-  getBookingStats: (shopId: string, period: 'day' | 'week' | 'month' | 'year') =>
-    apiClient.get('/admin/analytics/bookings', {params: {shopId, period}}),
-  getTopServices: (shopId: string, limit = 5) =>
-    apiClient.get('/admin/analytics/top-services', {params: {shopId, limit}}),
-  getPeakHours: (shopId: string) =>
-    apiClient.get('/admin/analytics/peak-hours', {params: {shopId}}),
+  getSummary: (
+    shopId: string,
+    params?: {startDate?: string; endDate?: string},
+  ) => apiClient.get(`/analytics/shops/${shopId}/summary`, {params}),
+  getDaily: (
+    shopId: string,
+    params?: {startDate?: string; endDate?: string},
+  ) => apiClient.get(`/analytics/shops/${shopId}/daily`, {params}),
+  getServices: (shopId: string) =>
+    apiClient.get(`/analytics/shops/${shopId}/services`),
+};
+
+// Notifications APIs
+export const notificationsApi = {
+  get: (params?: {page?: number; limit?: number; unreadOnly?: boolean}) =>
+    apiClient.get('/notifications', {params}),
+  getUnreadCount: () => apiClient.get('/notifications/unread-count'),
+  markRead: (id: string) => apiClient.patch(`/notifications/${id}/read`),
+  markAllRead: () => apiClient.patch('/notifications/read-all'),
 };
 
 export default apiClient;

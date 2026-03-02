@@ -24,6 +24,8 @@ export default function DashboardScreen() {
 
   const selectedShop = user?.shops?.find(s => s.id === selectedShopId);
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+
   const {
     data: stats,
     isLoading: statsLoading,
@@ -31,7 +33,7 @@ export default function DashboardScreen() {
   } = useQuery<DashboardStats>({
     queryKey: ['dashboardStats', selectedShopId],
     queryFn: () =>
-      dashboardApi.getStats(selectedShopId || undefined).then(res => res.data),
+      dashboardApi.getStats(selectedShopId!).then(res => res.data),
     enabled: !!selectedShopId,
   });
 
@@ -44,8 +46,8 @@ export default function DashboardScreen() {
     queryKey: ['todayBookings', selectedShopId],
     queryFn: () =>
       dashboardApi
-        .getTodayBookings(selectedShopId || undefined)
-        .then(res => res.data),
+        .getBookings(selectedShopId!, {date: today, limit: 10})
+        .then(res => res.data?.bookings || res.data || []),
     enabled: !!selectedShopId,
   });
 

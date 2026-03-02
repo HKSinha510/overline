@@ -12,7 +12,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { format, addDays, isSameDay } from 'date-fns';
-import { shopsApi, bookingsApi } from '../../api/client';
+import { shopsApi, bookingsApi, queueApi } from '../../api/client';
 import { RootStackParamList, TimeSlot } from '../../types';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../theme';
 import { PrimaryButton, Divider, SectionHeader } from '../../components/ui';
@@ -30,14 +30,17 @@ export default function BookingScreen() {
 
   const { data: shop } = useQuery({
     queryKey: ['shop', shopId],
-    queryFn: () => shopsApi.getById(shopId).then(res => res.data),
+    queryFn: () => shopsApi.getBySlug(shopId).then(res => res.data),
   });
 
   const { data: availability, isLoading: loadingSlots } = useQuery({
     queryKey: ['availability', shopId, format(selectedDate, 'yyyy-MM-dd')],
     queryFn: () =>
-      shopsApi
-        .getAvailability(shopId, format(selectedDate, 'yyyy-MM-dd'))
+      queueApi
+        .getSlots(shopId, {
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          serviceIds: selectedServices,
+        })
         .then(res => res.data),
   });
 
