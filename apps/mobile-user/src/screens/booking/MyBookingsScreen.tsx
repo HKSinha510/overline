@@ -1,344 +1,170 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  RefreshControl,
-  ActivityIndicator,
+  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  RefreshControl, ActivityIndicator,
 } from 'react-native';
-import {useQuery} from '@tanstack/react-query';
-import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {format, isPast} from 'date-fns';
-import {bookingsApi} from '../../api/client';
-import {RootStackParamList, Booking} from '../../types';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { format, isPast } from 'date-fns';
+import { bookingsApi } from '../../api/client';
+import { RootStackParamList, Booking } from '../../types';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, BookingStatusConfig, Shadows } from '../../theme';
+import { Badge, EmptyState } from '../../components/ui';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
 type TabType = 'upcoming' | 'past';
 
 export default function MyBookingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<TabType>('upcoming');
 
-  const {data: bookings = [], isLoading, refetch, isRefetching} = useQuery({
+  const { data: bookings = [], isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['myBookings'],
     queryFn: () => bookingsApi.getMy().then(res => res.data),
   });
 
   const upcomingBookings = bookings.filter(
-    (b: Booking) =>
-      !isPast(new Date(b.startTime)) &&
-      !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(b.status),
+    (b: Booking) => !isPast(new Date(b.startTime)) && !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(b.status),
   );
-
   const pastBookings = bookings.filter(
-    (b: Booking) =>
-      isPast(new Date(b.startTime)) ||
-      ['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(b.status),
+    (b: Booking) => isPast(new Date(b.startTime)) || ['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(b.status),
   );
-
   const displayBookings = activeTab === 'upcoming' ? upcomingBookings : pastBookings;
 
-  const statusColors: Record<string, string> = {
-    PENDING: '#F59E0B',
-    CONFIRMED: '#10B981',
-    IN_PROGRESS: '#3B82F6',
-    COMPLETED: '#10B981',
-    CANCELLED: '#EF4444',
-    NO_SHOW: '#6B7280',
+  const renderBooking = ({ item }: { item: Booking }) => {
+    const config = BookingStatusConfig[item.status] || { color: Colors.textTertiary, bg: Colors.surfaceLight, icon: '•' };
+    return (
+      <TouchableOpacity
+        style={styles.bookingCard}
+        onPress={() => navigation.navigate('BookingDetail', { bookingId: item.id })}
+        activeOpacity={0.85}>
+        <View style={styles.cardHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.shopName}>{item.shop?.name}</Text>
+            <Text style={styles.bookingNumber}>{item.bookingNumber}</Text>
+          </View>
+          <Badge text={item.status.replace('_', ' ')} color={config.color} bgColor={config.bg} size="sm" />
+        </View>
+
+        <View style={styles.cardBody}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailIcon}>📅</Text>
+            <Text style={styles.detailText}>{format(new Date(item.startTime), 'EEE, MMM d, yyyy')}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailIcon}>🕐</Text>
+            <Text style={styles.detailText}>{format(new Date(item.startTime), 'h:mm a')}</Text>
+          </View>
+        </View>
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.servicesText}>{item.services?.length || 0} service(s)</Text>
+          <Text style={styles.totalText}>₹{item.displayAmount}</Text>
+        </View>
+
+        {activeTab === 'upcoming' && (
+          <View style={styles.codeStrip}>
+            <Text style={styles.codeLabel}>Code:</Text>
+            <Text style={styles.codeValue}>{item.verificationCode}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
   };
-
-  const renderBooking = ({item}: {item: Booking}) => (
-    <TouchableOpacity
-      style={styles.bookingCard}
-      onPress={() => navigation.navigate('BookingDetail', {bookingId: item.id})}>
-      <View style={styles.cardHeader}>
-        <View>
-          <Text style={styles.shopName}>{item.shop?.name}</Text>
-          <Text style={styles.bookingNumber}>{item.bookingNumber}</Text>
-        </View>
-        <View
-          style={[
-            styles.statusBadge,
-            {backgroundColor: (statusColors[item.status] || '#6B7280') + '20'},
-          ]}>
-          <Text
-            style={[
-              styles.statusText,
-              {color: statusColors[item.status] || '#6B7280'},
-            ]}>
-            {item.status.replace('_', ' ')}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.cardDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>📅</Text>
-          <Text style={styles.detailText}>
-            {format(new Date(item.startTime), 'EEE, MMM d, yyyy')}
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>🕐</Text>
-          <Text style={styles.detailText}>
-            {format(new Date(item.startTime), 'h:mm a')}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.servicesText}>
-          {item.services?.length || 0} service(s)
-        </Text>
-        <Text style={styles.totalText}>₹{item.displayAmount}</Text>
-      </View>
-
-      {activeTab === 'upcoming' && (
-        <View style={styles.verificationSection}>
-          <Text style={styles.verificationLabel}>Code:</Text>
-          <Text style={styles.verificationCode}>{item.verificationCode}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>📋</Text>
-      <Text style={styles.emptyTitle}>
-        {activeTab === 'upcoming' ? 'No Upcoming Bookings' : 'No Past Bookings'}
-      </Text>
-      <Text style={styles.emptySubtitle}>
-        {activeTab === 'upcoming'
-          ? 'Book a service to get started'
-          : 'Your completed bookings will appear here'}
-      </Text>
-      {activeTab === 'upcoming' && (
-        <TouchableOpacity
-          style={styles.exploreButton}
-          onPress={() => navigation.navigate('HomeTab' as any)}>
-          <Text style={styles.exploreButtonText}>Explore Shops</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
-          onPress={() => setActiveTab('upcoming')}>
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'upcoming' && styles.activeTabText,
-            ]}>
-            Upcoming ({upcomingBookings.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'past' && styles.activeTab]}
-          onPress={() => setActiveTab('past')}>
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'past' && styles.activeTabText,
-            ]}>
-            Past ({pastBookings.length})
-          </Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Bookings</Text>
       </View>
 
-      {/* Bookings List */}
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        {(['upcoming', 'past'] as TabType[]).map(tab => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.activeTab]}
+            onPress={() => setActiveTab(tab)}>
+            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+              {tab === 'upcoming' ? `Upcoming (${upcomingBookings.length})` : `Past (${pastBookings.length})`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
         data={displayBookings}
         keyExtractor={item => item.id}
         renderItem={renderBooking}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={renderEmpty}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            colors={['#4F46E5']}
+        ListEmptyComponent={
+          <EmptyState
+            icon={activeTab === 'upcoming' ? '📋' : '📜'}
+            title={activeTab === 'upcoming' ? 'No Upcoming Bookings' : 'No Past Bookings'}
+            subtitle={activeTab === 'upcoming' ? 'Book a service to get started' : 'Your completed bookings will appear here'}
           />
         }
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} colors={[Colors.primary]} />
+        }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
+  header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Spacing.lg },
+  headerTitle: { fontSize: FontSizes['2xl'], fontWeight: FontWeights.extrabold, color: Colors.textPrimary },
   tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    flexDirection: 'row', paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg, gap: Spacing.sm,
   },
   tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
+    flex: 1, paddingVertical: Spacing.md, alignItems: 'center',
+    borderRadius: BorderRadius.full, backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: Colors.border,
   },
   activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#4F46E5',
+    backgroundColor: Colors.primary, borderColor: Colors.primary, ...Shadows.lg,
   },
-  tabText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  activeTabText: {
-    color: '#4F46E5',
-  },
-  listContent: {
-    padding: 16,
-  },
+  tabText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold, color: Colors.textSecondary },
+  activeTabText: { color: '#fff' },
+  listContent: { padding: Spacing.xl, paddingTop: 0, paddingBottom: 100 },
   bookingCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: Colors.surface, borderRadius: BorderRadius.xl,
+    padding: Spacing.lg, marginBottom: Spacing.md,
+    borderWidth: 1, borderColor: Colors.border, ...Shadows.sm,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  shopName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  bookingNumber: {
-    fontSize: 13,
-    color: '#9CA3AF',
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  cardDetails: {
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  detailIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#4B5563',
-  },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md },
+  shopName: { fontSize: FontSizes.md, fontWeight: FontWeights.bold, color: Colors.textPrimary, marginBottom: 2 },
+  bookingNumber: { fontSize: FontSizes.xs, color: Colors.textTertiary },
+  cardBody: { marginBottom: Spacing.md },
+  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: Spacing.sm },
+  detailIcon: { fontSize: 14 },
+  detailText: { fontSize: FontSizes.sm, color: Colors.textSecondary },
   cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border,
   },
-  servicesText: {
-    fontSize: 14,
-    color: '#6B7280',
+  servicesText: { fontSize: FontSizes.sm, color: Colors.textTertiary },
+  totalText: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold, color: Colors.textPrimary },
+  codeStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.primaryGhost, padding: Spacing.md,
+    borderRadius: BorderRadius.md, marginTop: Spacing.md,
   },
-  totalText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  verificationSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-  },
-  verificationLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginRight: 8,
-  },
-  verificationCode: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4F46E5',
-    letterSpacing: 4,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 60,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  exploreButton: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  exploreButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  codeLabel: { fontSize: FontSizes.xs, color: Colors.textSecondary },
+  codeValue: { fontSize: FontSizes.lg, fontWeight: FontWeights.extrabold, color: Colors.primary, letterSpacing: 4 },
 });

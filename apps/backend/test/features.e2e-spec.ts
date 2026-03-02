@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { WalletService } from '../modules/wallet/wallet.service';
-import { OtpService } from '../modules/otp/otp.service';
-import { BookingsService } from '../modules/bookings/bookings.service';
-import { PrismaService } from '../common/prisma/prisma.service';
-import { RedisService } from '../common/redis/redis.service';
-import { FREE_CASH_CONFIG } from '../modules/wallet/wallet.service';
+import { WalletService } from '../src/modules/wallet/wallet.service';
+import { OtpService } from '../src/modules/otp/otp.service';
+import { BookingsService } from '../src/modules/bookings/bookings.service';
+import { PrismaService } from '../src/common/prisma/prisma.service';
+import { RedisService } from '../src/common/redis/redis.service';
+import { FREE_CASH_CONFIG } from '../src/modules/wallet/wallet.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentType, ServiceStatus, CancellationReason, BookingStatus } from '@prisma/client';
 

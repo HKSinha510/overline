@@ -1,4 +1,4 @@
-import React, {useState, useMemo} from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import {useQuery, useMutation} from '@tanstack/react-query';
-import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {format, addDays, isSameDay} from 'date-fns';
-import {shopsApi, bookingsApi} from '../../api/client';
-import {RootStackParamList, TimeSlot} from '../../types';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { format, addDays, isSameDay } from 'date-fns';
+import { shopsApi, bookingsApi } from '../../api/client';
+import { RootStackParamList, TimeSlot } from '../../types';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../theme';
+import { PrimaryButton, Divider, SectionHeader } from '../../components/ui';
 
 type RouteProps = RouteProp<RootStackParamList, 'Booking'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -21,19 +23,17 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function BookingScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const {shopId, selectedServices = []} = route.params;
+  const { shopId, selectedServices = [] } = route.params;
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  // Get shop info
-  const {data: shop} = useQuery({
+  const { data: shop } = useQuery({
     queryKey: ['shop', shopId],
     queryFn: () => shopsApi.getById(shopId).then(res => res.data),
   });
 
-  // Get availability for selected date
-  const {data: availability, isLoading: loadingSlots} = useQuery({
+  const { data: availability, isLoading: loadingSlots } = useQuery({
     queryKey: ['availability', shopId, format(selectedDate, 'yyyy-MM-dd')],
     queryFn: () =>
       shopsApi
@@ -41,28 +41,18 @@ export default function BookingScreen() {
         .then(res => res.data),
   });
 
-  // Generate date options (next 14 days)
   const dateOptions = useMemo(() => {
-    return Array.from({length: 14}, (_, i) => addDays(new Date(), i));
+    return Array.from({ length: 14 }, (_, i) => addDays(new Date(), i));
   }, []);
 
-  // Create booking mutation
   const createBooking = useMutation({
-    mutationFn: (data: {
-      shopId: string;
-      serviceIds: string[];
-      startTime: string;
-    }) => bookingsApi.create(data),
+    mutationFn: (data: { shopId: string; serviceIds: string[]; startTime: string }) =>
+      bookingsApi.create(data),
     onSuccess: data => {
-      navigation.replace('BookingConfirmation', {
-        bookingId: data.data.id,
-      });
+      navigation.replace('BookingConfirmation', { bookingId: data.data.id });
     },
     onError: (error: any) => {
-      Alert.alert(
-        'Booking Failed',
-        error.response?.data?.message || 'Failed to create booking',
-      );
+      Alert.alert('Booking Failed', error.response?.data?.message || 'Failed to create booking');
     },
   });
 
@@ -71,14 +61,8 @@ export default function BookingScreen() {
       Alert.alert('Error', 'Please select a time slot');
       return;
     }
-
     const startTime = `${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}:00.000Z`;
-
-    createBooking.mutate({
-      shopId,
-      serviceIds: selectedServices,
-      startTime,
-    });
+    createBooking.mutate({ shopId, serviceIds: selectedServices, startTime });
   };
 
   const timeSlots: TimeSlot[] = availability?.slots || [];
@@ -86,9 +70,26 @@ export default function BookingScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Step indicator */}
+        <View style={styles.stepIndicator}>
+          <View style={[styles.step, styles.stepActive]}>
+            <Text style={styles.stepNumber}>1</Text>
+          </View>
+          <View style={styles.stepLine} />
+          <View style={[styles.step, selectedTime ? styles.stepActive : undefined]}>
+            <Text style={[styles.stepNumber, !selectedTime && { color: Colors.textTertiary }]}>
+              2
+            </Text>
+          </View>
+          <View style={styles.stepLine} />
+          <View style={styles.step}>
+            <Text style={[styles.stepNumber, { color: Colors.textTertiary }]}>3</Text>
+          </View>
+        </View>
+
         {/* Date Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Date</Text>
+          <Text style={styles.sectionTitle}>Pick a Date</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -99,33 +100,19 @@ export default function BookingScreen() {
               return (
                 <TouchableOpacity
                   key={date.toISOString()}
-                  style={[
-                    styles.dateCard,
-                    isSelected && styles.dateCardSelected,
-                  ]}
+                  style={[styles.dateCard, isSelected && styles.dateCardSelected]}
                   onPress={() => {
                     setSelectedDate(date);
                     setSelectedTime(null);
-                  }}>
-                  <Text
-                    style={[
-                      styles.dateDay,
-                      isSelected && styles.dateDaySelected,
-                    ]}>
+                  }}
+                  activeOpacity={0.8}>
+                  <Text style={[styles.dateDay, isSelected && styles.dateDaySelected]}>
                     {isToday ? 'Today' : format(date, 'EEE')}
                   </Text>
-                  <Text
-                    style={[
-                      styles.dateNum,
-                      isSelected && styles.dateNumSelected,
-                    ]}>
+                  <Text style={[styles.dateNum, isSelected && styles.dateNumSelected]}>
                     {format(date, 'd')}
                   </Text>
-                  <Text
-                    style={[
-                      styles.dateMonth,
-                      isSelected && styles.dateMonthSelected,
-                    ]}>
+                  <Text style={[styles.dateMonth, isSelected && styles.dateMonthSelected]}>
                     {format(date, 'MMM')}
                   </Text>
                 </TouchableOpacity>
@@ -136,19 +123,17 @@ export default function BookingScreen() {
 
         {/* Time Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Time</Text>
-
+          <Text style={styles.sectionTitle}>Pick a Time</Text>
           {loadingSlots ? (
             <ActivityIndicator
               size="small"
-              color="#4F46E5"
-              style={{marginTop: 20}}
+              color={Colors.primary}
+              style={{ marginTop: 24 }}
             />
           ) : timeSlots.length === 0 ? (
             <View style={styles.noSlots}>
-              <Text style={styles.noSlotsText}>
-                No available slots for this date
-              </Text>
+              <Text style={styles.noSlotsIcon}>📅</Text>
+              <Text style={styles.noSlotsText}>No available slots for this date</Text>
             </View>
           ) : (
             <View style={styles.timeGrid}>
@@ -163,7 +148,8 @@ export default function BookingScreen() {
                       isSelected && styles.timeSlotSelected,
                     ]}
                     onPress={() => slot.available && setSelectedTime(slot.time)}
-                    disabled={!slot.available}>
+                    disabled={!slot.available}
+                    activeOpacity={0.8}>
                     <Text
                       style={[
                         styles.timeText,
@@ -182,7 +168,7 @@ export default function BookingScreen() {
         {/* Summary */}
         {shop && selectedServices.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Booking Summary</Text>
+            <Text style={styles.sectionTitle}>Summary</Text>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryShop}>{shop.name}</Text>
               {shop.services
@@ -193,42 +179,37 @@ export default function BookingScreen() {
                     <Text style={styles.summaryPrice}>₹{service.price}</Text>
                   </View>
                 ))}
-              <View style={styles.summaryDivider} />
+              <Divider />
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryTotal}>Total</Text>
                 <Text style={styles.summaryTotalPrice}>
-                  ₹
-                  {shop.services
+                  ₹{shop.services
                     ?.filter((s: any) => selectedServices.includes(s.id))
                     .reduce((sum: number, s: any) => sum + Number(s.price), 0)}
                 </Text>
               </View>
-              <Text style={styles.freeCashNote}>
-                + You'll earn Free Cash on this booking!
-              </Text>
+              <View style={styles.freeCashBadge}>
+                <Text style={styles.freeCashIcon}>✨</Text>
+                <Text style={styles.freeCashText}>
+                  You'll earn Free Cash on this booking!
+                </Text>
+              </View>
             </View>
           </View>
         )}
 
-        <View style={{height: 100}} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Confirm Button */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={[
-            styles.confirmButton,
-            (!selectedTime || createBooking.isPending) &&
-              styles.confirmButtonDisabled,
-          ]}
+        <PrimaryButton
+          title="Confirm Booking"
           onPress={handleConfirm}
-          disabled={!selectedTime || createBooking.isPending}>
-          {createBooking.isPending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.confirmButtonText}>Confirm Booking</Text>
-          )}
-        </TouchableOpacity>
+          loading={createBooking.isPending}
+          disabled={!selectedTime}
+          icon="✓"
+        />
       </View>
     </View>
   );
@@ -237,164 +218,204 @@ export default function BookingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.background,
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing['4xl'],
+  },
+  step: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  stepActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+    ...Shadows.glow,
+  },
+  stepNumber: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+    color: '#fff',
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: Colors.surfaceLight,
+    marginHorizontal: Spacing.sm,
   },
   section: {
-    backgroundColor: '#fff',
-    padding: 20,
-    marginBottom: 8,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.lg,
   },
   dateList: {
-    paddingRight: 16,
+    paddingRight: Spacing.lg,
   },
   dateCard: {
-    width: 70,
-    paddingVertical: 12,
-    marginRight: 12,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    width: 72,
+    paddingVertical: Spacing.md,
+    marginRight: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   dateCardSelected: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+    ...Shadows.lg,
   },
   dateDay: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
     marginBottom: 4,
+    fontWeight: FontWeights.medium,
   },
   dateDaySelected: {
-    color: '#E0E7FF',
+    color: 'rgba(255,255,255,0.8)',
   },
   dateNum: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   dateNumSelected: {
     color: '#fff',
   },
   dateMonth: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontSize: FontSizes.xs,
+    color: Colors.textTertiary,
   },
   dateMonthSelected: {
-    color: '#E0E7FF',
+    color: 'rgba(255,255,255,0.7)',
   },
   noSlots: {
-    paddingVertical: 24,
     alignItems: 'center',
+    paddingVertical: Spacing['3xl'],
+  },
+  noSlotsIcon: {
+    fontSize: 40,
+    marginBottom: Spacing.md,
   },
   noSlotsText: {
-    fontSize: 15,
-    color: '#6B7280',
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
   },
   timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -6,
+    gap: Spacing.sm,
   },
   timeSlot: {
     width: '23%',
-    margin: '1%',
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   timeSlotUnavailable: {
-    backgroundColor: '#F9FAFB',
-    opacity: 0.5,
+    opacity: 0.3,
   },
   timeSlotSelected: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+    ...Shadows.lg,
   },
   timeText: {
-    fontSize: 14,
-    color: '#374151',
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: FontWeights.medium,
   },
   timeTextUnavailable: {
-    color: '#9CA3AF',
     textDecorationLine: 'line-through',
+    color: Colors.textMuted,
   },
   timeTextSelected: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: FontWeights.bold,
   },
   summaryCard: {
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   summaryShop: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
   },
   summaryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   summaryService: {
-    fontSize: 14,
-    color: '#374151',
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
   },
   summaryPrice: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 8,
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
   },
   summaryTotal: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
   },
   summaryTotalPrice: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
   },
-  freeCashNote: {
-    fontSize: 13,
-    color: '#10B981',
-    marginTop: 8,
+  freeCashBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.successLight,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  freeCashIcon: {
+    fontSize: 16,
+  },
+  freeCashText: {
+    fontSize: FontSizes.sm,
+    color: Colors.success,
+    fontWeight: FontWeights.medium,
+    flex: 1,
   },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
-    padding: 16,
-    paddingBottom: 32,
+    backgroundColor: Colors.surface,
+    padding: Spacing.xl,
+    paddingBottom: 36,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  confirmButton: {
-    backgroundColor: '#4F46E5',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  confirmButtonDisabled: {
-    opacity: 0.6,
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    borderTopColor: Colors.border,
   },
 });

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,15 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
-import {useQuery} from '@tanstack/react-query';
-import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {shopsApi} from '../../api/client';
-import {Service, RootStackParamList} from '../../types';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { shopsApi } from '../../api/client';
+import { Service, RootStackParamList } from '../../types';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../theme';
+import { Badge, PrimaryButton, Divider, GlassCard } from '../../components/ui';
 
 type RouteProps = RouteProp<RootStackParamList, 'ShopDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -20,11 +23,11 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function ShopDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const {shopId} = route.params;
+  const { shopId } = route.params;
 
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
-  const {data: shop, isLoading} = useQuery({
+  const { data: shop, isLoading } = useQuery({
     queryKey: ['shop', shopId],
     queryFn: () => shopsApi.getById(shopId).then(res => res.data),
   });
@@ -48,7 +51,7 @@ export default function ShopDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -64,328 +67,390 @@ export default function ShopDetailScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header Image */}
-        <View style={styles.imageContainer}>
+        {/* Hero Image */}
+        <View style={styles.heroContainer}>
           {shop.coverPhotoUrl ? (
             <Image
-              source={{uri: shop.coverPhotoUrl}}
-              style={styles.coverImage}
+              source={{ uri: shop.coverPhotoUrl }}
+              style={styles.heroImage}
               resizeMode="cover"
             />
           ) : (
-            <View style={[styles.coverImage, styles.placeholderImage]}>
-              <Text style={styles.placeholderText}>
+            <View style={[styles.heroImage, styles.placeholderHero]}>
+              <Text style={styles.placeholderLetter}>
                 {shop.name.charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
-        </View>
+          <View style={styles.heroOverlay} />
 
-        {/* Shop Info */}
-        <View style={styles.infoSection}>
-          <Text style={styles.shopName}>{shop.name}</Text>
-          <Text style={styles.shopAddress}>{shop.address}</Text>
+          {/* Back button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
 
-          <View style={styles.metaRow}>
-            <View style={styles.ratingContainer}>
-              <Text style={styles.ratingStar}>⭐</Text>
-              <Text style={styles.ratingText}>
-                {shop.rating?.toFixed(1) || 'New'}
+          {/* Shop name on overlay */}
+          <View style={styles.heroContent}>
+            <Text style={styles.heroName}>{shop.name}</Text>
+            <View style={styles.heroMeta}>
+              <View style={styles.heroBadge}>
+                <Text style={styles.heroStar}>★</Text>
+                <Text style={styles.heroRating}>
+                  {shop.rating?.toFixed(1) || 'New'}
+                </Text>
+              </View>
+              <Text style={styles.heroReviews}>
+                {shop.reviewCount || 0} reviews
               </Text>
-              <Text style={styles.reviewCount}>
-                ({shop.reviewCount || 0} reviews)
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.statusBadge,
-                {backgroundColor: shop.isOpen ? '#10B981' : '#EF4444'},
-              ]}>
-              <Text style={styles.statusText}>
-                {shop.isOpen ? 'Open' : 'Closed'}
-              </Text>
+              <Badge
+                text={shop.isOpen ? 'OPEN' : 'CLOSED'}
+                color={shop.isOpen ? Colors.success : Colors.error}
+                size="sm"
+              />
             </View>
           </View>
+        </View>
 
+        {/* Info Section */}
+        <View style={styles.infoSection}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>📍</Text>
+            <Text style={styles.infoText}>{shop.address}</Text>
+          </View>
+          {shop.phone && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoIcon}>📞</Text>
+              <Text style={styles.infoText}>{shop.phone}</Text>
+            </View>
+          )}
           {shop.description && (
-            <Text style={styles.description}>{shop.description}</Text>
+            <>
+              <Divider />
+              <Text style={styles.description}>{shop.description}</Text>
+            </>
           )}
         </View>
 
-        {/* Services */}
+        {/* Services Section */}
         <View style={styles.servicesSection}>
-          <Text style={styles.sectionTitle}>Services</Text>
+          <Text style={styles.sectionTitle}>Select Services</Text>
+          <Text style={styles.sectionSubtitle}>
+            Choose one or more services to book
+          </Text>
 
-          {(shop.services || []).map((service: Service) => (
-            <TouchableOpacity
-              key={service.id}
-              style={[
-                styles.serviceCard,
-                selectedServices.includes(service.id) && styles.serviceSelected,
-              ]}
-              onPress={() => toggleService(service.id)}
-              activeOpacity={0.7}>
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceName}>{service.name}</Text>
-                {service.description && (
-                  <Text style={styles.serviceDesc} numberOfLines={2}>
-                    {service.description}
-                  </Text>
-                )}
-                <Text style={styles.serviceDuration}>
-                  {service.durationMinutes} min
-                </Text>
-              </View>
-              <View style={styles.servicePriceContainer}>
-                <Text style={styles.servicePrice}>₹{service.price}</Text>
-                <View
-                  style={[
-                    styles.checkbox,
-                    selectedServices.includes(service.id) &&
-                      styles.checkboxChecked,
-                  ]}>
-                  {selectedServices.includes(service.id) && (
-                    <Text style={styles.checkmark}>✓</Text>
+          {(shop.services || []).map((service: Service) => {
+            const isSelected = selectedServices.includes(service.id);
+            return (
+              <TouchableOpacity
+                key={service.id}
+                style={[
+                  styles.serviceCard,
+                  isSelected && styles.serviceSelected,
+                ]}
+                onPress={() => toggleService(service.id)}
+                activeOpacity={0.8}>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>{service.name}</Text>
+                  {service.description && (
+                    <Text style={styles.serviceDesc} numberOfLines={2}>
+                      {service.description}
+                    </Text>
                   )}
+                  <View style={styles.serviceMetaRow}>
+                    <Text style={styles.serviceDuration}>
+                      ⏱ {service.durationMinutes} min
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+                <View style={styles.servicePriceCol}>
+                  <Text style={[styles.servicePrice, isSelected && styles.servicePriceSelected]}>
+                    ₹{service.price}
+                  </Text>
+                  <View
+                    style={[
+                      styles.checkbox,
+                      isSelected && styles.checkboxChecked,
+                    ]}>
+                    {isSelected && (
+                      <Text style={styles.checkmark}>✓</Text>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Spacer for bottom button */}
-        <View style={{height: 100}} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Book Button */}
+      {/* Floating Bottom Bar */}
       {selectedServices.length > 0 && (
         <View style={styles.bottomBar}>
-          <View style={styles.totalInfo}>
-            <Text style={styles.totalLabel}>
-              {selectedServices.length} service
-              {selectedServices.length > 1 ? 's' : ''}
+          <View style={styles.bottomInfo}>
+            <Text style={styles.bottomCount}>
+              {selectedServices.length} service{selectedServices.length > 1 ? 's' : ''}
             </Text>
-            <Text style={styles.totalAmount}>
-              ₹{selectedTotal} • {selectedDuration} min
+            <Text style={styles.bottomAmount}>
+              ₹{selectedTotal} · {selectedDuration} min
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.bookButton}
+          <PrimaryButton
+            title="Continue"
             onPress={() =>
-              navigation.navigate('Booking', {
-                shopId,
-                selectedServices,
-              })
-            }>
-            <Text style={styles.bookButtonText}>Continue</Text>
-          </TouchableOpacity>
+              navigation.navigate('Booking', { shopId, selectedServices })
+            }
+            icon="→"
+            size="sm"
+            style={{ paddingHorizontal: 28 }}
+          />
         </View>
       )}
     </View>
   );
 }
 
+const { width, height } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background,
   },
   errorText: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: FontSizes.lg,
+    color: Colors.textSecondary,
   },
-  imageContainer: {
-    width: '100%',
-    height: 220,
+  // Hero
+  heroContainer: {
+    height: height * 0.35,
+    position: 'relative',
   },
-  coverImage: {
+  heroImage: {
     width: '100%',
     height: '100%',
   },
-  placeholderImage: {
-    backgroundColor: '#4F46E5',
+  placeholderHero: {
+    backgroundColor: Colors.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: {
-    fontSize: 64,
-    fontWeight: 'bold',
+  placeholderLetter: {
+    fontSize: 80,
+    fontWeight: FontWeights.extrabold,
+    color: Colors.primary,
+    opacity: 0.2,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 52,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  backArrow: {
+    fontSize: 20,
     color: '#fff',
   },
+  heroContent: {
+    position: 'absolute',
+    bottom: 24,
+    left: 20,
+    right: 20,
+  },
+  heroName: {
+    fontSize: FontSizes['3xl'],
+    fontWeight: FontWeights.extrabold,
+    color: '#fff',
+    marginBottom: Spacing.sm,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  heroMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  heroStar: {
+    fontSize: 16,
+    color: '#FFB830',
+  },
+  heroRating: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.bold,
+    color: '#fff',
+  },
+  heroReviews: {
+    fontSize: FontSizes.sm,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  // Info section
   infoSection: {
-    backgroundColor: '#fff',
-    padding: 20,
-    marginBottom: 8,
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  shopName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  shopAddress: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginBottom: 12,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  ratingContainer: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: Spacing.md,
   },
-  ratingStar: {
+  infoIcon: {
     fontSize: 16,
-    marginRight: 4,
+    marginRight: Spacing.md,
+    width: 24,
   },
-  ratingText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  reviewCount: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginLeft: 4,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+  infoText: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    flex: 1,
   },
   description: {
-    fontSize: 15,
-    color: '#374151',
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
     lineHeight: 22,
   },
+  // Services
   servicesSection: {
-    backgroundColor: '#fff',
-    padding: 20,
+    padding: Spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textTertiary,
+    marginBottom: Spacing.xl,
   },
   serviceCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    padding: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
   serviceSelected: {
-    borderColor: '#4F46E5',
-    backgroundColor: '#EEF2FF',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryGhost,
   },
   serviceInfo: {
     flex: 1,
-    marginRight: 12,
+    marginRight: Spacing.lg,
   },
   serviceName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   serviceDesc: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 4,
+    fontSize: FontSizes.sm,
+    color: Colors.textTertiary,
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+  serviceMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   serviceDuration: {
-    fontSize: 13,
-    color: '#9CA3AF',
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
   },
-  servicePriceContainer: {
+  servicePriceCol: {
     alignItems: 'flex-end',
+    justifyContent: 'space-between',
   },
   servicePrice: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
+  },
+  servicePriceSelected: {
+    color: Colors.primary,
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: Colors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   checkmark: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: FontWeights.bold,
+    fontSize: 14,
   },
+  // Bottom Bar
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingBottom: 32,
+    padding: Spacing.xl,
+    paddingBottom: 36,
+    backgroundColor: Colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: -2},
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    borderTopColor: Colors.border,
+    ...Shadows.md,
   },
-  totalInfo: {
+  bottomInfo: {
     flex: 1,
   },
-  totalLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+  bottomCount: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
   },
-  totalAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  bookButton: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  bookButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  bottomAmount: {
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
   },
 });

@@ -1,16 +1,13 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
-import {useQuery} from '@tanstack/react-query';
-import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {format} from 'date-fns';
-import {bookingsApi} from '../../api/client';
-import {RootStackParamList} from '../../types';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { format } from 'date-fns';
+import { bookingsApi } from '../../api/client';
+import { RootStackParamList } from '../../types';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../theme';
+import { PrimaryButton, Divider } from '../../components/ui';
 
 type RouteProps = RouteProp<RootStackParamList, 'BookingConfirmation'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -18,39 +15,38 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function BookingConfirmationScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const {bookingId} = route.params;
+  const { bookingId } = route.params;
 
-  const {data: booking} = useQuery({
+  const { data: booking } = useQuery({
     queryKey: ['booking', bookingId],
     queryFn: () => bookingsApi.getById(bookingId).then(res => res.data),
   });
 
   const goHome = () => {
-    navigation.reset({
-      index: 0,
-      routes: [{name: 'Main'}],
-    });
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };
 
-  if (!booking) {
-    return null;
-  }
+  if (!booking) return null;
 
   return (
     <View style={styles.container}>
+      <View style={styles.bgOrb} />
+
       <View style={styles.content}>
-        <View style={styles.successIcon}>
-          <Text style={styles.successEmoji}>✓</Text>
+        {/* Success Animation */}
+        <View style={styles.successCircle}>
+          <View style={styles.successInner}>
+            <Text style={styles.successCheck}>✓</Text>
+          </View>
         </View>
 
         <Text style={styles.title}>Booking Confirmed!</Text>
-        <Text style={styles.subtitle}>
-          Your appointment has been booked successfully
-        </Text>
+        <Text style={styles.subtitle}>Your appointment is all set</Text>
 
+        {/* Booking Card */}
         <View style={styles.bookingCard}>
           <Text style={styles.bookingNumber}>{booking.bookingNumber}</Text>
-          
+
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Shop</Text>
             <Text style={styles.detailValue}>{booking.shop?.name}</Text>
@@ -59,32 +55,31 @@ export default function BookingConfirmationScreen() {
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Date & Time</Text>
             <Text style={styles.detailValue}>
-              {format(new Date(booking.startTime), 'EEEE, MMM d')}
-              {'\n'}
-              {format(new Date(booking.startTime), 'h:mm a')}
+              {format(new Date(booking.startTime), 'EEE, MMM d · h:mm a')}
             </Text>
           </View>
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Services</Text>
             <Text style={styles.detailValue}>
-              {booking.services?.map((s: any) => s.serviceName).join('\n')}
+              {booking.services?.map((s: any) => s.serviceName).join(', ')}
             </Text>
           </View>
 
-          <View style={styles.divider} />
+          <Divider />
 
+          {/* Verification Code */}
           <View style={styles.codeSection}>
             <Text style={styles.codeLabel}>Your Verification Code</Text>
             <View style={styles.codeBox}>
               <Text style={styles.codeText}>{booking.verificationCode}</Text>
             </View>
             <Text style={styles.codeHint}>
-              Show this code at the shop to start your service
+              Show this code at the shop to begin
             </Text>
           </View>
 
-          <View style={styles.divider} />
+          <Divider />
 
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Amount</Text>
@@ -92,20 +87,21 @@ export default function BookingConfirmationScreen() {
           </View>
 
           {Number(booking.freeCashAmount) > 0 && (
-            <Text style={styles.freeCashNote}>
-              You'll earn ₹{booking.freeCashAmount} Free Cash after service!
-            </Text>
+            <View style={styles.freeCashBadge}>
+              <Text style={styles.freeCashText}>
+                ✨ You'll earn ₹{booking.freeCashAmount} Free Cash!
+              </Text>
+            </View>
           )}
         </View>
       </View>
 
+      {/* Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.viewButton}
-          onPress={() => navigation.replace('BookingDetail', {bookingId})}>
-          <Text style={styles.viewButtonText}>View Booking Details</Text>
-        </TouchableOpacity>
-
+        <PrimaryButton
+          title="View Booking Details"
+          onPress={() => navigation.replace('BookingDetail', { bookingId })}
+        />
         <TouchableOpacity style={styles.homeButton} onPress={goHome}>
           <Text style={styles.homeButtonText}>Back to Home</Text>
         </TouchableOpacity>
@@ -117,98 +113,115 @@ export default function BookingConfirmationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
+  },
+  bgOrb: {
+    position: 'absolute',
+    top: -100,
+    alignSelf: 'center',
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: 'rgba(0, 196, 140, 0.06)',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing['2xl'],
     paddingTop: 60,
     alignItems: 'center',
   },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#10B981',
+  successCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(0, 196, 140, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: Spacing['2xl'],
   },
-  successEmoji: {
-    fontSize: 40,
+  successInner: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: Colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Shadows.md,
+  },
+  successCheck: {
+    fontSize: 32,
     color: '#fff',
+    fontWeight: FontWeights.bold,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: FontSizes['2xl'],
+    fontWeight: FontWeights.extrabold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginBottom: 32,
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    marginBottom: Spacing['3xl'],
   },
   bookingCard: {
     width: '100%',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   bookingNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4F46E5',
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
+    letterSpacing: 1,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   detailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: FontSizes.sm,
+    color: Colors.textTertiary,
   },
   detailValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.medium,
+    color: Colors.textPrimary,
     textAlign: 'right',
     flex: 1,
-    marginLeft: 16,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 16,
+    marginLeft: Spacing.lg,
   },
   codeSection: {
     alignItems: 'center',
   },
   codeLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
   },
   codeBox: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 36,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.sm,
+    ...Shadows.glow,
   },
   codeText: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: FontWeights.extrabold,
     color: '#fff',
-    letterSpacing: 8,
+    letterSpacing: 10,
   },
   codeHint: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    textAlign: 'center',
+    fontSize: FontSizes.xs,
+    color: Colors.textTertiary,
   },
   totalRow: {
     flexDirection: 'row',
@@ -216,43 +229,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+    color: Colors.textPrimary,
   },
   totalValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.extrabold,
+    color: Colors.textPrimary,
   },
-  freeCashNote: {
-    fontSize: 13,
-    color: '#10B981',
-    marginTop: 8,
-    textAlign: 'center',
+  freeCashBadge: {
+    backgroundColor: Colors.successLight,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
+    alignItems: 'center',
+  },
+  freeCashText: {
+    fontSize: FontSizes.sm,
+    color: Colors.success,
+    fontWeight: FontWeights.medium,
   },
   footer: {
-    padding: 24,
-    paddingBottom: 36,
-  },
-  viewButton: {
-    backgroundColor: '#4F46E5',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  viewButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    padding: Spacing['2xl'],
+    paddingBottom: 40,
   },
   homeButton: {
-    paddingVertical: 12,
+    paddingVertical: Spacing.md,
     alignItems: 'center',
+    marginTop: Spacing.md,
   },
   homeButtonText: {
-    color: '#6B7280',
-    fontSize: 15,
+    color: Colors.textSecondary,
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.medium,
   },
 });

@@ -1,129 +1,120 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Alert,
-  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {useAuthStore} from '../../stores/authStore';
-import {RootStackParamList} from '../../types';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAuthStore } from '../../stores/authStore';
+import { RootStackParamList } from '../../types';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../theme';
+import { InputField, PrimaryButton } from '../../components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
 export default function RegisterScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const {signup, isLoading, error, clearError} = useAuthStore();
+  const { signup, isLoading, error, clearError } = useAuthStore();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSignup = async () => {
-    if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
+  const handleRegister = async () => {
+    if (!name.trim() || !email.trim() || !password.trim() || !phone.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
-      return;
-    }
-
     try {
-      await signup({
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        password,
-      });
+      await signup({ name: name.trim(), email: email.trim(), password, phone: phone.trim() });
     } catch {
       // Error handled in store
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.logo}>Overline</Text>
-          <Text style={styles.subtitle}>Create your account</Text>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.bgOrb1} />
+      <View style={styles.bgOrb2} />
 
-        <View style={styles.form}>
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity onPress={clearError}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+
+          {/* Back button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
+
+          {/* Welcome Text */}
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeTitle}>Create{'\n'}account</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Join thousands getting appointments effortlessly
+            </Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            {error && (
+              <TouchableOpacity
+                style={styles.errorContainer}
+                onPress={clearError}
+                activeOpacity={0.8}>
+                <Text style={{ fontSize: 16, marginRight: 8 }}>⚠️</Text>
+                <Text style={styles.errorText}>{error}</Text>
                 <Text style={styles.dismissError}>✕</Text>
               </TouchableOpacity>
-            </View>
-          )}
+            )}
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your name"
-              placeholderTextColor="#9CA3AF"
+            <InputField
+              label="Full Name"
+              icon="👤"
+              placeholder="John Doe"
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
             />
-          </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor="#9CA3AF"
+            <InputField
+              label="Email"
+              icon="✉️"
+              placeholder="you@example.com"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
-              autoCorrect={false}
             />
-          </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="+91 9876543210"
-              placeholderTextColor="#9CA3AF"
+            <InputField
+              label="Phone"
+              icon="📱"
+              placeholder="+91 98765 43210"
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
             />
-          </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder="Create a password"
-                placeholderTextColor="#9CA3AF"
+            <View>
+              <InputField
+                label="Password"
+                icon="🔑"
+                placeholder="Min. 8 characters"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -131,144 +122,152 @@ export default function RegisterScreen() {
               <TouchableOpacity
                 style={styles.eyeButton}
                 onPress={() => setShowPassword(!showPassword)}>
-                <Text>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <Text style={{ fontSize: 18 }}>
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm your password"
-              placeholderTextColor="#9CA3AF"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPassword}
+            <Text style={styles.termsText}>
+              By signing up, you agree to our{' '}
+              <Text style={styles.termsLink}>Terms</Text> and{' '}
+              <Text style={styles.termsLink}>Privacy Policy</Text>
+            </Text>
+
+            <PrimaryButton
+              title="Create Account"
+              onPress={handleRegister}
+              loading={isLoading}
+              icon="✦"
+              style={{ marginTop: Spacing.lg }}
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleSignup}
-            disabled={isLoading}>
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
-
+          {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
               <Text style={styles.linkText}>Sign In</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
+
+const { height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
+  },
+  bgOrb1: {
+    position: 'absolute',
+    top: -60,
+    left: -100,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(0, 210, 255, 0.06)',
+  },
+  bgOrb2: {
+    position: 'absolute',
+    bottom: 80,
+    right: -80,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(108, 92, 231, 0.06)',
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 24,
-    paddingTop: 48,
+    padding: Spacing['2xl'],
+    paddingTop: height * 0.06,
   },
-  header: {
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surfaceLight,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing['2xl'],
   },
-  logo: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#4F46E5',
-    marginBottom: 8,
+  backArrow: {
+    fontSize: 20,
+    color: Colors.textPrimary,
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#6B7280',
+  welcomeSection: {
+    marginBottom: Spacing['3xl'],
+  },
+  welcomeTitle: {
+    fontSize: FontSizes['4xl'],
+    fontWeight: FontWeights.extrabold,
+    color: Colors.textPrimary,
+    lineHeight: 44,
+    marginBottom: Spacing.md,
+  },
+  welcomeSubtitle: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    lineHeight: 22,
   },
   form: {
-    width: '100%',
+    marginBottom: Spacing['2xl'],
   },
   errorContainer: {
-    backgroundColor: '#FEE2E2',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: Colors.errorLight,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.2)',
   },
   errorText: {
-    color: '#DC2626',
+    color: Colors.error,
     flex: 1,
+    fontSize: FontSizes.sm,
   },
   dismissError: {
-    color: '#DC2626',
-    fontWeight: 'bold',
-    paddingLeft: 8,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    padding: 14,
+    color: Colors.error,
+    fontWeight: FontWeights.bold,
+    paddingLeft: Spacing.sm,
     fontSize: 16,
-    backgroundColor: '#F9FAFB',
-  },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 50,
   },
   eyeButton: {
     position: 'absolute',
     right: 16,
-    top: 14,
+    top: 42,
   },
-  button: {
-    backgroundColor: '#4F46E5',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
+  termsText: {
+    fontSize: FontSizes.sm,
+    color: Colors.textTertiary,
+    lineHeight: 20,
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.sm,
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  termsLink: {
+    color: Colors.primary,
+    fontWeight: FontWeights.medium,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    paddingBottom: Spacing['4xl'],
   },
   footerText: {
-    color: '#6B7280',
+    color: Colors.textSecondary,
+    fontSize: FontSizes.md,
   },
   linkText: {
-    color: '#4F46E5',
-    fontWeight: '600',
+    color: Colors.primary,
+    fontWeight: FontWeights.semibold,
+    fontSize: FontSizes.md,
   },
 });

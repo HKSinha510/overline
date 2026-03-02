@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,19 +8,29 @@ import {
   RefreshControl,
   TextInput,
   Image,
+  Animated,
+  Dimensions,
 } from 'react-native';
-import {useQuery} from '@tanstack/react-query';
-import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {shopsApi} from '../../api/client';
-import {Shop, RootStackParamList} from '../../types';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { shopsApi } from '../../api/client';
+import { Shop, RootStackParamList } from '../../types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../theme';
+import { Badge, Chip } from '../../components/ui';
+import { useAuthStore } from '../../stores/authStore';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const CATEGORIES = ['All', 'Salon', 'Spa', 'Clinic', 'Barber', 'Beauty'];
+
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const {
     data: shopsData,
@@ -30,60 +40,88 @@ export default function HomeScreen() {
   } = useQuery({
     queryKey: ['shops', searchQuery],
     queryFn: () =>
-      shopsApi.list({search: searchQuery || undefined}).then(res => res.data),
+      shopsApi.list({ search: searchQuery || undefined }).then(res => res.data),
   });
 
   const shops: Shop[] = shopsData?.data || [];
 
-  const renderShop = ({item}: {item: Shop}) => (
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [1, 0.9],
+    extrapolate: 'clamp',
+  });
+
+  const firstName = user?.name?.split(' ')[0] || 'there';
+
+  const renderShop = ({ item, index }: { item: Shop; index: number }) => (
     <TouchableOpacity
-      style={styles.shopCard}
-      onPress={() => navigation.navigate('ShopDetail', {shopId: item.id})}
-      activeOpacity={0.8}>
+      style={[styles.shopCard, index === 0 && { marginTop: Spacing.sm }]}
+      onPress={() => navigation.navigate('ShopDetail', { shopId: item.id })}
+      activeOpacity={0.85}>
+      {/* Image */}
       <View style={styles.shopImageContainer}>
         {item.coverPhotoUrl ? (
           <Image
-            source={{uri: item.coverPhotoUrl}}
+            source={{ uri: item.coverPhotoUrl }}
             style={styles.shopImage}
             resizeMode="cover"
           />
         ) : (
           <View style={[styles.shopImage, styles.placeholderImage]}>
-            <Text style={styles.placeholderText}>
+            <Text style={styles.placeholderLetter}>
               {item.name.charAt(0).toUpperCase()}
             </Text>
           </View>
         )}
-        {item.isOpen && (
-          <View style={styles.openBadge}>
-            <Text style={styles.openBadgeText}>Open</Text>
-          </View>
-        )}
+        {/* Overlay gradient */}
+        <View style={styles.imageOverlay} />
+
+        {/* Status badge */}
+        <View style={styles.topRow}>
+          {item.isOpen && (
+            <View style={styles.openBadge}>
+              <View style={styles.openDot} />
+              <Text style={styles.openText}>Open Now</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Rating on image */}
+        <View style={styles.ratingOnImage}>
+          <Text style={styles.ratingStarText}>★</Text>
+          <Text style={styles.ratingValueText}>
+            {item.rating?.toFixed(1) || 'New'}
+          </Text>
+        </View>
       </View>
 
+      {/* Shop Info */}
       <View style={styles.shopInfo}>
         <Text style={styles.shopName} numberOfLines={1}>
           {item.name}
         </Text>
-        <Text style={styles.shopAddress} numberOfLines={1}>
-          {item.address}
-        </Text>
+        <View style={styles.locationRow}>
+          <Text style={styles.locationPin}>📍</Text>
+          <Text style={styles.shopAddress} numberOfLines={1}>
+            {item.address}
+          </Text>
+        </View>
 
         <View style={styles.shopMeta}>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.ratingStar}>⭐</Text>
-            <Text style={styles.ratingText}>
-              {item.rating?.toFixed(1) || 'New'}
+          <View style={styles.metaLeft}>
+            <Text style={styles.reviewCount}>
+              {item.reviewCount || 0} reviews
             </Text>
-            <Text style={styles.reviewCount}>({item.reviewCount || 0})</Text>
           </View>
 
           {item.distance !== undefined && (
-            <Text style={styles.distance}>
-              {item.distance < 1
-                ? `${(item.distance * 1000).toFixed(0)}m`
-                : `${item.distance.toFixed(1)}km`}
-            </Text>
+            <View style={styles.distanceBadge}>
+              <Text style={styles.distanceText}>
+                {item.distance < 1
+                  ? `${(item.distance * 1000).toFixed(0)}m`
+                  : `${item.distance.toFixed(1)}km`}
+              </Text>
+            </View>
           )}
         </View>
       </View>
@@ -91,213 +129,375 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Explore</Text>
-        <Text style={styles.headerSubtitle}>
-          Find salons & spas near you
-        </Text>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search salons, services..."
-          placeholderTextColor="#9CA3AF"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Text style={styles.clearButton}>✕</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <FlatList
-        data={shops}
-        keyExtractor={item => item.id}
-        renderItem={renderShop}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            colors={['#4F46E5']}
-            tintColor="#4F46E5"
-          />
-        }
-        ListEmptyComponent={
-          !isLoading ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🔍</Text>
-              <Text style={styles.emptyTitle}>No salons found</Text>
-              <Text style={styles.emptyText}>
-                {searchQuery
-                  ? 'Try a different search term'
-                  : 'No salons available in your area'}
-              </Text>
+    <View style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* Header */}
+        <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.greeting}>Hello, {firstName} 👋</Text>
+              <Text style={styles.headerTitle}>Find your next{'\n'}experience</Text>
             </View>
-          ) : null
-        }
-      />
-    </SafeAreaView>
+            <TouchableOpacity style={styles.avatarButton}>
+              <Text style={styles.avatarText}>
+                {(user?.name || 'U').charAt(0).toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Search */}
+          <View style={styles.searchContainer}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search salons, services..."
+              placeholderTextColor={Colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <View style={styles.clearBtn}>
+                  <Text style={styles.clearText}>✕</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Categories */}
+          <FlatList
+            data={CATEGORIES}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryList}
+            keyExtractor={item => item}
+            renderItem={({ item }) => (
+              <Chip
+                label={item}
+                selected={activeCategory === item}
+                onPress={() => setActiveCategory(item)}
+                style={{ marginRight: Spacing.sm }}
+              />
+            )}
+          />
+        </Animated.View>
+
+        {/* Shop List */}
+        <Animated.FlatList
+          data={shops}
+          keyExtractor={item => item.id}
+          renderItem={renderShop}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true },
+          )}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={Colors.primary}
+              progressBackgroundColor={Colors.surface}
+              colors={[Colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            !isLoading ? (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIcon}>
+                  <Text style={{ fontSize: 48 }}>🔍</Text>
+                </View>
+                <Text style={styles.emptyTitle}>No salons found</Text>
+                <Text style={styles.emptyText}>
+                  {searchQuery
+                    ? 'Try a different search term'
+                    : 'No salons available in your area'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.loadingState}>
+                {[1, 2, 3].map(i => (
+                  <View key={i} style={styles.skeletonCard}>
+                    <View style={styles.skeletonImage} />
+                    <View style={styles.skeletonContent}>
+                      <View style={[styles.skeletonLine, { width: '70%' }]} />
+                      <View style={[styles.skeletonLine, { width: '50%' }]} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )
+          }
+        />
+      </SafeAreaView>
+    </View>
   );
 }
+
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.background,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
+    paddingBottom: Spacing.lg,
+    backgroundColor: Colors.background,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  greeting: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    marginBottom: 4,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontSize: FontSizes['3xl'],
+    fontWeight: FontWeights.extrabold,
+    color: Colors.textPrimary,
+    lineHeight: 38,
   },
-  headerSubtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginTop: 4,
+  avatarButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Shadows.lg,
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: FontWeights.bold,
+    color: '#fff',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
   },
   searchIcon: {
     fontSize: 16,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   searchInput: {
     flex: 1,
     paddingVertical: 14,
-    fontSize: 16,
-    color: '#111827',
+    fontSize: FontSizes.md,
+    color: Colors.textPrimary,
   },
-  clearButton: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    padding: 4,
-  },
-  listContent: {
-    padding: 16,
-    paddingTop: 4,
-  },
-  shopCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  shopImageContainer: {
-    position: 'relative',
-  },
-  shopImage: {
-    width: '100%',
-    height: 160,
-  },
-  placeholderImage: {
-    backgroundColor: '#4F46E5',
+  clearBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#fff',
+  clearText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  categoryList: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.sm,
+  },
+  listContent: {
+    padding: Spacing.xl,
+    paddingTop: Spacing.sm,
+    paddingBottom: 100,
+  },
+  shopCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.md,
+  },
+  shopImageContainer: {
+    position: 'relative',
+    height: 180,
+  },
+  shopImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderImage: {
+    backgroundColor: Colors.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderLetter: {
+    fontSize: 56,
+    fontWeight: FontWeights.extrabold,
+    color: Colors.primary,
+    opacity: 0.3,
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  topRow: {
+    position: 'absolute',
+    top: Spacing.md,
+    left: Spacing.md,
+    right: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
   },
   openBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#10B981',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 196, 140, 0.9)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    gap: 6,
   },
-  openBadgeText: {
+  openDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
+  },
+  openText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.semibold,
+  },
+  ratingOnImage: {
+    position: 'absolute',
+    bottom: Spacing.md,
+    right: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    gap: 4,
+  },
+  ratingStarText: {
+    fontSize: 14,
+    color: '#FFB830',
+  },
+  ratingValueText: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
+    color: '#fff',
   },
   shopInfo: {
-    padding: 16,
+    padding: Spacing.lg,
   },
   shopName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+    marginBottom: 6,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  locationPin: {
+    fontSize: 12,
+    marginRight: 4,
   },
   shopAddress: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    flex: 1,
   },
   shopMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  ratingContainer: {
+  metaLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  ratingStar: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
   reviewCount: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginLeft: 4,
+    fontSize: FontSizes.sm,
+    color: Colors.textTertiary,
   },
-  distance: {
-    fontSize: 14,
-    color: '#6B7280',
+  distanceBadge: {
+    backgroundColor: Colors.surfaceLight,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
   },
+  distanceText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.semibold,
+    color: Colors.textSecondary,
+  },
+  // Empty state
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 48,
+    paddingVertical: Spacing['5xl'],
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  // Loading skeletons
+  loadingState: {
+    paddingTop: Spacing.md,
+  },
+  skeletonCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  skeletonImage: {
+    width: '100%',
+    height: 180,
+    backgroundColor: Colors.surfaceLight,
+  },
+  skeletonContent: {
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  skeletonLine: {
+    height: 14,
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 7,
   },
 });

@@ -1,9 +1,11 @@
 import React from 'react';
-import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {useAuthStore} from '../stores/authStore';
-import {RootStackParamList, MainTabParamList} from '../types';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useAuthStore } from '../stores/authStore';
+import { RootStackParamList, MainTabParamList } from '../types';
+import { Colors, FontWeights, Shadows } from '../theme';
+import { View, Text, StyleSheet } from 'react-native';
 
 // Screens
 import SplashScreen from '../screens/auth/SplashScreen';
@@ -17,28 +19,62 @@ import BookingConfirmationScreen from '../screens/booking/BookingConfirmationScr
 import MyBookingsScreen from '../screens/booking/MyBookingsScreen';
 import WalletScreen from '../screens/wallet/WalletScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
-import {Text} from 'react-native';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+// Custom dark theme
+const DarkTheme = {
+  ...DefaultTheme,
+  dark: true,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: Colors.primary,
+    background: Colors.background,
+    card: Colors.surface,
+    text: Colors.textPrimary,
+    border: Colors.border,
+    notification: Colors.primary,
+  },
+};
+
+// Tab icon component
+function TabIcon({ name, focused }: { name: string; focused: boolean; color: string; size: number }) {
+  const icons: Record<string, { active: string; inactive: string }> = {
+    home: { active: '🏠', inactive: '🏡' },
+    calendar: { active: '📅', inactive: '🗓' },
+    wallet: { active: '💰', inactive: '💵' },
+    user: { active: '👤', inactive: '👻' },
+  };
+  const icon = icons[name] || { active: '•', inactive: '•' };
+  return (
+    <View style={[styles.tabIconContainer, focused && styles.tabIconActive]}>
+      <Text style={{ fontSize: focused ? 22 : 20 }}>
+        {focused ? icon.active : icon.inactive}
+      </Text>
+    </View>
+  );
+}
 
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#4F46E5',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: Colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
+          borderTopColor: Colors.border,
           paddingBottom: 8,
           paddingTop: 8,
-          height: 60,
+          height: 70,
+          ...Shadows.md,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: 11,
+          fontWeight: FontWeights.semibold,
+          letterSpacing: 0.3,
         },
         headerShown: false,
       }}>
@@ -47,8 +83,8 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Explore',
-          tabBarIcon: ({color, size}) => (
-            <TabIcon name="home" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="home" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -57,8 +93,8 @@ function MainTabs() {
         component={MyBookingsScreen}
         options={{
           tabBarLabel: 'Bookings',
-          tabBarIcon: ({color, size}) => (
-            <TabIcon name="calendar" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="calendar" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -67,8 +103,8 @@ function MainTabs() {
         component={WalletScreen}
         options={{
           tabBarLabel: 'Wallet',
-          tabBarIcon: ({color, size}) => (
-            <TabIcon name="wallet" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="wallet" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -77,8 +113,8 @@ function MainTabs() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: ({color, size}) => (
-            <TabIcon name="user" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="user" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -86,30 +122,13 @@ function MainTabs() {
   );
 }
 
-// Simple tab icon component using emoji (replace with vector icons in production)
-function TabIcon({
-  name,
-}: {
-  name: string;
-  color: string;
-  size: number;
-}) {
-  const icons: Record<string, string> = {
-    home: '🏠',
-    calendar: '📅',
-    wallet: '💰',
-    user: '👤',
-  };
-  return <Text style={{fontSize: 24}}>{icons[name] || '•'}</Text>;
-}
-
 export default function RootNavigator() {
-  const {isAuthenticated, isLoading} = useAuthStore();
+  const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{headerShown: false}}>
+      <NavigationContainer theme={DarkTheme}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Splash" component={SplashScreen} />
         </Stack.Navigator>
       </NavigationContainer>
@@ -117,8 +136,17 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{headerShown: false}}>
+    <NavigationContainer theme={DarkTheme}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          headerStyle: { backgroundColor: Colors.surface },
+          headerTintColor: Colors.textPrimary,
+          headerTitleStyle: { fontWeight: FontWeights.semibold },
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: Colors.background },
+          animation: 'slide_from_right',
+        }}>
         {!isAuthenticated ? (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
@@ -130,17 +158,22 @@ export default function RootNavigator() {
             <Stack.Screen
               name="ShopDetail"
               component={ShopDetailScreen}
-              options={{headerShown: true, title: ''}}
             />
             <Stack.Screen
               name="Booking"
               component={BookingScreen}
-              options={{headerShown: true, title: 'Book Appointment'}}
+              options={{
+                headerShown: true,
+                title: 'Book Appointment',
+              }}
             />
             <Stack.Screen
               name="BookingDetail"
               component={BookingDetailScreen}
-              options={{headerShown: true, title: 'Booking Details'}}
+              options={{
+                headerShown: true,
+                title: 'Booking Details',
+              }}
             />
             <Stack.Screen
               name="BookingConfirmation"
@@ -148,6 +181,7 @@ export default function RootNavigator() {
               options={{
                 headerShown: false,
                 presentation: 'modal',
+                animation: 'slide_from_bottom',
               }}
             />
           </>
@@ -156,3 +190,16 @@ export default function RootNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabIconActive: {
+    backgroundColor: Colors.primaryGhost,
+  },
+});

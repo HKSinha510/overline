@@ -3,12 +3,12 @@
  * React Native mobile app for booking appointments
  */
 
-import React, {useEffect} from 'react';
-import {StatusBar} from 'react-native';
-import {SafeAreaProvider} from 'react-native-safe-area-context';
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import React, { useEffect } from 'react';
+import { StatusBar } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RootNavigator from './src/navigation/RootNavigator';
-import {useAuthStore} from './src/stores/authStore';
+import { useAuthStore } from './src/stores/authStore';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const {checkAuth} = useAuthStore();
+  const { checkAuth } = useAuthStore();
 
   useEffect(() => {
     checkAuth();
@@ -35,7 +35,7 @@ function App() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar barStyle="light-content" backgroundColor="#0D0D0F" translucent={false} />
         <AppContent />
       </QueryClientProvider>
     </SafeAreaProvider>

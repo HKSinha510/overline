@@ -1,27 +1,28 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Alert,
-  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {useAuthStore} from '../../stores/authStore';
-import {RootStackParamList} from '../../types';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAuthStore } from '../../stores/authStore';
+import { RootStackParamList } from '../../types';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../theme';
+import { InputField, PrimaryButton } from '../../components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const {login, isLoading, error, clearError} = useAuthStore();
-  
+  const { login, isLoading, error, clearError } = useAuthStore();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,48 +41,65 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.logo}>Overline</Text>
-          <Text style={styles.subtitle}>Welcome back</Text>
-        </View>
+    <View style={styles.container}>
+      {/* Background decoration */}
+      <View style={styles.bgOrb1} />
+      <View style={styles.bgOrb2} />
 
-        <View style={styles.form}>
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity onPress={clearError}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+
+          {/* Brand Header */}
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <View style={styles.logoDot} />
+              <Text style={styles.logoText}>overline</Text>
+            </View>
+            <Text style={styles.tagline}>Book. Arrive. Shine.</Text>
+          </View>
+
+          {/* Welcome Text */}
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeTitle}>Welcome{'\n'}back</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Sign in to continue your beauty journey
+            </Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            {error && (
+              <TouchableOpacity
+                style={styles.errorContainer}
+                onPress={clearError}
+                activeOpacity={0.8}>
+                <Text style={styles.errorIcon}>⚠️</Text>
+                <Text style={styles.errorText}>{error}</Text>
                 <Text style={styles.dismissError}>✕</Text>
               </TouchableOpacity>
-            </View>
-          )}
+            )}
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor="#9CA3AF"
+            <InputField
+              label="Email"
+              icon="✉️"
+              placeholder="you@example.com"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
-          </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
+            <View>
+              <InputField
+                label="Password"
+                icon="🔑"
                 placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -89,132 +107,228 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={styles.eyeButton}
                 onPress={() => setShowPassword(!showPassword)}>
-                <Text>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <Text style={styles.eyeText}>
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.forgotButton}>
+              <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            <PrimaryButton
+              title="Sign In"
+              onPress={handleLogin}
+              loading={isLoading}
+              icon="→"
+              style={{ marginTop: Spacing.md }}
+            />
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or continue with</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social login */}
+            <View style={styles.socialRow}>
+              <TouchableOpacity style={styles.socialButton}>
+                <Text style={styles.socialIcon}>G</Text>
+                <Text style={styles.socialText}>Google</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleLogin}
-            disabled={isLoading}>
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
-          </TouchableOpacity>
-
+          {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Text style={styles.footerText}>New to Overline? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.linkText}>Sign Up</Text>
+              <Text style={styles.linkText}>Create Account</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
+
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
+  },
+  bgOrb1: {
+    position: 'absolute',
+    top: -100,
+    right: -80,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(108, 92, 231, 0.08)',
+  },
+  bgOrb2: {
+    position: 'absolute',
+    bottom: 100,
+    left: -120,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(0, 210, 255, 0.05)',
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
+    padding: Spacing['2xl'],
+    paddingTop: height * 0.08,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: Spacing['4xl'],
   },
-  logo: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#4F46E5',
-    marginBottom: 8,
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#6B7280',
+  logoDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+    marginRight: Spacing.sm,
+    ...Shadows.glow,
+  },
+  logoText: {
+    fontSize: FontSizes['2xl'],
+    fontWeight: FontWeights.extrabold,
+    color: Colors.textPrimary,
+    letterSpacing: 2,
+  },
+  tagline: {
+    fontSize: FontSizes.sm,
+    color: Colors.textTertiary,
+    letterSpacing: 3,
+    textTransform: 'uppercase',
+  },
+  welcomeSection: {
+    marginBottom: Spacing['3xl'],
+  },
+  welcomeTitle: {
+    fontSize: FontSizes.hero,
+    fontWeight: FontWeights.extrabold,
+    color: Colors.textPrimary,
+    lineHeight: 56,
+    marginBottom: Spacing.md,
+  },
+  welcomeSubtitle: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    lineHeight: 22,
   },
   form: {
-    width: '100%',
+    marginBottom: Spacing['3xl'],
   },
   errorContainer: {
-    backgroundColor: '#FEE2E2',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: Colors.errorLight,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.2)',
+  },
+  errorIcon: {
+    fontSize: 16,
+    marginRight: Spacing.sm,
   },
   errorText: {
-    color: '#DC2626',
+    color: Colors.error,
     flex: 1,
+    fontSize: FontSizes.sm,
   },
   dismissError: {
-    color: '#DC2626',
-    fontWeight: 'bold',
-    paddingLeft: 8,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    padding: 16,
+    color: Colors.error,
+    fontWeight: FontWeights.bold,
+    paddingLeft: Spacing.sm,
     fontSize: 16,
-    backgroundColor: '#F9FAFB',
-  },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 50,
   },
   eyeButton: {
     position: 'absolute',
     right: 16,
-    top: 16,
+    top: 42,
   },
-  button: {
-    backgroundColor: '#4F46E5',
-    padding: 16,
-    borderRadius: 12,
+  eyeText: {
+    fontSize: 18,
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginBottom: Spacing.xl,
+    marginTop: -Spacing.md,
+  },
+  forgotText: {
+    fontSize: FontSizes.sm,
+    color: Colors.primary,
+    fontWeight: FontWeights.medium,
+  },
+  dividerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginVertical: Spacing['2xl'],
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.border,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  dividerText: {
+    fontSize: FontSizes.xs,
+    color: Colors.textTertiary,
+    marginHorizontal: Spacing.lg,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  socialButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  socialIcon: {
+    fontSize: 18,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+  },
+  socialText: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.medium,
+    color: Colors.textSecondary,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    paddingBottom: Spacing['4xl'],
   },
   footerText: {
-    color: '#6B7280',
+    color: Colors.textSecondary,
+    fontSize: FontSizes.md,
   },
   linkText: {
-    color: '#4F46E5',
-    fontWeight: '600',
+    color: Colors.primary,
+    fontWeight: FontWeights.semibold,
+    fontSize: FontSizes.md,
   },
 });
