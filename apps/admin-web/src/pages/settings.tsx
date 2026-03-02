@@ -39,7 +39,21 @@ export default function SettingsPage() {
     avatarUrl: '',
   });
 
-  // Sync shop data to form when loaded
+  // Working hours local state for controlled inputs
+  const [hoursForm, setHoursForm] = React.useState<Record<string, { openTime: string; closeTime: string; isClosed: boolean }>>({});
+
+  // Notification settings state
+  const [notificationSettings, setNotificationSettings] = React.useState<Record<string, boolean>>({
+    bookingConfirmation: true,
+    bookingReminder: true,
+    bookingCancellation: true,
+    queueUpdates: false,
+    newBooking: true,
+    adminCancellation: true,
+    dailySummary: false,
+  });
+
+  // Sync shop data to forms when loaded
   React.useEffect(() => {
     if (shopData) {
       setGeneralForm({
@@ -52,8 +66,32 @@ export default function SettingsPage() {
         state: shopData.state || '',
         postalCode: shopData.postalCode || '',
       });
+      // Load notification settings from shop.settings
+      const savedNotifications = shopData.settings?.notifications || {};
+      setNotificationSettings((prev) => ({ ...prev, ...savedNotifications }));
     }
   }, [shopData]);
+
+  // Sync working hours data to local state
+  React.useEffect(() => {
+    if (Array.isArray(workingHoursData)) {
+      const map: Record<string, { openTime: string; closeTime: string; isClosed: boolean }> = {};
+      workingHoursData.forEach((wh: any) => {
+        map[wh.dayOfWeek] = {
+          openTime: wh.openTime || '09:00',
+          closeTime: wh.closeTime || '21:00',
+          isClosed: wh.isClosed ?? false,
+        };
+      });
+      // Ensure all days have a default
+      DAY_NAMES.forEach((day) => {
+        if (!map[day]) {
+          map[day] = { openTime: '09:00', closeTime: '21:00', isClosed: day === 'SUNDAY' };
+        }
+      });
+      setHoursForm(map);
+    }
+  }, [workingHoursData]);
 
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,11 +103,31 @@ export default function SettingsPage() {
     }
   };
 
+  const handleHoursChange = (dayOfWeek: string, field: 'openTime' | 'closeTime' | 'isClosed', value: any) => {
+    setHoursForm((prev) => ({
+      ...prev,
+      [dayOfWeek]: { ...prev[dayOfWeek], [field]: value },
+    }));
+  };
+
   const handleSaveHour = async (dayOfWeek: string, field: string, value: any) => {
     try {
       await updateHours.mutateAsync({ dayOfWeek, [field]: value });
+      addToast({ type: 'success', title: `${DAY_LABELS[dayOfWeek]} updated!` });
     } catch (err: any) {
       addToast({ type: 'error', title: `Failed to update ${DAY_LABELS[dayOfWeek]}` });
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    try {
+      const currentSettings = shopData?.settings || {};
+      await updateSettings.mutateAsync({
+        settings: { ...currentSettings, notifications: notificationSettings },
+      });
+      addToast({ type: 'success', title: 'Notification settings saved!' });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to save', message: err.response?.data?.message || 'Try again.' });
     }
   };
 
@@ -377,7 +435,7 @@ export default function SettingsPage() {
                 ) : (
                   <div className="space-y-4">
                     {DAY_NAMES.map((day) => {
-                      const wh = hoursMap[day] || { openTime: '09:00', closeTime: '21:00', isClosed: day === 'SUNDAY' };
+                      const wh = hoursForm[day] || { openTime: '09:00', closeTime: '21:00', isClosed: day === 'SUNDAY' };
                       return (
                         <div key={day} className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0">
                           <div className="w-28 font-medium text-gray-900">{DAY_LABELS[day]}</div>
@@ -386,7 +444,10 @@ export default function SettingsPage() {
                               type="checkbox"
                               className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                               checked={!wh.isClosed}
-                              onChange={(e) => handleSaveHour(day, 'isClosed', !e.target.checked)}
+                              onChange={(e) => {
+                                handleHoursChange(day, 'isClosed', !e.target.checked);
+                                handleSaveHour(day, 'isClosed', !e.target.checked);
+                              }}
                             />
                             <span className="text-sm text-gray-600">Open</span>
                           </label>
@@ -394,16 +455,18 @@ export default function SettingsPage() {
                             <input
                               type="time"
                               className="px-2 py-1 border border-gray-300 rounded text-sm"
-                              defaultValue={wh.openTime || '09:00'}
+                              value={wh.openTime || '09:00'}
                               disabled={wh.isClosed}
+                              onChange={(e) => handleHoursChange(day, 'openTime', e.target.value)}
                               onBlur={(e) => handleSaveHour(day, 'openTime', e.target.value)}
                             />
                             <span className="text-gray-400">to</span>
                             <input
                               type="time"
                               className="px-2 py-1 border border-gray-300 rounded text-sm"
-                              defaultValue={wh.closeTime || '21:00'}
+                              value={wh.closeTime || '21:00'}
                               disabled={wh.isClosed}
+                              onChange={(e) => handleHoursChange(day, 'closeTime', e.target.value)}
                               onBlur={(e) => handleSaveHour(day, 'closeTime', e.target.value)}
                             />
                           </div>
@@ -423,17 +486,18 @@ export default function SettingsPage() {
                     <h3 className="font-medium text-gray-900 mb-3">Customer Notifications</h3>
                     <div className="space-y-3">
                       {[
-                        { label: 'Booking confirmation', key: 'bookingConfirmation', enabled: true },
-                        { label: 'Booking reminder (1 hour before)', key: 'bookingReminder', enabled: true },
-                        { label: 'Booking cancellation', key: 'bookingCancellation', enabled: true },
-                        { label: 'Queue updates', key: 'queueUpdates', enabled: false },
+                        { label: 'Booking confirmation', key: 'bookingConfirmation' },
+                        { label: 'Booking reminder (1 hour before)', key: 'bookingReminder' },
+                        { label: 'Booking cancellation', key: 'bookingCancellation' },
+                        { label: 'Queue updates', key: 'queueUpdates' },
                       ].map((item) => (
                         <label key={item.key} className="flex items-center justify-between">
                           <span className="text-sm text-gray-600">{item.label}</span>
                           <input
                             type="checkbox"
                             className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                            defaultChecked={item.enabled}
+                            checked={notificationSettings[item.key] ?? false}
+                            onChange={(e) => setNotificationSettings((prev) => ({ ...prev, [item.key]: e.target.checked }))}
                           />
                         </label>
                       ))}
@@ -444,16 +508,17 @@ export default function SettingsPage() {
                     <h3 className="font-medium text-gray-900 mb-3">Admin Notifications</h3>
                     <div className="space-y-3">
                       {[
-                        { label: 'New booking', key: 'newBooking', enabled: true },
-                        { label: 'Booking cancellation', key: 'adminCancellation', enabled: true },
-                        { label: 'Daily summary', key: 'dailySummary', enabled: false },
+                        { label: 'New booking', key: 'newBooking' },
+                        { label: 'Booking cancellation', key: 'adminCancellation' },
+                        { label: 'Daily summary', key: 'dailySummary' },
                       ].map((item) => (
                         <label key={item.key} className="flex items-center justify-between">
                           <span className="text-sm text-gray-600">{item.label}</span>
                           <input
                             type="checkbox"
                             className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                            defaultChecked={item.enabled}
+                            checked={notificationSettings[item.key] ?? false}
+                            onChange={(e) => setNotificationSettings((prev) => ({ ...prev, [item.key]: e.target.checked }))}
                           />
                         </label>
                       ))}
@@ -461,9 +526,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="mt-6">
-                  <Button onClick={() => addToast({ type: 'info', title: 'Notification settings saved (notifications module coming soon)' })}>
+                  <Button onClick={handleSaveNotifications} disabled={updateSettings.isPending}>
                     <Save className="w-4 h-4 mr-2" />
-                    Save Settings
+                    {updateSettings.isPending ? 'Saving...' : 'Save Settings'}
                   </Button>
                 </div>
               </Card>

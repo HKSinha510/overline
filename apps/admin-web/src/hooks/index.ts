@@ -10,7 +10,6 @@ export {
   useStaff,
   useCreateStaff,
   useUpdateStaff,
-  useDeleteStaff,
   useShopSettings,
   useUpdateShopSettings,
   useWorkingHours,

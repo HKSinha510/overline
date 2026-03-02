@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { WalletService } from '../modules/wallet/wallet.service';
 import { OtpService } from '../modules/otp/otp.service';
 import { BookingsService } from '../modules/bookings/bookings.service';
@@ -7,6 +8,20 @@ import { RedisService } from '../common/redis/redis.service';
 import { FREE_CASH_CONFIG } from '../modules/wallet/wallet.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentType, ServiceStatus, CancellationReason, BookingStatus } from '@prisma/client';
+
+// Mock ConfigService for testing
+const mockConfigService = {
+  get: jest.fn((key: string, defaultValue?: any) => {
+    const config: Record<string, any> = {
+      OTP_EXPIRY_MINUTES: 5,
+      OTP_LENGTH: 6,
+      TWILIO_ACCOUNT_SID: 'test',
+      TWILIO_AUTH_TOKEN: 'test',
+      TWILIO_PHONE_NUMBER: '+1234567890',
+    };
+    return config[key] ?? defaultValue;
+  }),
+};
 
 /**
  * Comprehensive test suite for new Overline features:
@@ -27,7 +42,13 @@ describe('Overline Features - Integration Tests', () => {
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
-      providers: [WalletService, OtpService, PrismaService, RedisService],
+      providers: [
+        WalletService,
+        OtpService,
+        PrismaService,
+        RedisService,
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
     }).compile();
 
     walletService = module.get<WalletService>(WalletService);
@@ -502,12 +523,17 @@ describe('Overline Features - Integration Tests', () => {
     it('should handle grace period correctly', async () => {
       const now = new Date();
       const gracePeriodMs = 60 * 60 * 1000; // 1 hour
+      const gracePeriodCutoff = new Date(now.getTime() - gracePeriodMs);
 
-      const withinGracePeriod = new Date(now.getTime() - 30 * 60 * 1000); // 30 min before
-      const outsideGracePeriod = new Date(now.getTime() + 30 * 60 * 1000); // 30 min after
+      // Booking created 30 min ago - within grace period (more recent than cutoff)
+      const withinGracePeriod = new Date(now.getTime() - 30 * 60 * 1000);
+      // Booking created 2 hours ago - outside grace period (older than cutoff)
+      const outsideGracePeriod = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
-      expect(withinGracePeriod < new Date(now.getTime() - gracePeriodMs)).toBe(true);
-      expect(outsideGracePeriod < new Date(now.getTime() - gracePeriodMs)).toBe(false);
+      // withinGracePeriod is MORE recent than cutoff, so it's AFTER the cutoff (within grace)
+      expect(withinGracePeriod > gracePeriodCutoff).toBe(true);
+      // outsideGracePeriod is OLDER than cutoff, so it's BEFORE the cutoff (outside grace)
+      expect(outsideGracePeriod > gracePeriodCutoff).toBe(false);
     });
   });
 

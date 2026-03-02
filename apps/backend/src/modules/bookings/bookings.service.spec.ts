@@ -6,6 +6,9 @@ import { QueueService } from '../queue/queue.service';
 import { QueueGateway } from '../queue/queue.gateway';
 import { SlotEngineService } from '../queue/slot-engine.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrustScoreService } from '../users/trust-score.service';
+import { FraudDetectionService } from '../fraud-detection/fraud-detection.service';
+import { WalletService } from '../wallet/wallet.service';
 import { BookingStatus } from '@prisma/client';
 
 describe('BookingsService', () => {
@@ -20,9 +23,13 @@ describe('BookingsService', () => {
     service: {
       findMany: jest.fn(),
     },
+    staff: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     booking: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
       update: jest.fn(),
     },
     $transaction: jest.fn((callback) => callback(mockPrismaService)),
@@ -45,6 +52,22 @@ describe('BookingsService', () => {
     sendBookingConfirmation: jest.fn().mockResolvedValue(true),
     send: jest.fn().mockResolvedValue(true),
   };
+  const mockTrustScoreService = {
+    getUserTrustScore: jest.fn().mockResolvedValue(100),
+    processCompletedBooking: jest.fn().mockResolvedValue(true),
+    processNoShow: jest.fn().mockResolvedValue(true),
+    processCancellation: jest.fn().mockResolvedValue(true),
+  };
+  const mockFraudDetectionService = {
+    checkBookingForFraud: jest.fn().mockResolvedValue({ allowed: true, flags: [], score: 0 }),
+  };
+  const mockWalletService = {
+    getOrCreateWallet: jest.fn().mockResolvedValue({ id: 'wallet-1', balance: { toNumber: () => 0 }, freeCashBalance: { toNumber: () => 0 } }),
+    deductFromWallet: jest.fn().mockResolvedValue(true),
+    calculateFreeCashAmount: jest.fn().mockReturnValue(25),
+    hasReferralBonus: jest.fn().mockReturnValue(false),
+    creditFreeCash: jest.fn().mockResolvedValue({ wallet: {}, transaction: {} }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -56,6 +79,9 @@ describe('BookingsService', () => {
         { provide: QueueGateway, useValue: mockQueueGateway },
         { provide: SlotEngineService, useValue: mockSlotEngineService },
         { provide: NotificationsService, useValue: mockNotificationsService },
+        { provide: TrustScoreService, useValue: mockTrustScoreService },
+        { provide: FraudDetectionService, useValue: mockFraudDetectionService },
+        { provide: WalletService, useValue: mockWalletService },
       ],
     }).compile();
 
@@ -104,9 +130,9 @@ describe('BookingsService', () => {
         customerPhone: '1234567890',
       });
 
-      // Assert
+      // Assert - totalAmount includes free cash (25) added by wallet service
       expect(result.totalDurationMinutes).toBe(45);
-      expect(result.totalAmount).toBe(700);
+      expect(result.totalAmount).toBe(725); // 700 base + 25 free cash
       expect(result.status).toBe(BookingStatus.PENDING);
     });
 
@@ -136,7 +162,7 @@ describe('BookingsService', () => {
         offerCode: 'OVERLINE10',
       });
 
-      expect(result.totalAmount).toBe(900); // 1000 - 10%
+      expect(result.totalAmount).toBe(925); // 900 (1000 - 10%) + 25 free cash
     });
   });
 });

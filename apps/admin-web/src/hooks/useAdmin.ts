@@ -155,12 +155,12 @@ export function useCreateStaff() {
   const { shopId } = useAuthStore();
 
   return useMutation({
-    mutationFn: async (payload: { name: string; email: string; phone?: string; role: 'STAFF' | 'OWNER' }) => {
+    mutationFn: async (payload: { name: string; email: string; phone?: string; role?: string }) => {
       const { data } = await api.post(`/admin/shops/${shopId}/staff`, payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'staff', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'staff'] });
     },
   });
 }
@@ -170,26 +170,12 @@ export function useUpdateStaff() {
   const { shopId } = useAuthStore();
 
   return useMutation({
-    mutationFn: async ({ id, ...payload }: { id: string; name?: string; phone?: string; role?: 'STAFF' | 'OWNER' }) => {
-      const { data } = await api.patch(`/admin/shops/${shopId}/staff/${id}`, payload);
+    mutationFn: async ({ staffId, ...payload }: { staffId: string; name?: string; email?: string; phone?: string; role?: string; isActive?: boolean }) => {
+      const { data } = await api.patch(`/admin/shops/${shopId}/staff/${staffId}`, payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'staff', shopId] });
-    },
-  });
-}
-
-export function useDeleteStaff() {
-  const queryClient = useQueryClient();
-  const { shopId } = useAuthStore();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/admin/shops/${shopId}/staff/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'staff', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'staff'] });
     },
   });
 }
@@ -217,7 +203,7 @@ export function useUpdateShopSettings() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'settings', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
     },
   });
 }
@@ -245,7 +231,7 @@ export function useUpdateWorkingHours() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'working-hours', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'working-hours'] });
     },
   });
 }

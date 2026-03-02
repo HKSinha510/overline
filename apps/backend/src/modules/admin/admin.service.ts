@@ -392,8 +392,26 @@ export class AdminService {
     return {
       id: shop.id,
       name: shop.name,
+      slug: shop.slug,
+      description: shop.description,
+      phone: shop.phone,
+      email: shop.email,
+      website: shop.website,
+      address: shop.address,
+      city: shop.city,
+      state: shop.state,
+      postalCode: shop.postalCode,
+      country: shop.country,
+      logoUrl: shop.logoUrl,
+      coverUrl: shop.coverUrl,
+      photoUrls: shop.photoUrls,
       maxConcurrentBookings: shop.maxConcurrentBookings,
       autoAcceptBookings: shop.autoAcceptBookings,
+      allowCancellation: shop.allowCancellation,
+      freeCancellationMinutes: shop.freeCancellationMinutes,
+      allowReschedule: shop.allowReschedule,
+      freeRescheduleMinutes: shop.freeRescheduleMinutes,
+      requireOwnerApproval: shop.requireOwnerApproval,
       settings: shop.settings,
     };
   }
@@ -404,19 +422,38 @@ export class AdminService {
   async updateShopSettings(
     shopId: string,
     tenantId: string,
-    settings: {
+    updateData: {
       name?: string;
+      description?: string;
+      phone?: string;
+      email?: string;
+      website?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      logoUrl?: string;
+      coverUrl?: string;
+      photoUrls?: string[];
       maxConcurrentBookings?: number;
       autoAcceptBookings?: boolean;
+      allowCancellation?: boolean;
+      freeCancellationMinutes?: number;
+      allowReschedule?: boolean;
+      freeRescheduleMinutes?: number;
+      requireOwnerApproval?: boolean;
       settings?: Record<string, any>;
     },
   ) {
     await this.verifyShopAccess(shopId, tenantId);
 
-    return this.prisma.shop.update({
+    const updated = await this.prisma.shop.update({
       where: { id: shopId },
-      data: settings,
+      data: updateData,
     });
+
+    // Return full settings object
+    return this.getShopSettings(shopId, tenantId);
   }
 
   /**
