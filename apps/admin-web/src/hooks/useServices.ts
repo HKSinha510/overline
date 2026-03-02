@@ -40,13 +40,14 @@ export function useCreateService() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'services', shopId] });
     },
   });
 }
 
 export function useUpdateService() {
   const queryClient = useQueryClient();
+  const { shopId } = useAuthStore();
 
   return useMutation<Service, Error, UpdateServicePayload>({
     mutationFn: async ({ id, ...payload }) => {
@@ -54,20 +55,21 @@ export function useUpdateService() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'services', shopId] });
     },
   });
 }
 
 export function useDeleteService() {
   const queryClient = useQueryClient();
+  const { shopId } = useAuthStore();
 
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
       await api.delete(`/services/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'services', shopId] });
     },
   });
 }

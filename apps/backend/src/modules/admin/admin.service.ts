@@ -261,6 +261,79 @@ export class AdminService {
   }
 
   /**
+   * Create staff member
+   */
+  async createStaff(
+    shopId: string,
+    dto: { name: string; email: string; phone?: string; role: string },
+    tenantId: string,
+  ) {
+    await this.verifyShopAccess(shopId, tenantId);
+
+    return this.prisma.staff.create({
+      data: {
+        shopId,
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone,
+        role: dto.role || 'staff',
+        isActive: true,
+      },
+    });
+  }
+
+  /**
+   * Update staff member
+   */
+  async updateStaff(
+    shopId: string,
+    staffId: string,
+    dto: { name?: string; phone?: string; role?: string; isActive?: boolean },
+    tenantId: string,
+  ) {
+    await this.verifyShopAccess(shopId, tenantId);
+
+    // Verify staff belongs to this shop
+    const staff = await this.prisma.staff.findFirst({
+      where: { id: staffId, shopId },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('Staff member not found');
+    }
+
+    return this.prisma.staff.update({
+      where: { id: staffId },
+      data: {
+        ...(dto.name && { name: dto.name }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.role && { role: dto.role }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+    });
+  }
+
+  /**
+   * Delete staff member
+   */
+  async deleteStaff(shopId: string, staffId: string, tenantId: string) {
+    await this.verifyShopAccess(shopId, tenantId);
+
+    // Verify staff belongs to this shop
+    const staff = await this.prisma.staff.findFirst({
+      where: { id: staffId, shopId },
+    });
+
+    if (!staff) {
+      throw new NotFoundException('Staff member not found');
+    }
+
+    return this.prisma.staff.delete({
+      where: { id: staffId },
+    });
+  }
+
+  /**
    * Update working hours
    */
   async updateWorkingHours(

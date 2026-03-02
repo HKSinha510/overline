@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -85,6 +85,45 @@ export class AdminController {
   @ApiParam({ name: 'shopId', description: 'Shop ID' })
   async getStaff(@Param('shopId') shopId: string, @CurrentUser('tenantId') tenantId: string) {
     return this.adminService.getStaff(shopId, tenantId);
+  }
+
+  @Post('shops/:shopId/staff')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Create staff member' })
+  @ApiParam({ name: 'shopId', description: 'Shop ID' })
+  async createStaff(
+    @Param('shopId') shopId: string,
+    @Body() dto: { name: string; email: string; phone?: string; role: string },
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.adminService.createStaff(shopId, dto, tenantId);
+  }
+
+  @Patch('shops/:shopId/staff/:staffId')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Update staff member' })
+  @ApiParam({ name: 'shopId', description: 'Shop ID' })
+  @ApiParam({ name: 'staffId', description: 'Staff ID' })
+  async updateStaff(
+    @Param('shopId') shopId: string,
+    @Param('staffId') staffId: string,
+    @Body() dto: { name?: string; phone?: string; role?: string; isActive?: boolean },
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.adminService.updateStaff(shopId, staffId, dto, tenantId);
+  }
+
+  @Delete('shops/:shopId/staff/:staffId')
+  @Roles(UserRole.OWNER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Delete staff member' })
+  @ApiParam({ name: 'shopId', description: 'Shop ID' })
+  @ApiParam({ name: 'staffId', description: 'Staff ID' })
+  async deleteStaff(
+    @Param('shopId') shopId: string,
+    @Param('staffId') staffId: string,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.adminService.deleteStaff(shopId, staffId, tenantId);
   }
 
   @Get('shops/:shopId/working-hours')

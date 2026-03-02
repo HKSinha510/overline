@@ -150,6 +150,50 @@ export function useStaff() {
   });
 }
 
+export function useCreateStaff() {
+  const queryClient = useQueryClient();
+  const { shopId } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async (payload: { name: string; email: string; phone?: string; role: 'STAFF' | 'OWNER' }) => {
+      const { data } = await api.post(`/admin/shops/${shopId}/staff`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'staff', shopId] });
+    },
+  });
+}
+
+export function useUpdateStaff() {
+  const queryClient = useQueryClient();
+  const { shopId } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: { id: string; name?: string; phone?: string; role?: 'STAFF' | 'OWNER' }) => {
+      const { data } = await api.patch(`/admin/shops/${shopId}/staff/${id}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'staff', shopId] });
+    },
+  });
+}
+
+export function useDeleteStaff() {
+  const queryClient = useQueryClient();
+  const { shopId } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/admin/shops/${shopId}/staff/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'staff', shopId] });
+    },
+  });
+}
+
 export function useShopSettings() {
   const { shopId } = useAuthStore();
 
@@ -173,7 +217,7 @@ export function useUpdateShopSettings() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'settings', shopId] });
     },
   });
 }
@@ -201,7 +245,7 @@ export function useUpdateWorkingHours() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'working-hours'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'working-hours', shopId] });
     },
   });
 }
