@@ -115,6 +115,7 @@ export function useQueueSocket({
       socket.disconnect();
       socketRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, shopId, bookingId]);
 
   useEffect(() => {

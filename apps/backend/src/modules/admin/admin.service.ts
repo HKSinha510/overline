@@ -447,7 +447,7 @@ export class AdminService {
   ) {
     await this.verifyShopAccess(shopId, tenantId);
 
-    const updated = await this.prisma.shop.update({
+    await this.prisma.shop.update({
       where: { id: shopId },
       data: updateData,
     });

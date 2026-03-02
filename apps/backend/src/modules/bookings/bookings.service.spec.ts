@@ -62,7 +62,11 @@ describe('BookingsService', () => {
     checkBookingForFraud: jest.fn().mockResolvedValue({ allowed: true, flags: [], score: 0 }),
   };
   const mockWalletService = {
-    getOrCreateWallet: jest.fn().mockResolvedValue({ id: 'wallet-1', balance: { toNumber: () => 0 }, freeCashBalance: { toNumber: () => 0 } }),
+    getOrCreateWallet: jest.fn().mockResolvedValue({
+      id: 'wallet-1',
+      balance: { toNumber: () => 0 },
+      freeCashBalance: { toNumber: () => 0 },
+    }),
     deductFromWallet: jest.fn().mockResolvedValue(true),
     calculateFreeCashAmount: jest.fn().mockReturnValue(25),
     hasReferralBonus: jest.fn().mockReturnValue(false),
