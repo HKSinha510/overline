@@ -143,11 +143,13 @@ export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
   Register: undefined;
+  OtpVerify: {phone: string};
   Main: undefined;
   ShopDetail: {shopId: string};
   Booking: {shopId: string; selectedServices?: string[]};
   BookingDetail: {bookingId: string};
   BookingConfirmation: {bookingId: string};
+  PhoneVerification: undefined;
 };
 
 export type MainTabParamList = {

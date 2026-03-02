@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Platform} from 'react-native';
+import { Platform } from 'react-native';
+import DeviceInfo from '../utils/deviceInfo';
 
 // Configure API base URL
 const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
@@ -11,7 +12,7 @@ const API_BASE_URL = __DEV__
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
-  headers: {'Content-Type': 'application/json'},
+  headers: { 'Content-Type': 'application/json' },
 });
 
 // Track if we're currently refreshing the token
@@ -32,12 +33,17 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Add auth token to requests
+// Add auth token and device info to requests
 api.interceptors.request.use(async config => {
   const token = await AsyncStorage.getItem('accessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Add device fingerprint for fraud detection
+  const deviceFingerprint = DeviceInfo.getFingerprint();
+  config.headers['X-Device-Id'] = deviceFingerprint;
+  config.headers['X-Platform'] = Platform.OS;
+  config.headers['X-App-Version'] = '1.0.0';
   return config;
 });
 
@@ -50,7 +56,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
-          failedQueue.push({resolve, reject});
+          failedQueue.push({ resolve, reject });
         })
           .then(token => {
             originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -68,7 +74,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token');
         }
 
-        const {data} = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
           refreshToken,
         });
 
@@ -97,7 +103,7 @@ api.interceptors.response.use(
 // Auth API
 export const authApi = {
   login: (email: string, password: string) =>
-    api.post('/auth/login', {email, password}),
+    api.post('/auth/login', { email, password }),
   signup: (data: {
     name: string;
     email: string;
@@ -107,8 +113,8 @@ export const authApi = {
   me: () => api.get('/users/me'),
   logout: () => api.post('/auth/logout'),
   refresh: (refreshToken: string) =>
-    api.post('/auth/refresh', {refreshToken}),
-  changePassword: (data: {currentPassword: string; newPassword: string}) =>
+    api.post('/auth/refresh', { refreshToken }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
     api.post('/auth/change-password', data),
 };
 
@@ -119,30 +125,30 @@ export const shopsApi = {
     lat?: number;
     lng?: number;
     search?: string;
-  }) => api.get('/shops', {params}),
+  }) => api.get('/shops', { params }),
   getBySlug: (slug: string) => api.get(`/shops/${slug}`),
   getServices: (shopId: string) => api.get(`/shops/${shopId}/services`),
   getQueue: (shopId: string) => api.get(`/shops/${shopId}/queue`),
   getCities: () => api.get('/shops/cities'),
-  getNearby: (params: {lat: number; long: number; radiusKm?: number}) =>
-    api.get('/shops/nearby', {params}),
+  getNearby: (params: { lat: number; long: number; radiusKm?: number }) =>
+    api.get('/shops/nearby', { params }),
 };
 
 // Queue API - for available time slots
 export const queueApi = {
   getSlots: (
     shopId: string,
-    params: {date: string; serviceIds?: string[]; duration?: number},
-  ) => api.get(`/queue/slots/${shopId}`, {params}),
-  getNextSlot: (shopId: string, params?: {serviceIds?: string[]}) =>
-    api.get(`/queue/next-slot/${shopId}`, {params}),
+    params: { date: string; serviceIds?: string[]; duration?: number },
+  ) => api.get(`/queue/slots/${shopId}`, { params }),
+  getNextSlot: (shopId: string, params?: { serviceIds?: string[] }) =>
+    api.get(`/queue/next-slot/${shopId}`, { params }),
   getPosition: (bookingId: string) =>
     api.get(`/queue/position/${bookingId}`),
 };
 
 // Bookings API
 export const bookingsApi = {
-  create: (data: {shopId: string; serviceIds: string[]; startTime: string}) =>
+  create: (data: { shopId: string; serviceIds: string[]; startTime: string }) =>
     api.post('/bookings', data),
   createGuest: (data: {
     shopId: string;
@@ -152,13 +158,13 @@ export const bookingsApi = {
     customerPhone: string;
     customerEmail?: string;
   }) => api.post('/bookings/guest', data),
-  getMy: (params?: {status?: string; page?: number; limit?: number}) =>
-    api.get('/bookings/my', {params}),
+  getMy: (params?: { status?: string; page?: number; limit?: number }) =>
+    api.get('/bookings/my', { params }),
   getById: (id: string) => api.get(`/bookings/${id}`),
   cancel: (id: string) => api.patch(`/bookings/${id}/cancel`),
-  cancelWithReason: (id: string, data: {reason: string}) =>
+  cancelWithReason: (id: string, data: { reason: string }) =>
     api.patch(`/bookings/${id}/cancel-with-reason`, data),
-  reschedule: (id: string, data: {startTime: string}) =>
+  reschedule: (id: string, data: { startTime: string }) =>
     api.patch(`/bookings/${id}/reschedule`, data),
   lookup: (bookingNumber: string) =>
     api.get(`/bookings/lookup/${bookingNumber}`),
@@ -172,40 +178,50 @@ export const walletApi = {
     take?: number;
     skip?: number;
     type?: string;
-  }) => api.get('/wallet/transactions', {params}),
+  }) => api.get('/wallet/transactions', { params }),
 };
 
 // User API
 export const userApi = {
   getProfile: () => api.get('/users/me'),
-  updateProfile: (data: {name?: string; phone?: string}) =>
+  updateProfile: (data: { name?: string; phone?: string }) =>
     api.patch('/users/me', data),
   sendOtp: () => api.post('/users/me/otp/send'),
-  verifyOtp: (data: {otp: string}) => api.post('/users/me/otp/verify', data),
+  verifyOtp: (data: { otp: string }) => api.post('/users/me/otp/verify', data),
 };
 
 // Reviews API
 export const reviewsApi = {
-  getByShop: (shopId: string, params?: {page?: number; limit?: number}) =>
-    api.get(`/reviews/shop/${shopId}`, {params}),
+  getByShop: (shopId: string, params?: { page?: number; limit?: number }) =>
+    api.get(`/reviews/shop/${shopId}`, { params }),
   getStats: (shopId: string) => api.get(`/reviews/shop/${shopId}/stats`),
-  create: (data: {bookingId: string; rating: number; comment?: string}) =>
+  create: (data: { bookingId: string; rating: number; comment?: string }) =>
     api.post('/reviews', data),
   getMy: () => api.get('/reviews/my'),
 };
 
 // Notifications API
 export const notificationsApi = {
-  get: (params?: {page?: number; limit?: number; unreadOnly?: boolean}) =>
-    api.get('/notifications', {params}),
+  get: (params?: { page?: number; limit?: number; unreadOnly?: boolean }) =>
+    api.get('/notifications', { params }),
   getUnreadCount: () => api.get('/notifications/unread-count'),
   markRead: (id: string) => api.patch(`/notifications/${id}/read`),
   markAllRead: () => api.patch('/notifications/read-all'),
 };
 
+// OTP API - phone-based authentication
+export const otpApi = {
+  send: (phone: string, purpose: string = 'LOGIN') =>
+    api.post('/otp/send', { phone, purpose }),
+  verify: (phone: string, otp: string, purpose: string = 'LOGIN') =>
+    api.post('/otp/verify', { phone, otp, purpose }),
+  login: (phone: string, otp: string) =>
+    api.post('/otp/login', { phone, otp, purpose: 'LOGIN' }),
+};
+
 // Payments API
 export const paymentsApi = {
-  createIntent: (data: {bookingId: string; amount: number}) =>
+  createIntent: (data: { bookingId: string; amount: number }) =>
     api.post('/payments/create-intent', data),
   getStatus: (id: string) => api.get(`/payments/${id}`),
 };

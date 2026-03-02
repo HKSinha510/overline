@@ -11,6 +11,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import SplashScreen from '../screens/auth/SplashScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import OtpVerifyScreen from '../screens/auth/OtpVerifyScreen';
 import HomeScreen from '../screens/home/HomeScreen';
 import ShopDetailScreen from '../screens/home/ShopDetailScreen';
 import BookingScreen from '../screens/booking/BookingScreen';
@@ -151,6 +152,14 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen
+              name="OtpVerify"
+              component={OtpVerifyScreen}
+              options={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            />
           </>
         ) : (
           <>

@@ -135,12 +135,24 @@ export default function SettingsScreen() {
             <Text style={styles.menuText}>Working Hours</Text>
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() =>
+              navigation.navigate('StaffManagement', {
+                shopId: selectedShopId || '',
+              })
+            }>
             <Text style={styles.menuIcon}>👥</Text>
             <Text style={styles.menuText}>Staff Management</Text>
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() =>
+              navigation.navigate('Analytics', {
+                shopId: selectedShopId || '',
+              })
+            }>
             <Text style={styles.menuIcon}>📊</Text>
             <Text style={styles.menuText}>Analytics</Text>
             <Text style={styles.menuArrow}>›</Text>

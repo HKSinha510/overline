@@ -657,7 +657,7 @@ export class AuthService {
     });
   }
 
-  private async generateTokens(user: any): Promise<TokenResponse> {
+  async generateTokens(user: any): Promise<TokenResponse> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,

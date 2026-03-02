@@ -51,7 +51,7 @@ export default function ShopSettingsScreen() {
   }, [shop]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: ShopFormData) => shopApi.update(shopId, data),
+    mutationFn: (data: ShopFormData) => shopApi.updateSettings(shopId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['adminShop', shopId]});
       queryClient.invalidateQueries({queryKey: ['adminProfile']});

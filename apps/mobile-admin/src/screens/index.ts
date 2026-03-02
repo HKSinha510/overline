@@ -1,7 +1,6 @@
 // Auth Screens
 export {default as SplashScreen} from './auth/SplashScreen';
 export {default as LoginScreen} from './auth/LoginScreen';
-export {default as OtpScreen} from './auth/OtpScreen';
 
 // Dashboard Screen
 export {default as DashboardScreen} from './dashboard/DashboardScreen';
@@ -19,3 +18,5 @@ export {default as ServiceFormScreen} from './services/ServiceFormScreen';
 export {default as SettingsScreen} from './settings/SettingsScreen';
 export {default as ShopSettingsScreen} from './settings/ShopSettingsScreen';
 export {default as WorkingHoursScreen} from './settings/WorkingHoursScreen';
+export {default as StaffManagementScreen} from './settings/StaffManagementScreen';
+export {default as AnalyticsScreen} from './settings/AnalyticsScreen';

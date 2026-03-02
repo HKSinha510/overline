@@ -9,7 +9,7 @@ import {RootStackParamList, MainTabParamList} from '../types';
 // Screens
 import SplashScreen from '../screens/auth/SplashScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
-import OtpScreen from '../screens/auth/OtpScreen';
+import OtpVerifyScreen from '../screens/auth/OtpVerifyScreen';
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import BookingsScreen from '../screens/bookings/BookingsScreen';
 import BookingDetailScreen from '../screens/bookings/BookingDetailScreen';
@@ -19,6 +19,8 @@ import ServiceFormScreen from '../screens/services/ServiceFormScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import ShopSettingsScreen from '../screens/settings/ShopSettingsScreen';
 import WorkingHoursScreen from '../screens/settings/WorkingHoursScreen';
+import StaffManagementScreen from '../screens/settings/StaffManagementScreen';
+import AnalyticsScreen from '../screens/settings/AnalyticsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -99,7 +101,8 @@ function MainTabs() {
 }
 
 export default function RootNavigator() {
-  const {isAuthenticated, isLoading, pendingEmail} = useAuthStore();
+  const {isAuthenticated, isLoading, pendingOtpVerification, otpPhone} =
+    useAuthStore();
 
   if (isLoading) {
     return (
@@ -114,14 +117,15 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{headerShown: false}}>
-        {!isAuthenticated ? (
-          <>
-            {pendingEmail ? (
-              <Stack.Screen name="OtpVerification" component={OtpScreen} />
-            ) : (
-              <Stack.Screen name="Login" component={LoginScreen} />
-            )}
-          </>
+        {!isAuthenticated && !pendingOtpVerification ? (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : pendingOtpVerification && otpPhone ? (
+          <Stack.Screen
+            name="OtpVerify"
+            component={OtpVerifyScreen}
+            initialParams={{phone: otpPhone}}
+            options={{headerShown: true, title: 'Verify Identity'}}
+          />
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
@@ -153,6 +157,16 @@ export default function RootNavigator() {
               name="WorkingHours"
               component={WorkingHoursScreen}
               options={{headerShown: true, title: 'Working Hours'}}
+            />
+            <Stack.Screen
+              name="StaffManagement"
+              component={StaffManagementScreen}
+              options={{headerShown: true, title: 'Staff Management'}}
+            />
+            <Stack.Screen
+              name="Analytics"
+              component={AnalyticsScreen}
+              options={{headerShown: true, title: 'Analytics'}}
             />
           </>
         )}

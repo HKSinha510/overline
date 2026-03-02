@@ -59,8 +59,7 @@ export default function ServiceFormScreen() {
 
   const createMutation = useMutation({
     mutationFn: (data: ServiceFormData) =>
-      servicesApi.create({
-        shopId,
+      servicesApi.create(shopId, {
         name: data.name,
         price: data.price,
         durationMinutes: data.durationMinutes,

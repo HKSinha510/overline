@@ -46,8 +46,6 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await login(email, password);
-      // If OTP is required, the user will be redirected to OTP screen
-      // If not, they'll be logged in directly
     } catch (error: any) {
       Alert.alert(
         'Login Failed',

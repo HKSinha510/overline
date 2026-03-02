@@ -1,6 +1,6 @@
 import {create} from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {authApi, shopApi} from '../api/client';
+import {authApi, shopApi, otpApi} from '../api/client';
 
 interface AdminUser {
   id: string;
@@ -20,18 +20,25 @@ interface AuthState {
   isLoading: boolean;
   selectedShopId: string | null;
 
+  // OTP 2FA state
+  pendingOtpVerification: boolean;
+  otpPhone: string | null;
+
   // Actions
   login: (email: string, password: string) => Promise<void>;
+  completeOtpVerification: () => void;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   setSelectedShop: (shopId: string) => void;
 }
 
-export const useAuthStore = create<AuthState>((set, _get) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
   selectedShopId: null,
+  pendingOtpVerification: false,
+  otpPhone: null,
 
   login: async (email: string, password: string) => {
     try {
@@ -55,6 +62,23 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
       const userWithShops = {...user, shops};
       const defaultShopId = shops[0]?.id || null;
 
+      // If user has a phone, require OTP verification for 2FA
+      if (user.phone) {
+        try {
+          await otpApi.send(user.phone);
+          set({
+            user: userWithShops,
+            pendingOtpVerification: true,
+            otpPhone: user.phone,
+            selectedShopId: defaultShopId,
+          });
+          return;
+        } catch {
+          // If OTP send fails, log in directly (graceful fallback)
+        }
+      }
+
+      // No phone or OTP send failed - log in directly
       set({
         user: userWithShops,
         isAuthenticated: true,
@@ -65,12 +89,19 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
     }
   },
 
+  completeOtpVerification: () => {
+    set({
+      isAuthenticated: true,
+      pendingOtpVerification: false,
+      otpPhone: null,
+    });
+  },
+
   logout: async () => {
     try {
       await authApi.logout();
-    } catch (error) {
-      // Ignore logout API errors - still clear local state
-      console.log('Logout API error:', error);
+    } catch {
+      // Ignore logout API errors
     }
 
     await AsyncStorage.removeItem('admin_token');
@@ -79,6 +110,8 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
       user: null,
       isAuthenticated: false,
       selectedShopId: null,
+      pendingOtpVerification: false,
+      otpPhone: null,
     });
   },
 

@@ -37,7 +37,8 @@ export default function ServicesScreen() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: (serviceId: string) => servicesApi.toggleActive(serviceId),
+    mutationFn: (service: Service) =>
+      servicesApi.update(service.id, {isActive: !service.isActive}),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['adminServices']});
     },
@@ -64,7 +65,7 @@ export default function ServicesScreen() {
   });
 
   const handleToggleActive = (service: Service) => {
-    toggleMutation.mutate(service.id);
+    toggleMutation.mutate(service);
   };
 
   const handleDelete = (service: Service) => {

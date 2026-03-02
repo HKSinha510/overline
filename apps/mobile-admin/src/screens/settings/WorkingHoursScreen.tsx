@@ -68,21 +68,34 @@ export default function WorkingHoursScreen() {
   });
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
-  const {data: shop, isLoading} = useQuery({
-    queryKey: ['adminShop', shopId],
-    queryFn: () => shopApi.getById(shopId).then(res => res.data),
+  const {data: shopData, isLoading} = useQuery({
+    queryKey: ['adminShopHours', shopId],
+    queryFn: () => shopApi.getWorkingHours(shopId).then(res => res.data),
     enabled: !!shopId,
   });
 
   useEffect(() => {
-    if (shop?.workingHours) {
-      setWorkingHours(shop.workingHours);
+    if (shopData) {
+      setWorkingHours(shopData);
     }
-  }, [shop]);
+  }, [shopData]);
 
   const updateMutation = useMutation({
-    mutationFn: (hours: WorkingHours) =>
-      shopApi.updateWorkingHours(shopId, hours),
+    mutationFn: async (hours: WorkingHours) => {
+      // Update each day individually as the API expects per-day updates
+      const promises = DAYS.map(day => {
+        const dayHours = hours[day as keyof WorkingHours];
+        if (dayHours) {
+          return shopApi.updateWorkingHours(
+            shopId,
+            day.toUpperCase(),
+            dayHours,
+          );
+        }
+        return Promise.resolve();
+      });
+      await Promise.all(promises);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['adminShop', shopId]});
       Alert.alert('Success', 'Working hours updated');

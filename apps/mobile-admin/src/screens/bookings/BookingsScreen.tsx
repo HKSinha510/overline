@@ -37,11 +37,10 @@ export default function BookingsScreen() {
     queryKey: ['adminBookings', selectedShopId, statusFilter],
     queryFn: () =>
       bookingsApi
-        .getAll({
-          shopId: selectedShopId || undefined,
+        .getAll(selectedShopId!, {
           status: statusFilter === 'ALL' ? undefined : statusFilter,
         })
-        .then(res => res.data.bookings || res.data),
+        .then(res => res.data?.bookings || res.data || []),
     enabled: !!selectedShopId,
   });
 

@@ -16,6 +16,7 @@ import { shopsApi, bookingsApi, queueApi } from '../../api/client';
 import { RootStackParamList, TimeSlot } from '../../types';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../theme';
 import { PrimaryButton, Divider, SectionHeader } from '../../components/ui';
+import { useAuthStore } from '../../stores/authStore';
 
 type RouteProps = RouteProp<RootStackParamList, 'Booking'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -64,6 +65,21 @@ export default function BookingScreen() {
       Alert.alert('Error', 'Please select a time slot');
       return;
     }
+
+    // Check phone verification before booking
+    const user = useAuthStore.getState().user;
+    if (user && !user.isPhoneVerified) {
+      Alert.alert(
+        'Phone Verification Required',
+        'Please verify your phone number before booking. This helps prevent spam and ensures you receive booking updates.',
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {text: 'Verify Now', onPress: () => navigation.goBack()},
+        ],
+      );
+      return;
+    }
+
     const startTime = `${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}:00.000Z`;
     createBooking.mutate({ shopId, serviceIds: selectedServices, startTime });
   };

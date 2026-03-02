@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Platform} from 'react-native';
+import { Platform } from 'react-native';
+import DeviceInfo from '../utils/deviceInfo';
 
 // Base URL configuration
 const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
@@ -35,13 +36,18 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and device info
 apiClient.interceptors.request.use(
   async config => {
     const token = await AsyncStorage.getItem('admin_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Add device fingerprint for fraud detection
+    const deviceFingerprint = DeviceInfo.getFingerprint();
+    config.headers['X-Device-Id'] = deviceFingerprint;
+    config.headers['X-Platform'] = Platform.OS;
+    config.headers['X-App-Version'] = '1.0.0-admin';
     return config;
   },
   error => {
@@ -58,7 +64,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
-          failedQueue.push({resolve, reject});
+          failedQueue.push({ resolve, reject });
         })
           .then(token => {
             originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -76,7 +82,7 @@ apiClient.interceptors.response.use(
           throw new Error('No refresh token');
         }
 
-        const {data} = await axios.post(`${BASE_URL}/auth/refresh`, {
+        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
           refreshToken,
         });
 
@@ -105,18 +111,19 @@ apiClient.interceptors.response.use(
 // Auth APIs - uses the same auth endpoints as user app
 export const authApi = {
   login: (email: string, password: string) =>
-    apiClient.post('/auth/login', {email, password}),
+    apiClient.post('/auth/login', { email, password }),
   getProfile: () => apiClient.get('/users/me'),
   logout: () => apiClient.post('/auth/logout'),
   refresh: (refreshToken: string) =>
-    apiClient.post('/auth/refresh', {refreshToken}),
+    apiClient.post('/auth/refresh', { refreshToken }),
 };
 
 // OTP APIs
 export const otpApi = {
-  send: (phone: string) => apiClient.post('/otp/send', {phone}),
-  verify: (phone: string, otp: string) =>
-    apiClient.post('/otp/verify', {phone, otp}),
+  send: (phone: string, purpose: string = 'VERIFY_PHONE') =>
+    apiClient.post('/otp/send', { phone, purpose }),
+  verify: (phone: string, otp: string, purpose: string = 'VERIFY_PHONE') =>
+    apiClient.post('/otp/verify', { phone, otp, purpose }),
 };
 
 // Admin Dashboard APIs
@@ -125,32 +132,32 @@ export const dashboardApi = {
     apiClient.get(`/admin/shops/${shopId}/dashboard`),
   getBookings: (
     shopId: string,
-    params?: {date?: string; status?: string; page?: number; limit?: number},
-  ) => apiClient.get(`/admin/shops/${shopId}/bookings`, {params}),
+    params?: { date?: string; status?: string; page?: number; limit?: number },
+  ) => apiClient.get(`/admin/shops/${shopId}/bookings`, { params }),
 };
 
 // Admin Bookings APIs
 export const bookingsApi = {
   getAll: (
     shopId: string,
-    params?: {status?: string; date?: string; page?: number; limit?: number},
-  ) => apiClient.get(`/admin/shops/${shopId}/bookings`, {params}),
+    params?: { status?: string; date?: string; page?: number; limit?: number },
+  ) => apiClient.get(`/admin/shops/${shopId}/bookings`, { params }),
   getById: (id: string) => apiClient.get(`/bookings/${id}`),
   updateStatus: (bookingId: string, status: string) =>
-    apiClient.patch(`/admin/bookings/${bookingId}/status`, {status}),
+    apiClient.patch(`/admin/bookings/${bookingId}/status`, { status }),
   verifyCode: (bookingId: string, code: string) =>
-    apiClient.post(`/bookings/${bookingId}/verify-code`, {code}),
+    apiClient.post(`/bookings/${bookingId}/verify-code`, { code }),
   completeService: (bookingId: string) =>
     apiClient.post(`/bookings/${bookingId}/complete`),
   cancelBooking: (bookingId: string, reason?: string) =>
-    apiClient.patch(`/bookings/${bookingId}/cancel`, {reason}),
+    apiClient.patch(`/bookings/${bookingId}/cancel`, { reason }),
   markNoShow: (bookingId: string) =>
     apiClient.patch(`/admin/bookings/${bookingId}/status`, {
       status: 'NO_SHOW',
     }),
   createWalkIn: (
     shopId: string,
-    data: {serviceIds: string[]; customerName: string; customerPhone: string},
+    data: { serviceIds: string[]; customerName: string; customerPhone: string },
   ) => apiClient.post(`/admin/shops/${shopId}/walk-in`, data),
 };
 
@@ -206,7 +213,7 @@ export const staffApi = {
     apiClient.get(`/admin/shops/${shopId}/staff`),
   create: (
     shopId: string,
-    data: {name: string; email: string; role?: string; phone?: string},
+    data: { name: string; email: string; role?: string; phone?: string },
   ) => apiClient.post(`/admin/shops/${shopId}/staff`, data),
   update: (shopId: string, staffId: string, data: any) =>
     apiClient.patch(`/admin/shops/${shopId}/staff/${staffId}`, data),
@@ -218,20 +225,20 @@ export const staffApi = {
 export const analyticsApi = {
   getSummary: (
     shopId: string,
-    params?: {startDate?: string; endDate?: string},
-  ) => apiClient.get(`/analytics/shops/${shopId}/summary`, {params}),
+    params?: { startDate?: string; endDate?: string },
+  ) => apiClient.get(`/analytics/shops/${shopId}/summary`, { params }),
   getDaily: (
     shopId: string,
-    params?: {startDate?: string; endDate?: string},
-  ) => apiClient.get(`/analytics/shops/${shopId}/daily`, {params}),
+    params?: { startDate?: string; endDate?: string },
+  ) => apiClient.get(`/analytics/shops/${shopId}/daily`, { params }),
   getServices: (shopId: string) =>
     apiClient.get(`/analytics/shops/${shopId}/services`),
 };
 
 // Notifications APIs
 export const notificationsApi = {
-  get: (params?: {page?: number; limit?: number; unreadOnly?: boolean}) =>
-    apiClient.get('/notifications', {params}),
+  get: (params?: { page?: number; limit?: number; unreadOnly?: boolean }) =>
+    apiClient.get('/notifications', { params }),
   getUnreadCount: () => apiClient.get('/notifications/unread-count'),
   markRead: (id: string) => apiClient.patch(`/notifications/${id}/read`),
   markAllRead: () => apiClient.patch('/notifications/read-all'),

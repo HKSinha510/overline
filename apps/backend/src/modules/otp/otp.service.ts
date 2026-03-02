@@ -1,7 +1,8 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { RedisService } from '@/common/redis/redis.service';
+import { AuthService, TokenResponse } from '../auth/auth.service';
 
 export const OTP_CONFIG = {
   LENGTH: 6, // 6-digit OTP
@@ -20,7 +21,9 @@ export class OtpService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private redis: RedisService,
-  ) {}
+    @Inject(forwardRef(() => AuthService))
+    private authService: AuthService,
+  ) { }
 
   /**
    * Generate a random OTP
@@ -154,9 +157,9 @@ export class OtpService {
   }
 
   /**
-   * Login with OTP
+   * Login with OTP — verifies OTP and returns JWT tokens
    */
-  async loginWithOtp(phone: string, otp: string): Promise<{ verified: boolean; user: any }> {
+  async loginWithOtp(phone: string, otp: string): Promise<TokenResponse> {
     const result = await this.verifyOtp(phone, otp, 'LOGIN');
 
     if (!result.verified) {
@@ -182,7 +185,8 @@ export class OtpService {
       this.logger.log(`Created new user via OTP login: ${user.id}`);
     }
 
-    return { verified: true, user };
+    // Generate and return JWT tokens
+    return this.authService.generateTokens(user);
   }
 
   /**

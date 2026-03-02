@@ -28,7 +28,7 @@ export default function BookingDetailScreen() {
   });
 
   const startMutation = useMutation({
-    mutationFn: () => bookingsApi.startService(bookingId),
+    mutationFn: () => bookingsApi.updateStatus(bookingId, 'IN_PROGRESS'),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['adminBooking', bookingId]});
       queryClient.invalidateQueries({queryKey: ['adminBookings']});

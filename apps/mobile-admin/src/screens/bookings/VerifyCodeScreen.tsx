@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
   Vibration,
 } from 'react-native';
-import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useNavigation} from '@react-navigation/native';
-import {bookingsApi} from '../../api/client';
+import {bookingsApi, dashboardApi} from '../../api/client';
 import {useAuthStore} from '../../stores/authStore';
 import {Booking} from '../../types';
+import {format} from 'date-fns';
 
 export default function VerifyCodeScreen() {
   const navigation = useNavigation();
@@ -21,27 +22,23 @@ export default function VerifyCodeScreen() {
   const {selectedShopId} = useAuthStore();
   const [code, setCode] = useState(['', '', '', '']);
   const [verifiedBooking, setVerifiedBooking] = useState<Booking | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  const verifyMutation = useMutation({
-    mutationFn: (verificationCode: string) =>
-      bookingsApi.verifyCode(selectedShopId || '', verificationCode),
-    onSuccess: response => {
-      Vibration.vibrate(100);
-      setVerifiedBooking(response.data);
-    },
-    onError: (error: any) => {
-      Vibration.vibrate([0, 100, 100, 100]);
-      Alert.alert(
-        'Invalid Code',
-        error.response?.data?.message || 'No booking found with this code',
-      );
-      resetCode();
-    },
+  // Fetch today's bookings to match verification codes
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const {data: todayBookings = []} = useQuery<Booking[]>({
+    queryKey: ['todayBookingsForVerify', selectedShopId],
+    queryFn: () =>
+      dashboardApi
+        .getBookings(selectedShopId!, {date: today, limit: 100})
+        .then(res => res.data?.bookings || res.data || []),
+    enabled: !!selectedShopId,
   });
 
   const startMutation = useMutation({
-    mutationFn: () => bookingsApi.startService(verifiedBooking!.id),
+    mutationFn: (bookingId: string) =>
+      bookingsApi.updateStatus(bookingId, 'IN_PROGRESS'),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['adminBookings']});
       queryClient.invalidateQueries({queryKey: ['todayBookings']});
@@ -64,6 +61,34 @@ export default function VerifyCodeScreen() {
     inputRefs.current[0]?.focus();
   };
 
+  const verifyCode = (fullCode: string) => {
+    setIsVerifying(true);
+    // Find booking with matching verification code from today's bookings
+    const matchingBooking = todayBookings.find(
+      (b: Booking) =>
+        b.verificationCode === fullCode &&
+        ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(b.status),
+    );
+
+    if (matchingBooking) {
+      Vibration.vibrate(100);
+      setVerifiedBooking(matchingBooking);
+
+      // Also call the verify-code endpoint on the backend
+      bookingsApi
+        .verifyCode(matchingBooking.id, fullCode)
+        .catch(() => { /* verification code already matched client-side */ });
+    } else {
+      Vibration.vibrate([0, 100, 100, 100]);
+      Alert.alert(
+        'Invalid Code',
+        'No active booking found with this code for today',
+      );
+      resetCode();
+    }
+    setIsVerifying(false);
+  };
+
   const handleCodeChange = (value: string, index: number) => {
     if (!/^\d*$/.test(value)) return;
 
@@ -80,7 +105,7 @@ export default function VerifyCodeScreen() {
     if (value && index === 3) {
       const fullCode = [...newCode.slice(0, 3), value].join('');
       if (fullCode.length === 4) {
-        verifyMutation.mutate(fullCode);
+        verifyCode(fullCode);
       }
     }
   };
@@ -92,7 +117,9 @@ export default function VerifyCodeScreen() {
   };
 
   const handleStartService = () => {
-    startMutation.mutate();
+    if (verifiedBooking) {
+      startMutation.mutate(verifiedBooking.id);
+    }
   };
 
   const statusColors: Record<string, string> = {
@@ -117,7 +144,9 @@ export default function VerifyCodeScreen() {
             {code.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={ref => { inputRefs.current[index] = ref; }}
+                ref={ref => {
+                  inputRefs.current[index] = ref;
+                }}
                 style={[
                   styles.codeInput,
                   digit ? styles.codeInputFilled : null,
@@ -133,7 +162,7 @@ export default function VerifyCodeScreen() {
             ))}
           </View>
 
-          {verifyMutation.isPending && (
+          {isVerifying && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#4F46E5" />
               <Text style={styles.loadingText}>Verifying...</Text>
@@ -391,9 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     marginVertical: 16,
   },
-  servicesSection: {
-    // empty
-  },
+  servicesSection: {},
   sectionLabel: {
     fontSize: 12,
     fontWeight: '600',

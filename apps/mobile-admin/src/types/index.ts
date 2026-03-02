@@ -2,7 +2,7 @@
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
-  OtpVerification: undefined;
+  OtpVerify: {phone: string};
   Main: undefined;
   BookingDetail: {bookingId: string};
   VerifyCode: undefined;
@@ -10,6 +10,7 @@ export type RootStackParamList = {
   ShopSettings: {shopId: string};
   WorkingHours: {shopId: string};
   StaffManagement: {shopId: string};
+  Analytics: {shopId: string};
 };
 
 export type MainTabParamList = {

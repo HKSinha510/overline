@@ -1,6 +1,6 @@
 import {create} from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {authApi} from '../api/client';
+import {authApi, otpApi} from '../api/client';
 
 export interface User {
   id: string;
@@ -17,6 +17,12 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+
+  // OTP state
+  otpPhone: string | null;
+  otpSent: boolean;
+
+  // Actions
   login: (email: string, password: string) => Promise<void>;
   signup: (data: {
     name: string;
@@ -24,6 +30,8 @@ interface AuthState {
     password: string;
     phone: string;
   }) => Promise<void>;
+  sendOtp: (phone: string) => Promise<void>;
+  completeOtpLogin: (user: User) => void;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -34,6 +42,8 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
   isAuthenticated: false,
   isLoading: true,
   error: null,
+  otpPhone: null,
+  otpSent: false,
 
   login: async (email, password) => {
     try {
@@ -69,6 +79,29 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
     }
   },
 
+  sendOtp: async (phone: string) => {
+    try {
+      set({error: null});
+      await otpApi.send(phone, 'LOGIN');
+      set({otpPhone: phone, otpSent: true});
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message || 'Failed to send OTP. Please try again.';
+      set({error: message});
+      throw error;
+    }
+  },
+
+  completeOtpLogin: (user: User) => {
+    set({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      otpPhone: null,
+      otpSent: false,
+    });
+  },
+
   logout: async () => {
     try {
       await authApi.logout();
@@ -77,7 +110,12 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
     }
     await AsyncStorage.removeItem('accessToken');
     await AsyncStorage.removeItem('refreshToken');
-    set({user: null, isAuthenticated: false});
+    set({
+      user: null,
+      isAuthenticated: false,
+      otpPhone: null,
+      otpSent: false,
+    });
   },
 
   checkAuth: async () => {
