@@ -10,7 +10,7 @@ import {
   Linking,
 } from 'react-native';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
-import {useRoute, RouteProp, useNavigation} from '@react-navigation/native';
+import {useRoute, RouteProp} from '@react-navigation/native';
 import {format} from 'date-fns';
 import {bookingsApi} from '../../api/client';
 import {RootStackParamList, Booking} from '../../types';
@@ -19,7 +19,6 @@ type RouteProps = RouteProp<RootStackParamList, 'BookingDetail'>;
 
 export default function BookingDetailScreen() {
   const route = useRoute<RouteProps>();
-  const navigation = useNavigation();
   const queryClient = useQueryClient();
   const {bookingId} = route.params;
 
@@ -111,7 +110,7 @@ export default function BookingDetailScreen() {
       {
         text: 'Yes, Cancel',
         style: 'destructive',
-        onPress: () => cancelMutation.mutate(),
+        onPress: () => cancelMutation.mutate(undefined),
       },
     ]);
   };

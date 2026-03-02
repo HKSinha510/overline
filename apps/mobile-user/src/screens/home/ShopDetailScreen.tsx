@@ -12,7 +12,7 @@ import {useQuery} from '@tanstack/react-query';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {shopsApi} from '../../api/client';
-import {Shop, Service, RootStackParamList} from '../../types';
+import {Service, RootStackParamList} from '../../types';
 
 type RouteProps = RouteProp<RootStackParamList, 'ShopDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;

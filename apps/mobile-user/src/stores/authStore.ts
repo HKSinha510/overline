@@ -29,7 +29,7 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set, _get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -71,7 +71,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       // Ignore errors on logout
     }
-    await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
+    await AsyncStorage.removeItem('accessToken');
+    await AsyncStorage.removeItem('refreshToken');
     set({user: null, isAuthenticated: false});
   },
 
@@ -85,7 +86,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const {data} = await authApi.me();
       set({user: data, isAuthenticated: true, isLoading: false});
     } catch {
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
+      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('refreshToken');
       set({isLoading: false, isAuthenticated: false, user: null});
     }
   },

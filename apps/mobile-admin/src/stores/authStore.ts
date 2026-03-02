@@ -131,7 +131,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         selectedShopId: defaultShopId,
       });
-    } catch (error) {
+    } catch {
       await AsyncStorage.removeItem('admin_token');
       set({
         user: null,

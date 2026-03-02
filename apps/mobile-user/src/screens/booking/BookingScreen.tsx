@@ -11,7 +11,7 @@ import {
 import {useQuery, useMutation} from '@tanstack/react-query';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {format, addDays, parseISO, isSameDay} from 'date-fns';
+import {format, addDays, isSameDay} from 'date-fns';
 import {shopsApi, bookingsApi} from '../../api/client';
 import {RootStackParamList, TimeSlot} from '../../types';
 

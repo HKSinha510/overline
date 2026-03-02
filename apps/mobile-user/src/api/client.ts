@@ -81,6 +81,7 @@ export const bookingsApi = {
 
 // Wallet API
 export const walletApi = {
+  get: () => api.get('/wallet'),
   getBalance: () => api.get('/wallet/balance'),
   getHistory: (params?: {page?: number; limit?: number}) =>
     api.get('/wallet/history', {params}),
@@ -88,6 +89,7 @@ export const walletApi = {
 
 // User API
 export const userApi = {
+  getProfile: () => api.get('/users/profile'),
   updateProfile: (data: {name?: string; phone?: string}) =>
     api.patch('/users/profile', data),
   updatePushToken: (token: string, platform: string) =>
