@@ -13,7 +13,7 @@ export class WalletController {
    */
   @Get('balance')
   async getBalance(@Request() req: any) {
-    return this.walletService.getWalletBalance(req.user.userId);
+    return this.walletService.getWalletBalance(req.user.id);
   }
 
   /**
@@ -21,7 +21,7 @@ export class WalletController {
    */
   @Get()
   async getWallet(@Request() req: any) {
-    return this.walletService.getOrCreateWallet(req.user.userId);
+    return this.walletService.getOrCreateWallet(req.user.id);
   }
 
   /**
@@ -34,7 +34,7 @@ export class WalletController {
     @Query('skip') skip?: string,
     @Query('type') type?: WalletTransactionType,
   ) {
-    return this.walletService.getTransactions(req.user.userId, {
+    return this.walletService.getTransactions(req.user.id, {
       take: take ? parseInt(take, 10) : 20,
       skip: skip ? parseInt(skip, 10) : 0,
       type,

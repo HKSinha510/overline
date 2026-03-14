@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { RedisService } from '@/common/redis/redis.service';
 import { AuthService, TokenResponse } from '../auth/auth.service';
+import { Twilio } from 'twilio';
 
 export const OTP_CONFIG = {
   LENGTH: 6, // 6-digit OTP
@@ -16,6 +17,7 @@ export type OtpPurpose = 'LOGIN' | 'REGISTER' | 'VERIFY_PHONE';
 @Injectable()
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
+  private twilioClient: Twilio | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -23,7 +25,18 @@ export class OtpService {
     private redis: RedisService,
     @Inject(forwardRef(() => AuthService))
     private authService: AuthService,
-  ) { }
+  ) {
+    // Initialize Twilio client if credentials are provided
+    const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
+    const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
+
+    if (accountSid && authToken && accountSid !== 'ACxxx') {
+      this.twilioClient = new Twilio(accountSid, authToken);
+      this.logger.log('Twilio SMS client initialized');
+    } else {
+      this.logger.warn('Twilio credentials not configured - SMS will be logged only');
+    }
+  }
 
   /**
    * Generate a random OTP
@@ -35,7 +48,7 @@ export class OtpService {
   /**
    * Send OTP to phone number
    */
-  async sendOtp(phone: string, purpose: OtpPurpose): Promise<{ message: string; expiresAt: Date }> {
+  async sendOtp(phone: string, purpose: OtpPurpose): Promise<{ message: string; expiresAt: Date; devOtp?: string }> {
     // Validate phone format (Indian format)
     if (!this.isValidIndianPhone(phone)) {
       throw new BadRequestException('Invalid phone number format. Use +91XXXXXXXXXX');
@@ -78,17 +91,21 @@ export class OtpService {
     // Set cooldown
     await this.redis.set(cooldownKey, 'active', OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
 
-    // TODO: Send actual SMS using Twilio/MSG91/etc.
-    // For now, log the OTP (development mode)
-    this.logger.warn(`[DEV MODE] OTP for ${phone}: ${otp}`);
+    // Send SMS via Twilio or log in dev mode
+    await this.sendSms(phone, `Your Overline verification code is: ${otp}. Valid for ${OTP_CONFIG.EXPIRY_MINUTES} minutes.`);
 
-    // In production, integrate with SMS provider:
-    // await this.sendSms(phone, `Your Overline verification code is: ${otp}`);
-
-    return {
+    const response: { message: string; expiresAt: Date; devOtp?: string } = {
       message: `OTP sent to ${phone}`,
       expiresAt,
     };
+
+    // In development mode, include OTP in response for testing
+    if (process.env.NODE_ENV === 'development') {
+      response.devOtp = otp;
+      this.logger.warn(`[DEV] OTP for ${phone}: ${otp} (included in API response)`);
+    }
+
+    return response;
   }
 
   /**
@@ -212,5 +229,38 @@ export class OtpService {
       return `+${cleaned}`;
     }
     return phone;
+  }
+
+  /**
+   * Send SMS via Twilio
+   */
+  private async sendSms(phone: string, message: string): Promise<void> {
+    // Always log OTP in development for testing
+    if (process.env.NODE_ENV === 'development' || !this.twilioClient) {
+      this.logger.warn(`[DEV MODE] SMS to ${phone}: ${message}`);
+    }
+
+    // Send actual SMS if Twilio is configured
+    if (this.twilioClient) {
+      try {
+        const twilioPhone = this.configService.get<string>('TWILIO_PHONE_NUMBER');
+        if (!twilioPhone) {
+          this.logger.error('TWILIO_PHONE_NUMBER not configured');
+          return;
+        }
+
+        const result = await this.twilioClient.messages.create({
+          body: message,
+          from: twilioPhone,
+          to: phone,
+        });
+
+        this.logger.log(`SMS sent successfully. SID: ${result.sid}`);
+      } catch (error: any) {
+        this.logger.error(`Failed to send SMS: ${error.message}`);
+        // Don't throw - allow OTP flow to continue even if SMS fails
+        // The OTP is still stored and can be used for testing
+      }
+    }
   }
 }

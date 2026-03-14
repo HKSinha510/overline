@@ -405,12 +405,14 @@ export class FraudDetectionService {
     const key = `fraud:device:${userId}`;
 
     // Check if this fingerprint is known for this user
-    const knownDevices = await this.redis.client.smembers(key);
+    const knownDevices = this.redis.client ? await this.redis.client.smembers(key) : [];
 
     if (!knownDevices.includes(fingerprint)) {
       // New device detected - add it
-      await this.redis.client.sadd(key, fingerprint);
-      await this.redis.client.expire(key, 86400 * 30); // 30 days
+      if (this.redis.client) {
+        await this.redis.client.sadd(key, fingerprint);
+        await this.redis.client.expire(key, 86400 * 30); // 30 days
+      }
 
       // If user has many devices, it's less suspicious
       if (knownDevices.length === 0) {
@@ -485,7 +487,7 @@ export class FraudDetectionService {
    */
   private async checkFailedLoginHistory(email: string): Promise<number> {
     const key = `fraud:failed:${email}`;
-    const count = await this.redis.client.get(key);
+    const count = this.redis.client ? await this.redis.client.get(key) : null;
     const failedCount = parseInt(count || '0', 10);
 
     if (failedCount >= 5) return this.LOGIN_WEIGHTS.failedHistory;
@@ -506,7 +508,9 @@ export class FraudDetectionService {
    */
   async clearFailedLogins(email: string): Promise<void> {
     const key = `fraud:failed:${email}`;
-    await this.redis.client.del(key);
+    if (this.redis.client) {
+      await this.redis.client.del(key);
+    }
   }
 
   /**
@@ -514,13 +518,14 @@ export class FraudDetectionService {
    * Maintains internal blocklist and tracks suspicious IPs
    */
   private async checkIPReputation(ip: string): Promise<number> {
+    if (!this.redis.client) return 0;
     // Check internal blocklist
     const blocked = await this.redis.client.sismember('fraud:blocklist:ips', ip);
     if (blocked) return 30; // High score for known bad IPs
 
     // Check recent suspicious activity from this IP
     const activityKey = `fraud:ip:activity:${ip}`;
-    const suspiciousCount = await this.redis.client.get(activityKey);
+    const suspiciousCount = this.redis.client ? await this.redis.client.get(activityKey) : null;
     const count = parseInt(suspiciousCount || '0', 10);
 
     if (count >= 10) return 25;
@@ -537,10 +542,12 @@ export class FraudDetectionService {
     await this.redis.increment(activityKey, 86400); // 24 hour window
 
     // Auto-block if too many incidents
-    const count = await this.redis.client.get(activityKey);
+    const count = this.redis.client ? await this.redis.client.get(activityKey) : null;
     if (parseInt(count || '0', 10) >= 20) {
-      await this.redis.client.sadd('fraud:blocklist:ips', ip);
-      await this.redis.client.expire('fraud:blocklist:ips', 86400 * 7); // 7 day block
+      if (this.redis.client) {
+        await this.redis.client.sadd('fraud:blocklist:ips', ip);
+        await this.redis.client.expire('fraud:blocklist:ips', 86400 * 7); // 7 day block
+      }
       this.logger.warn(`Auto-blocked IP ${ip} due to excessive suspicious activity`);
     }
   }
@@ -888,7 +895,7 @@ export class FraudDetectionService {
     recentIncidents: number;
     highRiskUsers: number;
   }> {
-    const blockedIPs = await this.redis.client.scard('fraud:blocklist:ips');
+    const blockedIPs = this.redis.client ? await this.redis.client.scard('fraud:blocklist:ips') : 0;
 
     // Count high risk users
     const highRiskUsers = await this.prisma.user.count({

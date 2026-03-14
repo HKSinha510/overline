@@ -135,35 +135,56 @@ export class ShopsService {
     };
   }
 
-  async findBySlug(slug: string) {
-    const shop = await this.prisma.shop.findUnique({
-      where: { slug },
-      include: {
-        tenant: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
-          },
-        },
-        services: {
-          where: { isActive: true },
-          orderBy: { sortOrder: 'asc' },
-        },
-        staff: {
-          where: { isActive: true },
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-            role: true,
-          },
-        },
-        workingHours: {
-          orderBy: { dayOfWeek: 'asc' },
+  /**
+   * Find shop by slug or ID (supports both for mobile app compatibility)
+   */
+  async findBySlug(slugOrId: string) {
+    // Check if the parameter is a UUID (ID) or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+
+    const includeConfig = {
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
         },
       },
-    });
+      services: {
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' } as const,
+      },
+      staff: {
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          avatarUrl: true,
+          role: true,
+        },
+      },
+      workingHours: {
+        orderBy: { dayOfWeek: 'asc' } as const,
+      },
+    };
+
+    let shop = null;
+
+    if (isUuid) {
+      // Try to find by ID first
+      shop = await this.prisma.shop.findUnique({
+        where: { id: slugOrId },
+        include: includeConfig,
+      });
+    }
+
+    // If not found by ID, try by slug
+    if (!shop) {
+      shop = await this.prisma.shop.findUnique({
+        where: { slug: slugOrId },
+        include: includeConfig,
+      });
+    }
 
     if (!shop) {
       throw new NotFoundException('Shop not found');

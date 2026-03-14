@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
-import { WalletTransactionType, Prisma } from '@prisma/client';
+import { WalletTransactionType, Prisma, Wallet } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 // Free cash configuration
@@ -17,9 +17,9 @@ export class WalletService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Get or create wallet for a user
+   * Get or create wallet for a user (internal use)
    */
-  async getOrCreateWallet(userId: string) {
+  private async getOrCreateWalletInternal(userId: string) {
     let wallet = await this.prisma.wallet.findUnique({
       where: { userId },
       include: {
@@ -52,21 +52,73 @@ export class WalletService {
   }
 
   /**
+   * Get or create wallet for a user (public API - mobile-compatible format)
+   */
+  async getOrCreateWallet(userId: string) {
+    const wallet = await this.getOrCreateWalletInternal(userId);
+    
+    // Transform to mobile-app compatible format
+    return {
+      id: wallet.id,
+      balance: wallet.freeCashBalance.toNumber(), // Free cash is the main balance shown to users
+      totalEarned: wallet.totalEarned.toNumber(),
+      totalSpent: wallet.totalSpent.toNumber(),
+      freeCashBalance: wallet.freeCashBalance.toNumber(),
+      lockedAmount: wallet.lockedAmount.toNumber(),
+      transactions: wallet.transactions.map((t) => ({
+        id: t.id,
+        type: this.mapTransactionType(t.type),
+        amount: t.amount.toNumber(),
+        description: t.description || this.getTransactionDescription(t.type),
+        createdAt: t.createdAt.toISOString(),
+      })),
+    };
+  }
+
+  /**
+   * Map internal transaction types to mobile-friendly types
+   */
+  private mapTransactionType(type: WalletTransactionType): string {
+    const mapping: Record<WalletTransactionType, string> = {
+      FREE_CASH_CREDIT: 'EARNED',
+      FREE_CASH_DEBIT: 'SPENT',
+      FREE_CASH_RETURN: 'EARNED',
+      REFUND: 'EARNED',
+      REWARD: 'EARNED',
+      ADMIN_CREDIT: 'EARNED',
+      ADMIN_DEBIT: 'SPENT',
+    };
+    return mapping[type] || 'EARNED';
+  }
+
+  /**
+   * Get default description for transaction type
+   */
+  private getTransactionDescription(type: WalletTransactionType): string {
+    const descriptions: Record<WalletTransactionType, string> = {
+      FREE_CASH_CREDIT: 'Free cash earned',
+      FREE_CASH_DEBIT: 'Free cash used',
+      FREE_CASH_RETURN: 'Free cash returned',
+      REFUND: 'Refund credited',
+      REWARD: 'Reward earned',
+      ADMIN_CREDIT: 'Credit from admin',
+      ADMIN_DEBIT: 'Debit by admin',
+    };
+    return descriptions[type] || 'Transaction';
+  }
+
+  /**
    * Get wallet balance for a user
    */
   async getWalletBalance(userId: string) {
-    const wallet = await this.getOrCreateWallet(userId);
+    const wallet = await this.getOrCreateWalletInternal(userId);
     return {
-      balance: wallet.balance,
-      freeCashBalance: wallet.freeCashBalance,
-      lockedAmount: wallet.lockedAmount,
-      totalAvailable: new Decimal(
-        wallet.balance.toNumber() +
-          wallet.freeCashBalance.toNumber() -
-          wallet.lockedAmount.toNumber(),
-      ),
-      totalEarned: wallet.totalEarned,
-      totalSpent: wallet.totalSpent,
+      balance: wallet.balance.toNumber(),
+      freeCashBalance: wallet.freeCashBalance.toNumber(),
+      lockedAmount: wallet.lockedAmount.toNumber(),
+      totalAvailable: wallet.balance.toNumber() + wallet.freeCashBalance.toNumber() - wallet.lockedAmount.toNumber(),
+      totalEarned: wallet.totalEarned.toNumber(),
+      totalSpent: wallet.totalSpent.toNumber(),
     };
   }
 
@@ -82,7 +134,7 @@ export class WalletService {
    * Credit free cash to user's wallet (when they complete a service)
    */
   async creditFreeCash(userId: string, amount: number, bookingId: string, description?: string) {
-    const wallet = await this.getOrCreateWallet(userId);
+    const wallet = await this.getOrCreateWalletInternal(userId);
     const previousBalance = wallet.freeCashBalance;
     const newBalance = new Decimal(previousBalance.toNumber() + amount);
 
@@ -115,7 +167,7 @@ export class WalletService {
    * Debit free cash from wallet (when booking is made)
    */
   async debitFreeCash(userId: string, amount: number, bookingId: string, description?: string) {
-    const wallet = await this.getOrCreateWallet(userId);
+    const wallet = await this.getOrCreateWalletInternal(userId);
 
     if (wallet.freeCashBalance.toNumber() < amount) {
       throw new BadRequestException('Insufficient free cash balance');
@@ -164,7 +216,7 @@ export class WalletService {
       return null;
     }
 
-    const wallet = await this.getOrCreateWallet(userId);
+    const wallet = await this.getOrCreateWalletInternal(userId);
     const previousBalance = wallet.freeCashBalance;
     const newBalance = new Decimal(previousBalance.toNumber() + amount);
 
@@ -196,7 +248,7 @@ export class WalletService {
    * Process refund for prepaid bookings
    */
   async processRefund(userId: string, amount: number, bookingId: string, description?: string) {
-    const wallet = await this.getOrCreateWallet(userId);
+    const wallet = await this.getOrCreateWalletInternal(userId);
     const previousBalance = wallet.balance;
     const newBalance = new Decimal(previousBalance.toNumber() + amount);
 
@@ -228,7 +280,7 @@ export class WalletService {
    * Credit reward for completing a service
    */
   async creditReward(userId: string, amount: number, bookingId: string, description?: string) {
-    const wallet = await this.getOrCreateWallet(userId);
+    const wallet = await this.getOrCreateWalletInternal(userId);
     const previousBalance = wallet.freeCashBalance;
     const newBalance = new Decimal(previousBalance.toNumber() + amount);
 
@@ -268,7 +320,7 @@ export class WalletService {
       type?: WalletTransactionType;
     } = {},
   ) {
-    const wallet = await this.getOrCreateWallet(userId);
+    const wallet = await this.getOrCreateWalletInternal(userId);
     const { take = 20, skip = 0, type } = options;
 
     const where: Prisma.WalletTransactionWhereInput = {
