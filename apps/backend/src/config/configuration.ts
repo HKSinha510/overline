@@ -4,7 +4,12 @@ export default () => ({
   environment: process.env.NODE_ENV || 'development',
 
   database: {
-    url: process.env.DATABASE_URL,
+    url:
+      process.env.DATABASE_URL ||
+      process.env.DATABASE_PRIVATE_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.POSTGRESQL_URL ||
+      process.env.PG_URL,
   },
 
   redis: {
