@@ -41,13 +41,21 @@ export class SlotEngineService {
     }
 
     // Get shop details
+    // Use local-noon to avoid UTC midnight shifting the date to the previous day
+    // in negative-offset timezones (e.g. PST/EST).
+    const [y, m, d] = date.split('-').map(Number);
+    const localNoon = new Date(y, m - 1, d, 12, 0, 0);
+    const localDateStart = new Date(y, m - 1, d, 0, 0, 0);
+    const localDateEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
+
     const shop = await this.prisma.shop.findUnique({
       where: { id: shopId },
       include: {
         workingHours: true,
         specialSchedules: {
           where: {
-            date: new Date(date),
+            // Use local midnight boundaries so the date lookup matches regardless of server TZ
+            date: { gte: localDateStart, lte: localDateEnd },
           },
         },
       },
@@ -77,7 +85,9 @@ export class SlotEngineService {
     }
 
     // Get working hours for the day
-    const dayOfWeek = this.getDayOfWeek(new Date(date));
+    // Use localNoon (local time) — date-only strings like '2026-03-16' parse as UTC
+    // midnight, which shifts to the previous calendar day in US timezones.
+    const dayOfWeek = this.getDayOfWeek(localNoon);
     const workingHour = shop.workingHours.find((wh) => wh.dayOfWeek === dayOfWeek);
     const specialSchedule = shop.specialSchedules[0];
 
@@ -92,8 +102,8 @@ export class SlotEngineService {
     const breakWindows = (workingHour.breakWindows as any[]) || [];
 
     // Get existing bookings for the date
-    const dateStart = new Date(`${date}T00:00:00`);
-    const dateEnd = new Date(`${date}T23:59:59`);
+    const dateStart = localDateStart;
+    const dateEnd = localDateEnd;
 
     const existingBookings = await this.prisma.booking.findMany({
       where: {
@@ -120,8 +130,12 @@ export class SlotEngineService {
       shop.maxConcurrentBookings,
     );
 
-    // Cache the result for 5 minutes
-    await this.redis.cacheSlots(cacheKey, date, JSON.stringify(slots) as any);
+    // Cache the result for 5 minutes — only cache non-empty results so that
+    // a transient [] (e.g. queried before working hours were set up) is never
+    // stored as a permanent stale response.
+    if (slots.length > 0) {
+      await this.redis.cacheSlots(cacheKey, date, JSON.stringify(slots) as any);
+    }
 
     return slots;
   }
@@ -146,7 +160,11 @@ export class SlotEngineService {
     const endMinutes = closeHour * 60 + closeMin;
 
     const now = new Date();
-    const isToday = date === now.toISOString().split('T')[0];
+    // Build local YYYY-MM-DD string instead of using toISOString() which is always
+    // UTC and produces the wrong date in UTC+ timezones late in the day.
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const localToday = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const isToday = date === localToday;
     const currentMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
 
     // Generate slots at regular intervals

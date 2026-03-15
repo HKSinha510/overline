@@ -3,11 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import DeviceInfo from '../utils/deviceInfo';
 
-// Base URL configuration
+// Backend URL configuration
+// Android emulator reaches host via 10.0.2.2; iOS simulator uses localhost.
 const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+const PROD_URL = 'https://overline-backend-production.up.railway.app/api/v1';
 const BASE_URL = __DEV__
   ? `http://${DEV_HOST}:3001/api/v1`
-  : 'https://overline-backend.up.railway.app/api/v1';
+  : PROD_URL;
 
 // Create axios instance
 export const apiClient = axios.create({

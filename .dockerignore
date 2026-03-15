@@ -42,6 +42,12 @@ prisma/migrations/*.sql.bak
 # Docker
 docker-compose.override.yml
 
+# Mobile apps (not needed for backend/web Docker builds)
+apps/mobile-user
+apps/mobile-admin
+*.apk
+build-outputs
+
 # Misc
 *.tsbuildinfo
 .cache
@@ -55,6 +61,8 @@ scripts
 BRANDING.md
 DEPLOYMENT.md
 README.md
+IMPLEMENTATION_COMPLETE.md
 .prettierrc
 .gitignore
 rimraf
+package-lock.json
