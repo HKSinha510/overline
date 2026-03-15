@@ -23,7 +23,7 @@ RUN npx prisma generate
 RUN NODE_OPTIONS='--max-old-space-size=2048' pnpm build
 
 # Verify build output exists
-RUN ls -la dist/src/main.js
+RUN ls -la dist/main.js
 
 # Stage 2: Production
 FROM node:20-alpine
@@ -40,4 +40,4 @@ WORKDIR /app/apps/backend
 ENV NODE_ENV=production
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node -r tsconfig-paths/register dist/main.js"]

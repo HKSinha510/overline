@@ -88,7 +88,9 @@ export class AdminService {
   ) {
     await this.verifyShopAccess(shopId, tenantId);
 
-    const { date, status, page = 1, limit = 50 } = options;
+    const { date, status } = options;
+    const page = Number(options.page) || 1;
+    const limit = Number(options.limit) || 50;
     const skip = (page - 1) * limit;
 
     const where: any = { shopId };
