@@ -12,10 +12,13 @@ import { Platform } from 'react-native';
 const isDev = __DEV__;
 
 // Backend URL configuration
-// Android emulator uses 10.0.2.2 to reach host machine.
-// iOS simulator uses localhost.
-const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const PROD_URL = 'https://overline-backend-production.up.railway.app';
+// For local dev on device: set DEV_HOST to your computer's LAN IP
+// For emulators/simulators: defaults to 10.0.2.2 (Android) or localhost (iOS)
+// For production: the Railway URL is used automatically
+const DEV_HOST =
+  process.env.DEV_HOST ||
+  (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
+const PROD_URL = 'https://overlinebackend-production.up.railway.app';
 
 const API_BASE = __DEV__
   ? `http://${DEV_HOST}:3001/api/v1`

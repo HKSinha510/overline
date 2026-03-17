@@ -1,15 +1,38 @@
+const resolveDatabaseUrl = (): string | undefined => {
+  const directUrl =
+    process.env.DATABASE_URL ||
+    process.env.DATABASE_PRIVATE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRESQL_URL ||
+    process.env.PG_URL;
+
+  if (directUrl) {
+    return directUrl;
+  }
+
+  const host = process.env.PGHOST;
+  const port = process.env.PGPORT || '5432';
+  const user = process.env.PGUSER;
+  const password = process.env.PGPASSWORD;
+  const database = process.env.PGDATABASE;
+
+  if (host && user && password && database) {
+    const encodedUser = encodeURIComponent(user);
+    const encodedPassword = encodeURIComponent(password);
+    const encodedDatabase = encodeURIComponent(database);
+    return `postgresql://${encodedUser}:${encodedPassword}@${host}:${port}/${encodedDatabase}?schema=public`;
+  }
+
+  return undefined;
+};
+
 export default () => ({
   port: parseInt(process.env.PORT || '3001', 10),
   apiPrefix: process.env.API_PREFIX || 'api/v1',
   environment: process.env.NODE_ENV || 'development',
 
   database: {
-    url:
-      process.env.DATABASE_URL ||
-      process.env.DATABASE_PRIVATE_URL ||
-      process.env.POSTGRES_URL ||
-      process.env.POSTGRESQL_URL ||
-      process.env.PG_URL,
+    url: resolveDatabaseUrl(),
   },
 
   redis: {
