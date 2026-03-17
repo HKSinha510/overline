@@ -91,9 +91,10 @@ describe('Overline Features - Integration Tests', () => {
     it('should create or get wallet for user', async () => {
       const wallet = await walletService.getOrCreateWallet(testUserId);
       expect(wallet).toBeDefined();
-      expect(wallet.userId).toBe(testUserId);
-      expect(wallet.balance.toNumber()).toBe(0);
-      expect(wallet.freeCashBalance.toNumber()).toBe(0);
+      // Public API returns a DTO without userId and with numeric balances
+      expect(wallet.id).toBeDefined();
+      expect(wallet.balance).toBe(0);
+      expect(wallet.freeCashBalance).toBe(0);
     });
 
     it('should calculate free cash amount within range', async () => {
@@ -571,7 +572,7 @@ describe('Overline Features - Integration Tests', () => {
       }
 
       const balance = await walletService.getWalletBalance(testUserId);
-      expect(balance.freeCashBalance.toNumber()).toBe(freeCashPerBooking * numBookings);
+      expect(balance.freeCashBalance).toBe(freeCashPerBooking * numBookings);
     });
 
     it('should track free cash lifecycle', async () => {
@@ -591,7 +592,7 @@ describe('Overline Features - Integration Tests', () => {
       );
 
       const balance = await walletService.getWalletBalance(testUserId);
-      expect(balance.freeCashBalance.toNumber()).toBe(25);
+      expect(balance.freeCashBalance).toBe(25);
     });
   });
 });
