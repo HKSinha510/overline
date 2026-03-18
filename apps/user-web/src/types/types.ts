@@ -226,5 +226,36 @@ export interface PaginatedResponse<T> {
 export interface ApiError {
   statusCode: number;
   message: string;
+
+  // ============================================================================
+// Wallet Types
+// ============================================================================
+
+export interface WalletTransaction {
+  id: string;
+  type: 'EARNED' | 'SPENT' | 'EXPIRED' | 'REFERRAL';
+  amount: number;
+  description: string;
+  createdAt: string;
+}
+
+export interface WalletData {
+  id: string;
+  balance: number;
+  totalEarned: number;
+  totalSpent: number;
+  freeCashBalance: number;
+  lockedAmount: number;
+  transactions: WalletTransaction[];
+}
+
+export interface WalletBalance {
+  balance: number;
+  freeCashBalance: number;
+  lockedAmount: number;
+  totalAvailable: number;
+  totalEarned: number;
+  totalSpent: number;
+}
   error?: string;
 }
