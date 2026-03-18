@@ -12,6 +12,7 @@ import {
   Settings,
   Camera,
   Calendar,
+    Wallet,
   Lock,
   Loader2,
 } from 'lucide-react';
@@ -154,6 +155,7 @@ export default function ProfilePage() {
     { icon: Calendar, label: 'My Bookings', href: '/bookings' },
     { icon: Bell, label: 'Notifications', href: '/profile/notifications' },
     { icon: Settings, label: 'Settings', href: '/profile/settings' },
+      { icon: Wallet, label: 'Wallet', href: '/wallet' },
   ];
 
   return (
