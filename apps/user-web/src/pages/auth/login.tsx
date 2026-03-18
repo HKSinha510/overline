@@ -164,7 +164,7 @@ export default function LoginPage() {
               </a>
             </div>
 
-            <Button type="submit" loading={isSubmitting}>
+            <Button type="submit" isLoading={isSubmitting}>
               Sign In
             </Button>
           </form>
