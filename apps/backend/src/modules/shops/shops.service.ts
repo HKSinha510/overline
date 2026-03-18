@@ -15,41 +15,62 @@ export class ShopsService {
     const { query, city, type, latitude, longitude, radiusKm = 10, page = 1, limit = 20 } = dto;
 
     const skip = (page - 1) * limit;
-    const where: Prisma.ShopWhereInput = {
-      isActive: true,
-    };
+    const where: Prisma.ShopWhereInput = { isActive: true };
+    const andFilters: Prisma.ShopWhereInput[] = [];
 
     // Text search
     if (query) {
-      where.OR = [
+      andFilters.push({
+        OR: [
         { name: { contains: query, mode: 'insensitive' } },
         { description: { contains: query, mode: 'insensitive' } },
         { address: { contains: query, mode: 'insensitive' } },
-      ];
+        ],
+      });
     }
 
     // City filter
     if (city) {
-      where.city = { equals: city, mode: 'insensitive' };
+      andFilters.push({ city: { equals: city, mode: 'insensitive' } });
     }
 
     // Type filter (tenant type)
     if (type) {
-      where.tenant = { type };
+      andFilters.push({ tenant: { type } });
     }
 
-    // If we have coordinates, apply bounding box filter for performance
+    // If location is provided, keep geo-filtered shops and include shops that do not
+    // have coordinates yet so newly created admin shops are still discoverable.
     if (latitude && longitude) {
       const latDelta = radiusKm / 111.32;
       const lngDelta = radiusKm / (111.32 * Math.cos((latitude * Math.PI) / 180));
-      where.latitude = {
-        gte: latitude - latDelta,
-        lte: latitude + latDelta,
-      };
-      where.longitude = {
-        gte: longitude - lngDelta,
-        lte: longitude + lngDelta,
-      };
+
+      andFilters.push({
+        OR: [
+          {
+            AND: [
+              {
+                latitude: {
+                  gte: latitude - latDelta,
+                  lte: latitude + latDelta,
+                },
+              },
+              {
+                longitude: {
+                  gte: longitude - lngDelta,
+                  lte: longitude + lngDelta,
+                },
+              },
+            ],
+          },
+          { latitude: null },
+          { longitude: null },
+        ],
+      });
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
     }
 
     const orderBy: Prisma.ShopOrderByWithRelationInput = { name: 'asc' };
