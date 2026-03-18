@@ -105,7 +105,7 @@ export class UsersService {
       throw new BadRequestException('User does not have a phone number set');
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = '123456'; // Testing override
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await (this.prisma.user as any).update({

@@ -21,23 +21,39 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
 export default function RegisterScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { signup, isLoading, error, clearError } = useAuthStore();
+  const { signup, sendOtp, isLoading, error, clearError } = useAuthStore();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
 
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !phone.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
+
+    // Normalize phone to +91 format
+    const cleaned = phone.replace(/\s+/g, '').replace(/^0+/, '');
+    const normalized = cleaned.startsWith('+91')
+      ? cleaned
+      : cleaned.startsWith('91') && cleaned.length > 10
+      ? `+${cleaned}`
+      : `+91${cleaned}`;
+
+    setIsSendingOtp(true);
     try {
-      await signup({ name: name.trim(), email: email.trim(), password, phone: phone.trim() });
+      await signup({ name: name.trim(), email: email.trim(), password, phone: normalized });
+      // Send OTP to verify the registered phone number
+      await sendOtp(normalized);
+      navigation.navigate('OtpVerify', { phone: normalized });
     } catch {
       // Error handled in store
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
@@ -135,12 +151,25 @@ export default function RegisterScreen() {
             </Text>
 
             <PrimaryButton
-              title="Create Account"
+              title={isSendingOtp ? 'Creating Account...' : 'Create Account'}
               onPress={handleRegister}
-              loading={isLoading}
+              loading={isLoading || isSendingOtp}
               icon="✦"
               style={{ marginTop: Spacing.lg }}
             />
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or sign up with</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign-Up */}
+            <TouchableOpacity style={styles.googleButton}>
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleText}>Sign up with Google</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Footer */}
@@ -256,6 +285,44 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: FontWeights.medium,
   },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing['2xl'],
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.border,
+  },
+  dividerText: {
+    fontSize: FontSizes.xs,
+    color: Colors.textTertiary,
+    marginHorizontal: Spacing.lg,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  googleIcon: {
+    fontSize: 18,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+  },
+  googleText: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.medium,
+    color: Colors.textSecondary,
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -271,3 +338,4 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
   },
 });
+

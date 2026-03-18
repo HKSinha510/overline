@@ -8,6 +8,7 @@ import { Layout } from '@/components/layout';
 import { ToastProvider } from '@/components/ui';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { SmoothScrollProvider } from '@/components/layout/SmoothScrollProvider';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -23,7 +24,9 @@ export default function App({ Component, pageProps }: AppProps) {
           <div className={`${outfit.variable} font-sans`}>
             <ToastProvider>
               <Layout>
-                <Component {...pageProps} />
+                <AuthGuard>
+                  <Component {...pageProps} />
+                </AuthGuard>
               </Layout>
             </ToastProvider>
           </div>

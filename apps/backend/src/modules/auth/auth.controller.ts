@@ -82,9 +82,8 @@ export class AuthController {
       return res.redirect('/auth/login?error=google_not_configured');
     }
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
-    const redirectUri = `${protocol}://${host}/api/v1/auth/google/callback`;
+    const backendUrl = this.configService.get<string>('backendUrl') || 'http://localhost:3001';
+    const redirectUri = `${backendUrl}/api/v1/auth/google/callback`;
     const state = from || 'user';
 
     const params = new URLSearchParams({
@@ -129,9 +128,8 @@ export class AuthController {
         return res.redirect(`${frontendUrl}${loginPath}?error=google_not_configured`);
       }
 
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-      const host = req.headers['x-forwarded-host'] || req.headers.host;
-      const redirectUri = `${protocol}://${host}/api/v1/auth/google/callback`;
+      const backendUrl = this.configService.get<string>('backendUrl') || 'http://localhost:3001';
+      const redirectUri = `${backendUrl}/api/v1/auth/google/callback`;
 
       // Exchange code for tokens
       const tokenParams = new URLSearchParams();

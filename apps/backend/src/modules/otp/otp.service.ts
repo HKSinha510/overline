@@ -3,13 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { RedisService } from '@/common/redis/redis.service';
 import { AuthService, TokenResponse } from '../auth/auth.service';
-import { Twilio } from 'twilio';
 
 export const OTP_CONFIG = {
-  LENGTH: 6, // 6-digit OTP
-  EXPIRY_MINUTES: 10, // OTP expires in 10 minutes
-  MAX_ATTEMPTS: 3, // Max verification attempts
-  RESEND_COOLDOWN_SECONDS: 60, // Cooldown before resending OTP
+  LENGTH: 6,
+  EXPIRY_MINUTES: 10,
+  MAX_ATTEMPTS: 3,
+  RESEND_COOLDOWN_SECONDS: 60,
 };
 
 export type OtpPurpose = 'LOGIN' | 'REGISTER' | 'VERIFY_PHONE';
@@ -17,7 +16,6 @@ export type OtpPurpose = 'LOGIN' | 'REGISTER' | 'VERIFY_PHONE';
 @Injectable()
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
-  private twilioClient: Twilio | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -26,103 +24,68 @@ export class OtpService {
     @Inject(forwardRef(() => AuthService))
     private authService: AuthService,
   ) {
-    // Initialize Twilio client if credentials are provided
-    const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
-    const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
-
-    if (accountSid && authToken && accountSid !== 'ACxxx') {
-      this.twilioClient = new Twilio(accountSid, authToken);
-      this.logger.log('Twilio SMS client initialized');
-    } else {
-      this.logger.warn('Twilio credentials not configured - SMS will be logged only');
-    }
+    this.logger.warn('[OTP] No SMS provider configured. Fixed OTP "123456" will be used for all requests.');
   }
 
   /**
-   * Generate a random OTP
+   * Fixed OTP for development/testing.
+   * TODO: Integrate an SMS provider (e.g. MSG91, AWS SNS) before going to production.
    */
   private generateOtp(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return '123456';
   }
 
-  /**
-   * Send OTP to phone number
-   */
-  async sendOtp(phone: string, purpose: OtpPurpose): Promise<{ message: string; expiresAt: Date; devOtp?: string }> {
-    // Validate phone format (Indian format)
+  /** Send OTP to a phone number */
+  async sendOtp(
+    phone: string,
+    purpose: OtpPurpose,
+  ): Promise<{ message: string; expiresAt: Date; devOtp: string }> {
     if (!this.isValidIndianPhone(phone)) {
       throw new BadRequestException('Invalid phone number format. Use +91XXXXXXXXXX');
     }
 
-    // Check cooldown
+    // Enforce resend cooldown
     const cooldownKey = `otp:cooldown:${phone}`;
     const isInCooldown = await this.redis.get(cooldownKey);
     if (isInCooldown) {
-      const remainingSeconds = await this.redis.ttl(cooldownKey);
+      const remaining = await this.redis.ttl(cooldownKey);
       throw new BadRequestException(
-        `Please wait ${remainingSeconds} seconds before requesting another OTP`,
+        `Please wait ${remaining} seconds before requesting another OTP`,
       );
     }
 
-    // Generate OTP
     const otp = this.generateOtp();
     const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRY_MINUTES * 60 * 1000);
 
-    // Invalidate previous OTPs for this phone
+    // Expire any previous active OTPs for this phone
     await this.prisma.otpVerification.updateMany({
-      where: {
-        phone,
-        isVerified: false,
-        expiresAt: { gt: new Date() },
-      },
-      data: { expiresAt: new Date() }, // Expire immediately
+      where: { phone, isVerified: false, expiresAt: { gt: new Date() } },
+      data: { expiresAt: new Date() },
     });
 
-    // Create new OTP record
     await this.prisma.otpVerification.create({
-      data: {
-        phone,
-        otp,
-        purpose,
-        expiresAt,
-      },
+      data: { phone, otp, purpose, expiresAt },
     });
 
-    // Set cooldown
     await this.redis.set(cooldownKey, 'active', OTP_CONFIG.RESEND_COOLDOWN_SECONDS);
 
-    // Send SMS via Twilio or log in dev mode
-    await this.sendSms(phone, `Your Overline verification code is: ${otp}. Valid for ${OTP_CONFIG.EXPIRY_MINUTES} minutes.`);
+    this.logger.warn(`[OTP] ${phone} → ${otp} (purpose: ${purpose})`);
 
-    const response: { message: string; expiresAt: Date; devOtp?: string } = {
+    return {
       message: `OTP sent to ${phone}`,
       expiresAt,
+      devOtp: otp, // Always returned until a real SMS provider is wired up
     };
-
-    // In development mode, include OTP in response for testing
-    if (process.env.NODE_ENV === 'development') {
-      response.devOtp = otp;
-      this.logger.warn(`[DEV] OTP for ${phone}: ${otp} (included in API response)`);
-    }
-
-    return response;
   }
 
-  /**
-   * Verify OTP
-   */
+  /** Verify OTP */
   async verifyOtp(
     phone: string,
     otp: string,
     purpose: OtpPurpose,
   ): Promise<{ verified: boolean; userId?: string }> {
     const verification = await this.prisma.otpVerification.findFirst({
-      where: {
-        phone,
-        purpose,
-        isVerified: false,
-        expiresAt: { gt: new Date() },
-      },
+      where: { phone, purpose, isVerified: false, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -136,28 +99,22 @@ export class OtpService {
       );
     }
 
-    // Increment attempts
     await this.prisma.otpVerification.update({
       where: { id: verification.id },
       data: { attempts: { increment: 1 } },
     });
 
     if (verification.otp !== otp) {
-      const remainingAttempts = OTP_CONFIG.MAX_ATTEMPTS - verification.attempts - 1;
-      throw new BadRequestException(`Invalid OTP. ${remainingAttempts} attempts remaining.`);
+      const remaining = OTP_CONFIG.MAX_ATTEMPTS - verification.attempts - 1;
+      throw new BadRequestException(`Invalid OTP. ${remaining} attempts remaining.`);
     }
 
-    // Mark as verified
     await this.prisma.otpVerification.update({
       where: { id: verification.id },
       data: { isVerified: true },
     });
 
-    // Update user's phone verification status if user exists
-    const user = await this.prisma.user.findUnique({
-      where: { phone },
-    });
-
+    const user = await this.prisma.user.findUnique({ where: { phone } });
     if (user) {
       await this.prisma.user.update({
         where: { id: user.id },
@@ -165,36 +122,22 @@ export class OtpService {
       });
     }
 
-    this.logger.log(`OTP verified for phone ${phone}, purpose: ${purpose}`);
-
-    return {
-      verified: true,
-      userId: user?.id,
-    };
+    this.logger.log(`OTP verified for ${phone}, purpose: ${purpose}`);
+    return { verified: true, userId: user?.id };
   }
 
-  /**
-   * Login with OTP — verifies OTP and returns JWT tokens
-   */
+  /** Verify OTP then issue JWT tokens (phone-OTP login flow) */
   async loginWithOtp(phone: string, otp: string): Promise<TokenResponse> {
     const result = await this.verifyOtp(phone, otp, 'LOGIN');
+    if (!result.verified) throw new BadRequestException('OTP verification failed');
 
-    if (!result.verified) {
-      throw new BadRequestException('OTP verification failed');
-    }
-
-    // Find or create user
-    let user = await this.prisma.user.findUnique({
-      where: { phone },
-    });
-
+    let user = await this.prisma.user.findUnique({ where: { phone } });
     if (!user) {
-      // Auto-create user for OTP login
       user = await this.prisma.user.create({
         data: {
           phone,
           name: `User ${phone.slice(-4)}`,
-          email: `${phone.slice(3)}@phone.overline.app`, // Placeholder email
+          email: `${phone.slice(3)}@phone.overline.app`,
           authProvider: 'phone',
           isPhoneVerified: true,
         },
@@ -202,65 +145,22 @@ export class OtpService {
       this.logger.log(`Created new user via OTP login: ${user.id}`);
     }
 
-    // Generate and return JWT tokens
     return this.authService.generateTokens(user);
   }
 
-  /**
-   * Validate Indian phone number format
-   */
+  /** Validate Indian phone number (+91XXXXXXXXXX / 91XXXXXXXXXX / 10 digits) */
   private isValidIndianPhone(phone: string): boolean {
-    // Accept formats: +91XXXXXXXXXX, 91XXXXXXXXXX, XXXXXXXXXX
     const cleaned = phone.replace(/\D/g, '');
     if (cleaned.length === 10) return true;
     if (cleaned.length === 12 && cleaned.startsWith('91')) return true;
     return false;
   }
 
-  /**
-   * Normalize phone number to +91 format
-   */
+  /** Normalize to +91XXXXXXXXXX */
   normalizePhone(phone: string): string {
     const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length === 10) {
-      return `+91${cleaned}`;
-    }
-    if (cleaned.length === 12 && cleaned.startsWith('91')) {
-      return `+${cleaned}`;
-    }
+    if (cleaned.length === 10) return `+91${cleaned}`;
+    if (cleaned.length === 12 && cleaned.startsWith('91')) return `+${cleaned}`;
     return phone;
-  }
-
-  /**
-   * Send SMS via Twilio
-   */
-  private async sendSms(phone: string, message: string): Promise<void> {
-    // Always log OTP in development for testing
-    if (process.env.NODE_ENV === 'development' || !this.twilioClient) {
-      this.logger.warn(`[DEV MODE] SMS to ${phone}: ${message}`);
-    }
-
-    // Send actual SMS if Twilio is configured
-    if (this.twilioClient) {
-      try {
-        const twilioPhone = this.configService.get<string>('TWILIO_PHONE_NUMBER');
-        if (!twilioPhone) {
-          this.logger.error('TWILIO_PHONE_NUMBER not configured');
-          return;
-        }
-
-        const result = await this.twilioClient.messages.create({
-          body: message,
-          from: twilioPhone,
-          to: phone,
-        });
-
-        this.logger.log(`SMS sent successfully. SID: ${result.sid}`);
-      } catch (error: any) {
-        this.logger.error(`Failed to send SMS: ${error.message}`);
-        // Don't throw - allow OTP flow to continue even if SMS fails
-        // The OTP is still stored and can be used for testing
-      }
-    }
   }
 }
