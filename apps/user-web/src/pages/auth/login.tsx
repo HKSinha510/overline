@@ -100,7 +100,7 @@ export default function LoginPage() {
 
           {/* Error Alert */}
           {(localError || error) && (
-            <Alert variant="destructive" className="mb-6">
+            <Alert variant="error" className="mb-6">
               {localError || error}
             </Alert>
           )}
