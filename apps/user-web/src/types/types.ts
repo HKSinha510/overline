@@ -226,6 +226,7 @@ export interface PaginatedResponse<T> {
 export interface ApiError {
   statusCode: number;
   message: string;
+  }
 
   // ============================================================================
 // Wallet Types
@@ -255,7 +256,6 @@ export interface WalletBalance {
   lockedAmount: number;
   totalAvailable: number;
   totalEarned: number;
-  totalSpent: number;
-}
-  error?: string;
+  
+  
 }
