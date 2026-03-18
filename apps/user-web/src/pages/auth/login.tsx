@@ -1,4 +1,4 @@
-import React from 'react';
+  import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -139,7 +139,7 @@ export default function LoginPage() {
                   message: 'Password must be at least 6 characters',
                 },
               })}
-              rightElement={
+              rightIcon={
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
