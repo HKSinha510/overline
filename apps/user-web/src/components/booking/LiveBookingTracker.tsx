@@ -44,7 +44,7 @@ export const LiveBookingTracker = ({ bookingId, shopId, startTime }: { bookingId
     useEffect(() => {
         if (!isActive) return;
 
-        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://127.0.0.1:3001';
         const skt = io(`${wsUrl}/queue`);
         setSocket(skt);
 

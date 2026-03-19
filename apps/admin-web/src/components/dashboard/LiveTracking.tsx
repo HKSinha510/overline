@@ -55,7 +55,7 @@ export const LiveTracking = ({ shopId }: { shopId: string }) => {
     // Handle WebSocket for live location & chat
     useEffect(() => {
         if (!selectedBooking) return;
-        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:3001';
         const skt = io(`${wsUrl}/queue`);
         setSocket(skt);
 

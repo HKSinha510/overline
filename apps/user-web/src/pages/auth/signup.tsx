@@ -14,7 +14,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || '
 interface SignupForm {
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
   password: string;
   confirmPassword: string;
 }
@@ -28,10 +28,6 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const [isOtpStep, setIsOtpStep] = React.useState(false);
-  const [otpCode, setOtpCode] = React.useState('');
-  const [isVerifying, setIsVerifying] = React.useState(false);
-
   const {
     register,
     handleSubmit,
@@ -41,126 +37,31 @@ export default function SignupPage() {
 
   const password = watch('password');
 
-  // Redirect if already authenticated and phone is verified or absent
+  // Redirect if authenticated. AuthGuard intercept unverified users.
   React.useEffect(() => {
     if (isAuthenticated) {
-      if (user?.phone && !user.isPhoneVerified) {
-        setIsOtpStep(true);
-      } else {
-        router.push((redirect as string) || '/');
-      }
+      router.push((redirect as string) || '/');
     }
-  }, [isAuthenticated, user, redirect, router]);
+  }, [isAuthenticated, redirect, router]);
 
   const onSubmit = async (data: SignupForm) => {
     setError(null);
     try {
-      const res = await signup.mutateAsync({
+      await signup.mutateAsync({
         name: data.name,
         email: data.email,
         password: data.password,
-        ...(data.phone && { phone: data.phone }),
+        phone: data.phone,
       });
 
-      // Show OTP form if phone is provided
-      if (data.phone && !res.user.isPhoneVerified) {
-        setIsOtpStep(true);
-      } else {
-        router.push((redirect as string) || '/');
-      }
+      // Let the global AuthGuard catch them and route to /auth/verify-phone
+      router.push((redirect as string) || '/');
     } catch (err: any) {
       setError(
         err.response?.data?.message || 'Failed to create account. Please try again.'
       );
     }
   };
-
-  const verifyOtp = async () => {
-    if (!otpCode || otpCode.length !== 6) {
-      setError('Please enter a valid 6-digit OTP code');
-      return;
-    }
-
-    setError(null);
-    setIsVerifying(true);
-
-    try {
-      await api.post('/users/me/otp/verify', { code: otpCode });
-      if (user) {
-        setUser({ ...user, isPhoneVerified: true });
-      }
-      router.push((redirect as string) || '/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid or expired OTP code');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const skipOtp = () => {
-    router.push((redirect as string) || '/');
-  };
-
-  if (isOtpStep) {
-    return (
-      <>
-        <Head>
-          <title>Verify Phone - Overline</title>
-        </Head>
-        <div className="min-h-[80vh] flex items-center justify-center py-12 px-4">
-          <Card variant="bordered" className="w-full max-w-md">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Phone className="w-8 h-8 text-primary-600" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">Verify your phone</h1>
-              <p className="text-gray-500 mt-2 text-sm leading-relaxed">
-                We've sent a 6-digit code to your phone number. <br />
-                Verifying your phone is required to book slots. (Check app logs for OTP)
-              </p>
-            </div>
-
-            {error && (
-              <Alert variant="error" className="mb-6">
-                {error}
-              </Alert>
-            )}
-
-            <div className="space-y-6">
-              <Input
-                label="OTP Code"
-                type="text"
-                placeholder="123456"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                maxLength={6}
-                className="text-center text-2xl tracking-widest font-bold"
-              />
-
-              <div className="flex flex-col gap-3">
-                <Button
-                  onClick={verifyOtp}
-                  className="w-full"
-                  size="lg"
-                  isLoading={isVerifying}
-                >
-                  Verify OTP
-                </Button>
-                <Button
-                  onClick={skipOtp}
-                  variant="outline"
-                  className="w-full"
-                  size="sm"
-                >
-                  Skip for now
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>
@@ -218,12 +119,18 @@ export default function SignupPage() {
             />
 
             <Input
-              label="Phone (Optional)"
+              label="Phone"
               type="tel"
               placeholder="+91 9876543210"
               leftIcon={<Phone className="w-5 h-5" />}
               error={errors.phone?.message}
-              {...register('phone')}
+              {...register('phone', {
+                required: 'Phone number is required',
+                pattern: {
+                  value: /^(\+91|91)?[6-9]\d{9}$/,
+                  message: 'Enter a valid Indian mobile number',
+                },
+              })}
             />
 
             <div className="relative">

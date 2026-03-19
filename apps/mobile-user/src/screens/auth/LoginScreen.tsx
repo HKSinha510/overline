@@ -24,7 +24,7 @@ export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { login, sendOtp, isLoading, error, clearError } = useAuthStore();
 
-  const [loginMode, setLoginMode] = useState<'email' | 'phone'>('phone');
+  const [loginMode, setLoginMode] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
