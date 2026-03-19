@@ -12,9 +12,15 @@ export class ShopsService {
   ) {}
 
   async search(dto: SearchShopsDto) {
-    const { query, city, type, latitude, longitude, radiusKm = 10, page = 1, limit = 20 } = dto;
+    const { query, city, type, page = 1, limit = 20 } = dto;
+    
+    // Explicitly cast coordinates intercepting from the URL so JS bounding box math
+    // doesn't accidentally do string-concatenation and crash the Prisma Driver
+    const latitude = dto.latitude !== undefined ? Number(dto.latitude) : undefined;
+    const longitude = dto.longitude !== undefined ? Number(dto.longitude) : undefined;
+    const radiusKm = dto.radiusKm !== undefined ? Number(dto.radiusKm) : 10;
 
-    const skip = (page - 1) * limit;
+    const skip = (Number(page) - 1) * Number(limit);
     const where: Prisma.ShopWhereInput = { isActive: true };
     const andFilters: Prisma.ShopWhereInput[] = [];
 

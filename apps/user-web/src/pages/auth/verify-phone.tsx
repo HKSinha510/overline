@@ -93,8 +93,6 @@ export default function VerifyPhonePage() {
               {isOtpSent
                 ? `We've sent a 6-digit code via SMS to ${phone}.`
                 : 'Phone verification is strictly required for communication and booking appointments.'}
-              <br />
-              <span className="font-semibold text-primary-600">Testing? Use code 123456</span>
             </p>
           </div>
 
@@ -127,7 +125,7 @@ export default function VerifyPhonePage() {
               <Input
                 label="OTP Code"
                 type="text"
-                placeholder="123456"
+                placeholder="000000"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
                 maxLength={6}

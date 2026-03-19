@@ -11,6 +11,7 @@ export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children })
 
   React.useEffect(() => {
     setMounted(true);
+    useAuthStore.getState().setLoading(false);
   }, []);
 
   React.useEffect(() => {
