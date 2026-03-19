@@ -1,3 +1,4 @@
 {
-  "installCommand": "pnpm install -w"
+  "installCommand": "pnpm install --filter @overline/user-web --filter @overline/shared",
+  "buildCommand": "pnpm --filter @overline/user-web build"
 }
