@@ -1,3 +1,3 @@
-vercel.json{
+{
   "installCommand": "pnpm install -w"
 }
