@@ -120,7 +120,12 @@ export class ShopsService {
     // Enhance with queue stats from Redis and calculate distance
     const shopsWithQueue = await Promise.all(
       shops.map(async (shop) => {
-        const queueStats = await this.redis.getShopQueueStats(shop.id);
+        let queueStats = null;
+        try {
+          queueStats = await this.redis.getShopQueueStats(shop.id);
+        } catch {
+          // Redis unavailable — degrade gracefully rather than returning 500
+        }
         const distance =
           latitude && longitude && shop.latitude && shop.longitude
             ? this.calculateDistance(

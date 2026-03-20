@@ -55,31 +55,24 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        name: dto.name,
-        phone: dto.phone,
-        avatarUrl: dto.avatarUrl,
-        email: dto.email,
-        gender: dto.gender,
-        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        avatarUrl: true,
-        role: true,
-        gender: true,
-        dateOfBirth: true,
-        tenantId: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
-        createdAt: true,
-      },
-    });
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: dto.name,
+          phone: dto.phone,
+          avatarUrl: dto.avatarUrl,
+          email: dto.email,
+          gender: dto.gender,
+          dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002' && error.meta?.target?.includes('phone')) {
+        throw new BadRequestException('This phone number is already registered to another account.');
+      }
+      throw error;
+    }
   }
 
   async getNotifications(userId: string, page = 1, limit = 20) {
